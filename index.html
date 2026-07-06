@@ -98,6 +98,43 @@
             font-weight: bold;
             text-shadow: 0 0 5px #00ffff;
         }
+
+        #teleporter-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .modal-content {
+            background: #111;
+            padding: 30px;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 { color: #00ffff; margin-bottom: 20px; }
+        .room-list { list-style: none; padding: 0; margin: 20px 0; text-align: left; }
+        .room-item {
+            display: flex; justify-content: space-between;
+            padding: 10px; border-bottom: 1px solid #333;
+        }
+        .btn {
+            background: #00ffff; color: #000; border: none;
+            padding: 10px 20px; cursor: pointer; font-weight: bold;
+            margin-top: 10px; transition: 0.2s;
+        }
+        .btn:hover { background: #fff; box-shadow: 0 0 15px #00ffff; }
+        .btn-cancel { background: transparent; color: #888; border: 1px solid #444; }
     </style>
     <script type="importmap">
         {
@@ -126,6 +163,12 @@
         <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
         <div id="energy-container">
             <!-- Energy dots will be generated here -->
+        </div>
+    </div>
+
+    <div id="teleporter-modal">
+        <div class="modal-content" id="modal-content">
+            <!-- Content dynamic -->
         </div>
     </div>
     <script type="module">
@@ -161,6 +204,38 @@
                 active_matrix_slots: player.active_matrix_slots
             };
             accountWorker.postMessage({ state: ledgerState, sequence_id: player.sequence_id });
+        }
+
+        // --- Networking Compression ---
+        function serializeKinematics(posX, posY, posZ, qx, qy, qz, qw) {
+            const buffer = new ArrayBuffer(29);
+            const view = new DataView(buffer);
+            view.setUint8(0, 1); // Type 1: Kinematics
+            view.setFloat32(1, posX);
+            view.setFloat32(5, posY);
+            view.setFloat32(9, posZ);
+            view.setFloat32(13, qx);
+            view.setFloat32(17, qy);
+            view.setFloat32(21, qz);
+            view.setFloat32(25, qw);
+            return buffer;
+        }
+
+        function compressVoxelRow(rawBlocksArray) {
+            const compressed = [];
+            let currentBlockId = rawBlocksArray[0];
+            let runLength = 1;
+            for (let i = 1; i < rawBlocksArray.length; i++) {
+                if (rawBlocksArray[i] === currentBlockId) {
+                    runLength++;
+                } else {
+                    compressed.push(runLength, currentBlockId);
+                    currentBlockId = rawBlocksArray[i];
+                    runLength = 1;
+                }
+            }
+            compressed.push(runLength, currentBlockId);
+            return compressed;
         }
 
         // --- State Delta Attestation Loop ---
@@ -205,6 +280,41 @@
 
         // --- Environment (Nexus Room) ---
         const roomSize = 24;
+
+        // --- Celestial Skybox Layer (Interactive Lobby) ---
+        const celestialLayer = new THREE.Group();
+        scene.add(celestialLayer);
+
+        function spawnSkyboxPlanet(id, name, color, distance, angle) {
+            const geo = new THREE.SphereGeometry(8, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const planetMesh = new THREE.Mesh(geo, mat);
+
+            // Position in the sky (infinitely far away via positioning hack in animate)
+            planetMesh.position.set(
+                Math.cos(angle) * distance,
+                20 + Math.sin(angle * 0.5) * 40,
+                Math.sin(angle) * distance
+            );
+
+            planetMesh.userData = { isPlanet: true, planetId: id, planetName: name };
+            celestialLayer.add(planetMesh);
+
+            // Add a subtle glow/inner core
+            const coreGeo = new THREE.SphereGeometry(2, 8, 8);
+            const coreMat = new THREE.MeshBasicMaterial({ color: color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            planetMesh.add(core);
+        }
+
+        spawnSkyboxPlanet("emerald_ridge", "Emerald Ridge (Survival)", 0x4ade80, 400, 0);
+        spawnSkyboxPlanet("ruby_core", "The Ruby Core (PvP Arena)", 0xfc4a1a, 400, Math.PI * 0.5);
+        spawnSkyboxPlanet("void_nexus", "Void Nexus (Creative)", 0xa855f7, 400, Math.PI);
         const boxGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
 
         // Add a subtle grid/wireframe on top of the dark room for a "Nexus" feel
@@ -403,17 +513,44 @@
         });
 
         const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
+        const centerMouse = new THREE.Vector2(0, 0);
+        let hoveredPlanet = null;
+
+        function checkSkyboxTargeting() {
+            raycaster.setFromCamera(centerMouse, camera);
+            const intersects = raycaster.intersectObjects(celestialLayer.children, true);
+
+            if (intersects.length > 0) {
+                // Intersects could hit the planet mesh OR its core
+                let target = intersects[0].object;
+                while (target && !target.userData.isPlanet) target = target.parent;
+
+                if (target && target.userData.isPlanet) {
+                    hoveredPlanet = target.userData;
+                    trialCountEl.textContent = `LOCKED ONTO: ${hoveredPlanet.planetName}`;
+                    trialCountEl.style.color = '#ffd166';
+                    return;
+                }
+            }
+
+            hoveredPlanet = null;
+            updateTrialHUD(); // Restore standard trial HUD
+        }
 
         instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
 
         document.addEventListener('mousedown', (e) => {
             if (document.pointerLockElement !== document.body) return;
 
-            // In pointer lock, mouse is always at center (0,0)
-            raycaster.setFromCamera({x: 0, y: 0}, camera);
+            // 1. Interstellar Teleport Check
+            if (hoveredPlanet) {
+                openPlanetTeleporterMenu(hoveredPlanet.planetId, hoveredPlanet.planetName);
+                document.exitPointerLock();
+                return;
+            }
 
-            // Only check for intersections with the random voxels added to the scene
+            // 2. Standard Voxel Breaking
+            raycaster.setFromCamera(centerMouse, camera);
             const voxels = scene.children.filter(obj => obj.type === 'Mesh' && obj !== room && obj !== wireframe);
             const intersects = raycaster.intersectObjects(voxels);
 
@@ -480,6 +617,34 @@
             ledgerHashEl.textContent = player.state_root_hash.substring(0, 16) + "...";
         }
 
+        // --- Teleporter Handshake UI ---
+        const teleporterModal = document.getElementById('teleporter-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        window.openPlanetTeleporterMenu = (planetId, planetName) => {
+            teleporterModal.style.display = 'flex';
+            modalContent.innerHTML = `
+                <h2>🌌 Quantum Link: ${planetName}</h2>
+                <p>Scanning peer mesh network for active rooms...</p>
+                <div class="room-list">
+                    <div class="room-item">
+                        <span>Room #1 (3/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 1)">JOIN</button>
+                    </div>
+                    <div class="room-item">
+                        <span>Room #2 (1/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 2)">JOIN</button>
+                    </div>
+                </div>
+                <button class="btn" onclick="window.createNewMeshRoom('${planetId}')">INITIALIZE NEW ORBIT</button>
+                <button class="btn btn-cancel" onclick="window.closePlanetMenu()">CANCEL</button>
+            `;
+        }
+
+        window.closePlanetMenu = () => { teleporterModal.style.display = 'none'; };
+        window.connectToMesh = (id, room) => { alert(`Connecting to ${id} Room ${room}...`); window.closePlanetMenu(); };
+        window.createNewMeshRoom = (id) => { alert(`Creating new room in ${id} orbit...`); window.closePlanetMenu(); };
+
         // --- Main Loop ---
         let lastTime = performance.now();
         function animate() {
@@ -535,6 +700,18 @@
             if (localPos.z <= -halfRoom + margin) localPos.z = -halfRoom + margin;
             if (localPos.z >= halfRoom - margin) localPos.z = halfRoom - margin;
             player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
+
+            // CRITICAL SKYBOX HACK: Move the celestial star map with the player
+            // so they can never fly closer or further away from the selector meshes
+            celestialLayer.position.copy(player.position);
+
+            // Spin the planets slowly in place over time just for visual flair
+            celestialLayer.children.forEach(planet => {
+                planet.rotation.y += 0.005;
+            });
+
+            // Check if the player is looking at any distant worlds
+            checkSkyboxTargeting();
 
         function updateFacesVisited() {
             // Transform the unit "up" vector (0,1,0) in local space to world space
