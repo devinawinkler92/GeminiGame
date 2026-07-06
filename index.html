@@ -32,16 +32,47 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 10px;
             z-index: 10;
+        }
+
+        #ledger-hud {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 0.8em;
+            border: 1px solid #00ff00;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 300px;
+        }
+
+        .ledger-line {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hash-text {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        #energy-container {
+            display: flex;
+            gap: 10px;
         }
 
         .energy-dot {
             width: 6px;
             height: 6px;
-            background: #00ffff;
+            background: var(--player-color, #00ffff);
             border-radius: 50%;
-            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            box-shadow: 0 0 10px var(--player-color, #00ffff), 0 0 20px var(--player-color, #00ffff);
             transition: opacity 0.2s, transform 0.2s;
         }
 
@@ -49,6 +80,23 @@
             opacity: 0.2;
             box-shadow: none;
             transform: scale(0.8);
+        }
+
+        #trial-hud {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        .trial-count {
+            color: #00ffff;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ffff;
         }
     </style>
     <script type="importmap">
@@ -61,19 +109,80 @@
 </head>
 <body>
     <div id="instructions">
-        <h1>Gravity Leap Sandbox</h1>
+        <h1>Gemverse Nexus Hub</h1>
         <p>W, A, S, D - Move</p>
         <p>Mouse / Arrows - Look</p>
-        <p>Shift + Space + W/A/S/D - Gravity Leap (Costs Life Force)</p>
+        <p>Shift + Space + W/A/S/D - Force Jump (Costs Life Force)</p>
         <p>Space (Grounded) - Jump</p>
         <p>Click to start</p>
     </div>
 
     <div id="hud">
-        <!-- Energy dots will be generated here -->
+        <div id="ledger-hud">
+            <div class="ledger-line"><span>SEQUENCE_ID:</span> <span id="ledger-seq">0</span></div>
+            <div class="ledger-line"><span>VERIFIED_BLOCKS:</span> <span id="ledger-blocks">0</span></div>
+            <div class="ledger-line"><span>STATE_ROOT:</span> <span id="ledger-hash" class="hash-text">awaiting...</span></div>
+        </div>
+        <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
+        <div id="energy-container">
+            <!-- Energy dots will be generated here -->
+        </div>
     </div>
     <script type="module">
         import * as THREE from 'three';
+
+        // --- Background Cryptography Worker (Inline) ---
+        const workerCode = `
+            self.onmessage = async (e) => {
+                const { state, sequence_id } = e.data;
+                const encoder = new TextEncoder();
+                const data = encoder.encode(JSON.stringify(state) + sequence_id);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                self.postMessage({ hash: hashHex, sequence_id });
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const accountWorker = new Worker(URL.createObjectURL(blob));
+
+        accountWorker.onmessage = (e) => {
+            const { hash, sequence_id } = e.data;
+            if (sequence_id >= player.sequence_id) {
+                player.state_root_hash = hash;
+                updateLedgerHUD();
+            }
+        };
+
+        function requestStateHash() {
+            const ledgerState = {
+                profile: player.profile,
+                stats: player.stats,
+                active_matrix_slots: player.active_matrix_slots
+            };
+            accountWorker.postMessage({ state: ledgerState, sequence_id: player.sequence_id });
+        }
+
+        // --- State Delta Attestation Loop ---
+        function broadcastActionDelta(action, targetCoords = null) {
+            player.sequence_id++;
+
+            const delta = {
+                type: "ACTION_DELTA",
+                player: player.profile.chroma_id,
+                sequence_id: player.sequence_id,
+                action: action,
+                target_coords: targetCoords,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+
+            // In a real P2P mesh, we would send this over WebRTC.
+            // For the sandbox, we log it and update our local ledger.
+            console.log("Broadcasting Delta:", delta);
+
+            // Request the background worker to update our state root hash
+            requestStateHash();
+        }
 
         // --- Scene Setup ---
         const scene = new THREE.Scene();
@@ -94,15 +203,28 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
-        // --- Environment (Voxel Room) ---
-        const roomSize = 20;
+        // --- Environment (Nexus Room) ---
+        const roomSize = 24;
         const boxGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
-        const boxMaterial = new THREE.MeshPhongMaterial({
-            color: 0x808080,
+
+        // Add a subtle grid/wireframe on top of the dark room for a "Nexus" feel
+        const roomMaterial = new THREE.MeshPhongMaterial({
+            color: 0x111111,
             side: THREE.BackSide,
         });
-        const room = new THREE.Mesh(boxGeometry, boxMaterial);
+        const room = new THREE.Mesh(boxGeometry, roomMaterial);
         scene.add(room);
+
+        const wireframeGeom = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
+        const wireframeMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.BackSide
+        });
+        const wireframe = new THREE.Mesh(wireframeGeom, wireframeMat);
+        scene.add(wireframe);
 
         for (let i = 0; i < 50; i++) {
             const size = Math.random() * 2 + 0.5;
@@ -117,8 +239,41 @@
             scene.add(voxel);
         }
 
+        // --- Chroma-ID Generation ---
+        function getChromaColor(username) {
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return new THREE.Color("#" + "00000".substring(0, 6 - c.length) + c);
+        }
+
         // --- Player State ---
+        const username = "NexusPlayer_" + Math.floor(Math.random() * 1000);
+        const playerColor = getChromaColor(username);
+
+        document.documentElement.style.setProperty('--player-color', '#' + playerColor.getHexString());
+
         const player = {
+            // --- Character Sheet (Ledger) ---
+            profile: {
+                username: username,
+                chroma_id: '0x' + playerColor.getHexString()
+            },
+            sequence_id: 0,
+            stats: {
+                blocks_broken: 0,
+                gravity_flips: 0,
+                legendary_etched: 0
+            },
+            active_matrix_slots: {
+                slot_alpha: null,
+                slot_beta: null
+            },
+            state_root_hash: "awaiting_genesis...",
+
+            // --- Physics & Live State ---
             position: new THREE.Vector3(0, -roomSize / 2 + 0.5, 0),
             velocity: new THREE.Vector3(),
             bodyQuaternion: new THREE.Quaternion(),
@@ -132,6 +287,11 @@
             leapDuration: 0.3,
             energy: 100,
             maxEnergy: 100,
+            facesVisited: {
+                top: false, bottom: false,
+                left: false, right: false,
+                front: false, back: false
+            }
         };
 
         // --- Input Handling ---
@@ -223,6 +383,10 @@
 
             player.bodyQuaternion.copy(player.leapTargetQuaternion);
             player.lookRotation.y = player.lookRotation.y - snappedYaw;
+
+            // --- Character Ledger Update ---
+            player.stats.gravity_flips++;
+            broadcastActionDelta("FORCE_JUMP");
         }
 
         let visualBodyQuaternion = new THREE.Quaternion();
@@ -238,7 +402,33 @@
             }
         });
 
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
         instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
+
+        document.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+
+            // In pointer lock, mouse is always at center (0,0)
+            raycaster.setFromCamera({x: 0, y: 0}, camera);
+
+            // Only check for intersections with the random voxels added to the scene
+            const voxels = scene.children.filter(obj => obj.type === 'Mesh' && obj !== room && obj !== wireframe);
+            const intersects = raycaster.intersectObjects(voxels);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                const dist = intersects[0].distance;
+
+                // Anti-cheat Mesh Audit: Must be close enough (e.g., 5 units)
+                if (dist < 5) {
+                    scene.remove(target);
+                    player.stats.blocks_broken++;
+                    broadcastActionDelta("BLOCK_BREAK", [target.position.x, target.position.y, target.position.z]);
+                }
+            }
+        });
 
         document.addEventListener('pointerlockchange', () => {
             instructions.style.display = document.pointerLockElement === document.body ? 'none' : 'block';
@@ -249,13 +439,18 @@
         const arrowLookSpeed = 2.0;
 
         // --- HUD ---
-        const hud = document.getElementById('hud');
+        const energyContainer = document.getElementById('energy-container');
+        const trialCountEl = document.getElementById('trial-count');
+        const ledgerSeqEl = document.getElementById('ledger-seq');
+        const ledgerBlocksEl = document.getElementById('ledger-blocks');
+        const ledgerHashEl = document.getElementById('ledger-hash');
+
         const dotCount = 10;
         const dots = [];
         for (let i = 0; i < dotCount; i++) {
             const dot = document.createElement('div');
             dot.className = 'energy-dot';
-            hud.appendChild(dot);
+            energyContainer.appendChild(dot);
             dots.push(dot);
         }
 
@@ -268,6 +463,21 @@
                     dot.classList.add('depleted');
                 }
             });
+        }
+
+        function updateTrialHUD() {
+            const visitedCount = Object.values(player.facesVisited).filter(v => v).length;
+            trialCountEl.textContent = `${visitedCount}/6`;
+            if (visitedCount === 6) {
+                trialCountEl.style.color = '#00ff00';
+                trialCountEl.style.textShadow = '0 0 10px #00ff00';
+            }
+        }
+
+        function updateLedgerHUD() {
+            ledgerSeqEl.textContent = player.sequence_id;
+            ledgerBlocksEl.textContent = player.stats.blocks_broken;
+            ledgerHashEl.textContent = player.state_root_hash.substring(0, 16) + "...";
         }
 
         // --- Main Loop ---
@@ -316,6 +526,8 @@
             if (localPos.y <= -halfRoom + margin) {
                 localPos.y = -halfRoom + margin;
                 player.isGrounded = true;
+                // Identify which WORLD face is currently the "floor" based on bodyQuaternion
+                updateFacesVisited();
             }
             if (localPos.y >= halfRoom - margin) localPos.y = halfRoom - margin;
             if (localPos.x <= -halfRoom + margin) localPos.x = -halfRoom + margin;
@@ -323,6 +535,24 @@
             if (localPos.z <= -halfRoom + margin) localPos.z = -halfRoom + margin;
             if (localPos.z >= halfRoom - margin) localPos.z = halfRoom - margin;
             player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
+
+        function updateFacesVisited() {
+            // Transform the unit "up" vector (0,1,0) in local space to world space
+            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+
+            // The world face we are grounded on is the one worldUp is pointing AWAY from.
+            // i.e., worldDown = -worldUp.
+            const worldDown = worldUp.clone().negate();
+
+            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
+            else if (worldDown.y > 0.9) player.facesVisited.top = true;
+            else if (worldDown.x < -0.9) player.facesVisited.left = true;
+            else if (worldDown.x > 0.9) player.facesVisited.right = true;
+            else if (worldDown.z < -0.9) player.facesVisited.front = true;
+            else if (worldDown.z > 0.9) player.facesVisited.back = true;
+
+            updateTrialHUD();
+        }
 
             // --- Camera Smoothing ---
             if (player.isLeaping) {
