@@ -110,39 +110,52 @@
         const keys = {};
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            handleGravityLeap(e.code);
+
+            // Check for Gravity Leap trigger
+            // Trigger can be Space or W/A/S/D as long as Shift and the others are held
+            if (keys['ShiftLeft'] || keys['ShiftRight']) {
+                if (keys['Space']) {
+                    const leapKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+                    if (leapKeys.includes(e.code)) {
+                        handleGravityLeap(e.code);
+                    } else if (e.code === 'Space') {
+                        // If Space was just pressed, check if W/A/S/D is already held
+                        for (const k of leapKeys) {
+                            if (keys[k]) {
+                                handleGravityLeap(k);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         });
         document.addEventListener('keyup', (e) => keys[e.code] = false);
 
         function handleGravityLeap(code) {
-            if (keys['ShiftLeft'] || keys['ShiftRight']) {
-                if (keys['Space']) {
-                    let rotationAxis = null;
-                    let angle = 0;
+            let rotationAxis = null;
+            let angle = 0;
 
-                    if (code === 'KeyW') {
-                        // Pitch forward 90 degrees
-                        rotationAxis = new THREE.Vector3(1, 0, 0);
-                        angle = Math.PI / 2;
-                    } else if (code === 'KeyS') {
-                        // Flip backward 180 degrees
-                        rotationAxis = new THREE.Vector3(1, 0, 0);
-                        angle = Math.PI;
-                    } else if (code === 'KeyA') {
-                        // Roll left 90 degrees -> Left wall becomes floor
-                        // In right-handed coords, rotating around +Z (forward) by -90 deg rolls left
-                        rotationAxis = new THREE.Vector3(0, 0, 1);
-                        angle = -Math.PI / 2;
-                    } else if (code === 'KeyD') {
-                        // Roll right 90 degrees -> Right wall becomes floor
-                        rotationAxis = new THREE.Vector3(0, 0, 1);
-                        angle = Math.PI / 2;
-                    }
+            if (code === 'KeyW') {
+                // Pitch forward 90 degrees
+                rotationAxis = new THREE.Vector3(1, 0, 0);
+                angle = Math.PI / 2;
+            } else if (code === 'KeyS') {
+                // Flip backward 180 degrees
+                rotationAxis = new THREE.Vector3(1, 0, 0);
+                angle = Math.PI;
+            } else if (code === 'KeyA') {
+                // Roll left 90 degrees -> Left wall becomes floor
+                rotationAxis = new THREE.Vector3(0, 0, 1);
+                angle = -Math.PI / 2;
+            } else if (code === 'KeyD') {
+                // Roll right 90 degrees -> Right wall becomes floor
+                rotationAxis = new THREE.Vector3(0, 0, 1);
+                angle = Math.PI / 2;
+            }
 
-                    if (rotationAxis) {
-                        initiateLeap(rotationAxis, angle);
-                    }
-                }
+            if (rotationAxis && !player.isLeaping) {
+                initiateLeap(rotationAxis, angle);
             }
         }
 
@@ -150,16 +163,18 @@
             player.isLeaping = true;
             player.leapStartTime = performance.now();
 
-            // 1. Get current yaw rotation
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            // 1. Get current yaw rotation and snap it to the nearest 90-degree increment for "block world"
+            const snappedYaw = Math.round(player.lookRotation.y / (Math.PI / 2)) * (Math.PI / 2);
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
 
-            // 2. orientedBodyQuaternion is where the player is currently "facing" (body + yaw)
+            // 2. orientedBodyQuaternion is the cardinal direction the player is "aiming" their leap
             const orientedBodyQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
 
-            // We slerp FROM the oriented basis so the camera doesn't snap when we reset yaw
-            player.leapStartQuaternion.copy(orientedBodyQuaternion);
+            // We slerp FROM the current look basis (not snapped) for visual smoothness
+            const currentYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(currentYawQuaternion);
 
-            // 3. Apply the leap rotation (pitch/roll) relative to this oriented basis
+            // 3. Apply the leap rotation (pitch/roll) relative to the SNAPPED oriented basis
             const leapRotation = new THREE.Quaternion().setFromAxisAngle(axis, angle);
             player.leapTargetQuaternion.copy(orientedBodyQuaternion).multiply(leapRotation).normalize();
 
@@ -175,9 +190,8 @@
             // Update body quaternion instantly for physics
             player.bodyQuaternion.copy(player.leapTargetQuaternion);
 
-            // Reset yaw so the player looks "forward" relative to the new floor
-            // This is safe because we slerp FROM orientedBodyQuaternion (which already included this yaw)
-            player.lookRotation.y = 0;
+            // Reset yaw relative to the new floor, accounting for the difference between snapped and current yaw
+            player.lookRotation.y = player.lookRotation.y - snappedYaw;
         }
 
         // Current visual orientation of the player's body (for smoothing)
