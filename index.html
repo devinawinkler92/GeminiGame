@@ -25,6 +25,31 @@
             user-select: none;
             z-index: 10;
         }
+
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .energy-dot {
+            width: 12px;
+            height: 12px;
+            background: #00ffff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .energy-dot.depleted {
+            opacity: 0.2;
+            box-shadow: none;
+            transform: scale(0.8);
+        }
     </style>
     <script type="importmap">
         {
@@ -38,9 +63,13 @@
     <div id="instructions">
         <h1>Gravity Leap Sandbox</h1>
         <p>W, A, S, D - Move</p>
-        <p>Mouse - Look</p>
-        <p>Shift + Space + W/A/S/D - Gravity Leap</p>
+        <p>Mouse / Arrows - Look</p>
+        <p>Shift + Space + W/A/S/D - Gravity Leap (Costs Life Force)</p>
         <p>Click to start</p>
+    </div>
+
+    <div id="hud">
+        <!-- Energy dots will be generated here -->
     </div>
     <script type="module">
         import * as THREE from 'three';
@@ -103,24 +132,33 @@
             leapTargetQuaternion: new THREE.Quaternion(),
             leapStartQuaternion: new THREE.Quaternion(),
             leapStartTime: 0,
-            leapDuration: 0.3,
+            leapDuration: 0.6,
+            energy: 100,
+            maxEnergy: 100,
         };
 
         // --- Input Handling ---
         const keys = {};
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
+            checkGravityLeapTrigger(e.code);
+        });
 
-            // Check for Gravity Leap trigger
-            // Trigger can be Space or W/A/S/D as long as Shift and the others are held
+        function checkGravityLeapTrigger(newlyPressedCode) {
+            // Must have Shift, Space, and one of W/A/S/D held
             if (keys['ShiftLeft'] || keys['ShiftRight']) {
                 if (keys['Space']) {
-                    const leapKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
-                    if (leapKeys.includes(e.code)) {
-                        handleGravityLeap(e.code);
-                    } else if (e.code === 'Space') {
-                        // If Space was just pressed, check if W/A/S/D is already held
-                        for (const k of leapKeys) {
+                    const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+
+                    // If the newly pressed key is a direction key, trigger leap
+                    if (directionKeys.includes(newlyPressedCode)) {
+                        handleGravityLeap(newlyPressedCode);
+                        return;
+                    }
+
+                    // If the newly pressed key was Space or Shift, check if a direction is already held
+                    if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
+                        for (const k of directionKeys) {
                             if (keys[k]) {
                                 handleGravityLeap(k);
                                 break;
@@ -129,10 +167,15 @@
                     }
                 }
             }
-        });
+        }
         document.addEventListener('keyup', (e) => keys[e.code] = false);
 
+        const leapEnergyCost = 25;
+        const energyRegenRate = 15;
+
         function handleGravityLeap(code) {
+            if (player.energy < leapEnergyCost) return;
+
             let rotationAxis = null;
             let angle = 0;
 
@@ -155,6 +198,7 @@
             }
 
             if (rotationAxis && !player.isLeaping) {
+                player.energy -= leapEnergyCost;
                 initiateLeap(rotationAxis, angle);
             }
         }
@@ -224,6 +268,30 @@
 
         const moveSpeed = 5;
         const gravityForce = 20;
+        const arrowLookSpeed = 2.0;
+
+        // --- HUD Implementation ---
+        const hud = document.getElementById('hud');
+        const dotCount = 10;
+        const dots = [];
+
+        for (let i = 0; i < dotCount; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'energy-dot';
+            hud.appendChild(dot);
+            dots.push(dot);
+        }
+
+        function updateHUD() {
+            const energyPerDot = player.maxEnergy / dotCount;
+            dots.forEach((dot, i) => {
+                if (player.energy >= (i + 1) * energyPerDot) {
+                    dot.classList.remove('depleted');
+                } else {
+                    dot.classList.add('depleted');
+                }
+            });
+        }
 
         // --- Main Loop ---
         let lastTime = performance.now();
@@ -234,6 +302,13 @@
             lastTime = time;
 
             if (delta > 0.1) delta = 0.1; // Cap delta to avoid huge jumps
+
+            // --- Arrow Key Look ---
+            if (keys['ArrowLeft']) player.lookRotation.y += arrowLookSpeed * delta;
+            if (keys['ArrowRight']) player.lookRotation.y -= arrowLookSpeed * delta;
+            if (keys['ArrowUp']) player.lookRotation.x += arrowLookSpeed * delta;
+            if (keys['ArrowDown']) player.lookRotation.x -= arrowLookSpeed * delta;
+            player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
 
             // --- Movement Physics ---
             const moveDir = new THREE.Vector3(0, 0, 0);
@@ -306,6 +381,12 @@
             // Update camera position to follow player position (accounting for eye level)
             const upOffset = new THREE.Vector3(0, player.height, 0).applyQuaternion(visualBodyQuaternion);
             camera.position.copy(player.position).add(upOffset);
+
+            // --- Energy Regeneration ---
+            if (player.energy < player.maxEnergy) {
+                player.energy = Math.min(player.maxEnergy, player.energy + energyRegenRate * delta);
+            }
+            updateHUD();
 
             renderer.render(scene, camera);
         }
