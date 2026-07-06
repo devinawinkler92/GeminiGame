@@ -37,8 +37,8 @@
         }
 
         .energy-dot {
-            width: 12px;
-            height: 12px;
+            width: 6px;
+            height: 6px;
             background: #00ffff;
             border-radius: 50%;
             box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
@@ -65,6 +65,7 @@
         <p>W, A, S, D - Move</p>
         <p>Mouse / Arrows - Look</p>
         <p>Shift + Space + W/A/S/D - Gravity Leap (Costs Life Force)</p>
+        <p>Space (Grounded) - Jump</p>
         <p>Click to start</p>
     </div>
 
@@ -79,7 +80,6 @@
         scene.background = new THREE.Color(0x202020);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Player position will be managed manually
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -99,12 +99,11 @@
         const boxGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
         const boxMaterial = new THREE.MeshPhongMaterial({
             color: 0x808080,
-            side: THREE.BackSide, // Inside of the box
+            side: THREE.BackSide,
         });
         const room = new THREE.Mesh(boxGeometry, boxMaterial);
         scene.add(room);
 
-        // Add some "voxels" inside for reference
         for (let i = 0; i < 50; i++) {
             const size = Math.random() * 2 + 0.5;
             const geom = new THREE.BoxGeometry(size, size, size);
@@ -122,9 +121,7 @@
         const player = {
             position: new THREE.Vector3(0, -roomSize / 2 + 0.5, 0),
             velocity: new THREE.Vector3(),
-            // bodyQuaternion represents the orientation of the "floor"
             bodyQuaternion: new THREE.Quaternion(),
-            // lookRotation represents yaw (y) and pitch (x) relative to bodyQuaternion
             lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
             height: 1.6,
             isGrounded: false,
@@ -132,7 +129,7 @@
             leapTargetQuaternion: new THREE.Quaternion(),
             leapStartQuaternion: new THREE.Quaternion(),
             leapStartTime: 0,
-            leapDuration: 0.6,
+            leapDuration: 0.3,
             energy: 100,
             maxEnergy: 100,
         };
@@ -141,23 +138,27 @@
         const keys = {};
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
+            if (e.code === 'Space') handleJump();
             checkGravityLeapTrigger(e.code);
         });
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        const jumpForce = 8;
+        function handleJump() {
+            if (player.isGrounded && !player.isLeaping) {
+                const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+                player.velocity.addScaledVector(upVector, jumpForce);
+                player.isGrounded = false;
+            }
+        }
 
         function checkGravityLeapTrigger(newlyPressedCode) {
-            // Must have Shift, Space, and one of W/A/S/D held
             if (keys['ShiftLeft'] || keys['ShiftRight']) {
                 if (keys['Space']) {
                     const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
-
-                    // If the newly pressed key is a direction key, trigger leap
                     if (directionKeys.includes(newlyPressedCode)) {
                         handleGravityLeap(newlyPressedCode);
-                        return;
-                    }
-
-                    // If the newly pressed key was Space or Shift, check if a direction is already held
-                    if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
+                    } else if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
                         for (const k of directionKeys) {
                             if (keys[k]) {
                                 handleGravityLeap(k);
@@ -168,36 +169,31 @@
                 }
             }
         }
-        document.addEventListener('keyup', (e) => keys[e.code] = false);
 
         const leapEnergyCost = 25;
         const energyRegenRate = 15;
 
         function handleGravityLeap(code) {
-            if (player.energy < leapEnergyCost) return;
+            if (player.energy < leapEnergyCost || player.isLeaping) return;
 
             let rotationAxis = null;
             let angle = 0;
 
             if (code === 'KeyW') {
-                // Pitch forward 90 degrees
                 rotationAxis = new THREE.Vector3(1, 0, 0);
                 angle = Math.PI / 2;
             } else if (code === 'KeyS') {
-                // Flip backward 180 degrees
                 rotationAxis = new THREE.Vector3(1, 0, 0);
                 angle = Math.PI;
             } else if (code === 'KeyA') {
-                // Roll left 90 degrees -> Left wall becomes floor
                 rotationAxis = new THREE.Vector3(0, 0, 1);
                 angle = -Math.PI / 2;
             } else if (code === 'KeyD') {
-                // Roll right 90 degrees -> Right wall becomes floor
                 rotationAxis = new THREE.Vector3(0, 0, 1);
                 angle = Math.PI / 2;
             }
 
-            if (rotationAxis && !player.isLeaping) {
+            if (rotationAxis) {
                 player.energy -= leapEnergyCost;
                 initiateLeap(rotationAxis, angle);
             }
@@ -207,38 +203,28 @@
             player.isLeaping = true;
             player.leapStartTime = performance.now();
 
-            // 1. Get current yaw rotation and snap it to the nearest 90-degree increment for "block world"
+            // --- Physics & Target Setup ---
             const snappedYaw = Math.round(player.lookRotation.y / (Math.PI / 2)) * (Math.PI / 2);
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
+            const snappedYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
 
-            // 2. orientedBodyQuaternion is the cardinal direction the player is "aiming" their leap
-            const orientedBodyQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
+            // Current cardinal basis (the one we are leap "from")
+            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(snappedYawQuaternion);
 
-            // We slerp FROM the current look basis (not snapped) for visual smoothness
-            const currentYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
-            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(currentYawQuaternion);
-
-            // 3. Apply the leap rotation (pitch/roll) relative to the SNAPPED oriented basis
+            // Target cardinal basis (the one we are leap "to")
             const leapRotation = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-            player.leapTargetQuaternion.copy(orientedBodyQuaternion).multiply(leapRotation).normalize();
+            player.leapTargetQuaternion.copy(player.leapStartQuaternion).multiply(leapRotation).normalize();
 
-            // Apply leap forces
+            // Force application
             const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(orientedBodyQuaternion);
-
-            player.velocity.addScaledVector(upVector, 8); // Jump up
-            player.velocity.addScaledVector(forwardVector, 5); // Leap forward
-
+            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(player.leapStartQuaternion);
+            player.velocity.addScaledVector(upVector, 8);
+            player.velocity.addScaledVector(forwardVector, 5);
             player.isGrounded = false;
 
-            // Update body quaternion instantly for physics
             player.bodyQuaternion.copy(player.leapTargetQuaternion);
-
-            // Reset yaw relative to the new floor, accounting for the difference between snapped and current yaw
             player.lookRotation.y = player.lookRotation.y - snappedYaw;
         }
 
-        // Current visual orientation of the player's body (for smoothing)
         let visualBodyQuaternion = new THREE.Quaternion();
 
         const instructions = document.getElementById('instructions');
@@ -247,34 +233,25 @@
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
                 player.lookRotation.y -= e.movementX * mouseSensitivity;
-                player.lookRotation.x -= e.movementY * mouseSensitivity;
-
-                // Clamp pitch
+                player.lookRotation.x += e.movementY * mouseSensitivity;
                 player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
             }
         });
 
-        instructions.addEventListener('click', () => {
-            document.body.requestPointerLock();
-        });
+        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
 
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
-                instructions.style.display = 'none';
-            } else {
-                instructions.style.display = 'block';
-            }
+            instructions.style.display = document.pointerLockElement === document.body ? 'none' : 'block';
         });
 
         const moveSpeed = 5;
         const gravityForce = 20;
         const arrowLookSpeed = 2.0;
 
-        // --- HUD Implementation ---
+        // --- HUD ---
         const hud = document.getElementById('hud');
         const dotCount = 10;
         const dots = [];
-
         for (let i = 0; i < dotCount; i++) {
             const dot = document.createElement('div');
             dot.className = 'energy-dot';
@@ -285,7 +262,7 @@
         function updateHUD() {
             const energyPerDot = player.maxEnergy / dotCount;
             dots.forEach((dot, i) => {
-                if (player.energy >= (i + 1) * energyPerDot) {
+                if (player.energy > i * energyPerDot) {
                     dot.classList.remove('depleted');
                 } else {
                     dot.classList.add('depleted');
@@ -301,16 +278,15 @@
             let delta = (time - lastTime) / 1000;
             lastTime = time;
 
-            if (delta > 0.1) delta = 0.1; // Cap delta to avoid huge jumps
+            if (delta > 0.1) delta = 0.1;
 
-            // --- Arrow Key Look ---
+            // --- Controls ---
             if (keys['ArrowLeft']) player.lookRotation.y += arrowLookSpeed * delta;
             if (keys['ArrowRight']) player.lookRotation.y -= arrowLookSpeed * delta;
-            if (keys['ArrowUp']) player.lookRotation.x += arrowLookSpeed * delta;
-            if (keys['ArrowDown']) player.lookRotation.x -= arrowLookSpeed * delta;
+            if (keys['ArrowUp']) player.lookRotation.x -= arrowLookSpeed * delta;
+            if (keys['ArrowDown']) player.lookRotation.x += arrowLookSpeed * delta;
             player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
 
-            // --- Movement Physics ---
             const moveDir = new THREE.Vector3(0, 0, 0);
             if (keys['KeyW']) moveDir.z -= 1;
             if (keys['KeyS']) moveDir.z += 1;
@@ -318,15 +294,12 @@
             if (keys['KeyD']) moveDir.x += 1;
             moveDir.normalize();
 
-            // Rotate moveDir to align with body orientation and yaw
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
             const combinedMoveQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
             moveDir.applyQuaternion(combinedMoveQuaternion);
 
-            // Apply movement
             player.position.addScaledVector(moveDir, moveSpeed * delta);
 
-            // Apply gravity
             const downVector = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
             if (!player.isGrounded) {
                 player.velocity.addScaledVector(downVector, gravityForce * delta);
@@ -335,24 +308,16 @@
             }
             player.position.addScaledVector(player.velocity, delta);
 
-            // --- Collision Detection (Room bounds) ---
+            // --- Collision ---
             const halfRoom = roomSize / 2;
             const margin = 0.5;
             player.isGrounded = false;
-
-            // Check bottom collision relative to body orientation
             const localPos = player.position.clone().applyQuaternion(player.bodyQuaternion.clone().invert());
             if (localPos.y <= -halfRoom + margin) {
                 localPos.y = -halfRoom + margin;
-                player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
                 player.isGrounded = true;
             }
-            // Ceiling
-            if (localPos.y >= halfRoom - margin) {
-                localPos.y = halfRoom - margin;
-                player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
-            }
-            // Walls
+            if (localPos.y >= halfRoom - margin) localPos.y = halfRoom - margin;
             if (localPos.x <= -halfRoom + margin) localPos.x = -halfRoom + margin;
             if (localPos.x >= halfRoom - margin) localPos.x = halfRoom - margin;
             if (localPos.z <= -halfRoom + margin) localPos.z = -halfRoom + margin;
@@ -363,26 +328,18 @@
             if (player.isLeaping) {
                 const elapsed = (time - player.leapStartTime) / 1000;
                 const t = Math.min(elapsed / player.leapDuration, 1);
-
-                // Slerp from start to target
                 visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, t);
-
-                if (t >= 1) {
-                    player.isLeaping = false;
-                }
+                if (t >= 1) player.isLeaping = false;
             } else {
                 visualBodyQuaternion.copy(player.bodyQuaternion);
             }
 
-            // Update camera orientation
             const lookQuaternion = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuaternion);
-
-            // Update camera position to follow player position (accounting for eye level)
             const upOffset = new THREE.Vector3(0, player.height, 0).applyQuaternion(visualBodyQuaternion);
             camera.position.copy(player.position).add(upOffset);
 
-            // --- Energy Regeneration ---
+            // --- HUD ---
             if (player.energy < player.maxEnergy) {
                 player.energy = Math.min(player.maxEnergy, player.energy + energyRegenRate * delta);
             }
@@ -393,7 +350,6 @@
 
         animate();
 
-        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
