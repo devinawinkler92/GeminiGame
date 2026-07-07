@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Leap Sandbox</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            user-select: none;
+            z-index: 10;
+        }
+
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        #ledger-hud {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 0.8em;
+            border: 1px solid #00ff00;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 300px;
+        }
+
+        .ledger-line {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hash-text {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        #energy-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .energy-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--player-color, #00ffff);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--player-color, #00ffff), 0 0 20px var(--player-color, #00ffff);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .energy-dot.depleted {
+            opacity: 0.2;
+            box-shadow: none;
+            transform: scale(0.8);
+        }
+
+        #trial-hud {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        .trial-count {
+            color: #00ffff;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        #teleporter-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .modal-content {
+            background: #111;
+            padding: 30px;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 { color: #00ffff; margin-bottom: 20px; }
+        .room-list { list-style: none; padding: 0; margin: 20px 0; text-align: left; }
+        .room-item {
+            display: flex; justify-content: space-between;
+            padding: 10px; border-bottom: 1px solid #333;
+        }
+        .btn {
+            background: #00ffff; color: #000; border: none;
+            padding: 10px 20px; cursor: pointer; font-weight: bold;
+            margin-top: 10px; transition: 0.2s;
+        }
+        .btn:hover { background: #fff; box-shadow: 0 0 15px #00ffff; }
+        .btn-cancel { background: transparent; color: #888; border: 1px solid #444; }
+
+        #transition-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #00ffff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 200;
+            transition: opacity 0.3s;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="instructions">
+        <h1>Gemverse Nexus Hub</h1>
+        <p>W, A, S, D - Move</p>
+        <p>Mouse / Arrows - Look</p>
+        <p>Shift + Space + W/A/S/D - Force Jump (Costs Life Force)</p>
+        <p>Space (Grounded) - Jump</p>
+        <p>Click to start</p>
+    </div>
+
+    <div id="hud">
+        <div id="ledger-hud">
+            <div class="ledger-line"><span>SEQUENCE_ID:</span> <span id="ledger-seq">0</span></div>
+            <div class="ledger-line"><span>VERIFIED_BLOCKS:</span> <span id="ledger-blocks">0</span></div>
+            <div class="ledger-line"><span>STATE_ROOT:</span> <span id="ledger-hash" class="hash-text">awaiting...</span></div>
+        </div>
+        <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
+        <div id="energy-container">
+            <!-- Energy dots will be generated here -->
+        </div>
+    </div>
+
+    <div id="teleporter-modal">
+        <div class="modal-content" id="modal-content">
+            <!-- Content dynamic -->
+        </div>
+    </div>
+    <div id="transition-overlay"></div>
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- Background Cryptography Worker (Inline) ---
+        const workerCode = `
+            self.onmessage = async (e) => {
+                const { state, sequence_id } = e.data;
+                const encoder = new TextEncoder();
+                const data = encoder.encode(JSON.stringify(state) + sequence_id);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                self.postMessage({ hash: hashHex, sequence_id });
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const accountWorker = new Worker(URL.createObjectURL(blob));
+
+        accountWorker.onmessage = (e) => {
+            const { hash, sequence_id } = e.data;
+            if (sequence_id >= player.sequence_id) {
+                player.state_root_hash = hash;
+                updateLedgerHUD();
+            }
+        };
+
+        function requestStateHash() {
+            const ledgerState = {
+                profile: player.profile,
+                stats: player.stats,
+                active_matrix_slots: player.active_matrix_slots
+            };
+            accountWorker.postMessage({ state: ledgerState, sequence_id: player.sequence_id });
+        }
+
+        // --- Networking Compression ---
+        function serializeKinematics(posX, posY, posZ, qx, qy, qz, qw) {
+            const buffer = new ArrayBuffer(29);
+            const view = new DataView(buffer);
+            view.setUint8(0, 1); // Type 1: Kinematics
+            view.setFloat32(1, posX);
+            view.setFloat32(5, posY);
+            view.setFloat32(9, posZ);
+            view.setFloat32(13, qx);
+            view.setFloat32(17, qy);
+            view.setFloat32(21, qz);
+            view.setFloat32(25, qw);
+            return buffer;
+        }
+
+        function compressVoxelRow(rawBlocksArray) {
+            const compressed = [];
+            let currentBlockId = rawBlocksArray[0];
+            let runLength = 1;
+            for (let i = 1; i < rawBlocksArray.length; i++) {
+                if (rawBlocksArray[i] === currentBlockId) {
+                    runLength++;
+                } else {
+                    compressed.push(runLength, currentBlockId);
+                    currentBlockId = rawBlocksArray[i];
+                    runLength = 1;
+                }
+            }
+            compressed.push(runLength, currentBlockId);
+            return compressed;
+        }
+
+        // --- State Delta Attestation Loop ---
+        function broadcastActionDelta(action, targetCoords = null) {
+            player.sequence_id++;
+
+            const delta = {
+                type: "ACTION_DELTA",
+                player: player.profile.chroma_id,
+                sequence_id: player.sequence_id,
+                action: action,
+                target_coords: targetCoords,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+
+            // In a real P2P mesh, we would send this over WebRTC.
+            // For the sandbox, we log it and update our local ledger.
+            console.log("Broadcasting Delta:", delta);
+
+            // Request the background worker to update our state root hash
+            requestStateHash();
+        }
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x202020);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lights ---
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // --- Environment (The Tesseract-Dyson Nexus Architecture) ---
+        const CORE_SIZE = 50;      // 50x50x50 center grid
+        const VOID_SIZE = 100;     // 100x100x100 interior airspace
+        const HULL_SIZE = 111;     // 111x111x111 exterior platform face (includes 11-block hull)
+
+        const roomSize = VOID_SIZE;
+
+        function checkVoxelSector(x, y, z) {
+            const maxDist = Math.max(Math.abs(x), Math.abs(y), Math.abs(z));
+
+            if (maxDist <= 25) {
+                return "TESSERACT_CORE";          // 50x50x50 center grid
+            } else if (maxDist > 25 && maxDist <= 50) {
+                return "DYSON_INTERIOR_HUB";       // 100x100x100 interior airspace & beacons
+            } else if (maxDist > 50 && maxDist <= 55) {
+                return "DYSON_HULL_SUBSTRUCTURE";  // 11-block thick basement/conduit layer
+            } else {
+                return "CLAN_CITADEL_SURFACE";     // 111x111x111 exterior building platform
+            }
+        }
+
+        // --- Celestial Skybox Layer (Interactive Lobby) ---
+        const celestialLayer = new THREE.Group();
+        scene.add(celestialLayer);
+
+        function spawnSkyboxPlanet(id, name, color, distance, angle) {
+            const geo = new THREE.SphereGeometry(8, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const planetMesh = new THREE.Mesh(geo, mat);
+
+            // Position in the sky (infinitely far away via positioning hack in animate)
+            planetMesh.position.set(
+                Math.cos(angle) * distance,
+                20 + Math.sin(angle * 0.5) * 40,
+                Math.sin(angle) * distance
+            );
+
+            planetMesh.userData = { isPlanet: true, planetId: id, planetName: name };
+            celestialLayer.add(planetMesh);
+
+            // Add a subtle glow/inner core
+            const coreGeo = new THREE.SphereGeometry(2, 8, 8);
+            const coreMat = new THREE.MeshBasicMaterial({ color: color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            planetMesh.add(core);
+        }
+
+        spawnSkyboxPlanet("emerald_ridge", "Emerald Ridge (Survival)", 0x4ade80, 400, 0);
+        spawnSkyboxPlanet("ruby_core", "The Ruby Core (PvP Arena)", 0xfc4a1a, 400, Math.PI * 0.5);
+        spawnSkyboxPlanet("void_nexus", "Void Nexus (Creative)", 0xa855f7, 400, Math.PI);
+
+        // --- Tesseract Core (Spawn Box: 50x50x50) ---
+        const tesseractGeo = new THREE.BoxGeometry(CORE_SIZE, CORE_SIZE, CORE_SIZE);
+        const tesseractMat = new THREE.MeshPhongMaterial({
+            color: 0x111111,
+            wireframe: false,
+            transparent: true,
+            opacity: 0.6
+        });
+        const tesseract = new THREE.Mesh(tesseractGeo, tesseractMat);
+        scene.add(tesseract);
+
+        const tesseractWireMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.5
+        });
+        const tesseractWire = new THREE.Mesh(tesseractGeo, tesseractWireMat);
+        scene.add(tesseractWire);
+
+        // --- Dyson Interior Void (100x100x100 Chamber with Hull Openings) ---
+        // Instead of a single box, we'll build it from 6 planes with central gaps
+        const interiorGroup = new THREE.Group();
+        scene.add(interiorGroup);
+
+        const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x050505, side: THREE.DoubleSide });
+        const wallSize = VOID_SIZE;
+        const gapSize = 12;
+
+        function createWallWithGap(pos, rot) {
+            const group = new THREE.Group();
+            const sideSize = (wallSize - gapSize) / 2;
+
+            // 4 segments around the gap
+            const segments = [
+                { w: wallSize, h: sideSize, x: 0, y: (wallSize - sideSize) / 2 },
+                { w: wallSize, h: sideSize, x: 0, y: -(wallSize - sideSize) / 2 },
+                { w: sideSize, h: gapSize, x: (wallSize - sideSize) / 2, y: 0 },
+                { w: sideSize, h: gapSize, x: -(wallSize - sideSize) / 2, y: 0 }
+            ];
+
+            segments.forEach(s => {
+                const geo = new THREE.PlaneGeometry(s.w, s.h);
+                const mesh = new THREE.Mesh(geo, wallMaterial);
+                mesh.position.set(s.x, s.y, 0);
+                group.add(mesh);
+
+                const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.05 }));
+                mesh.add(wire);
+            });
+
+            group.position.copy(pos);
+            group.rotation.copy(rot);
+            interiorGroup.add(group);
+        }
+
+        const h = VOID_SIZE / 2;
+        createWallWithGap(new THREE.Vector3(0, -h, 0), new THREE.Euler(-Math.PI / 2, 0, 0)); // Bottom
+        createWallWithGap(new THREE.Vector3(0, h, 0), new THREE.Euler(Math.PI / 2, 0, 0));  // Top
+        createWallWithGap(new THREE.Vector3(-h, 0, 0), new THREE.Euler(0, Math.PI / 2, 0)); // Left
+        createWallWithGap(new THREE.Vector3(h, 0, 0), new THREE.Euler(0, -Math.PI / 2, 0)); // Right
+        createWallWithGap(new THREE.Vector3(0, 0, -h), new THREE.Euler(0, 0, 0));           // Back
+        createWallWithGap(new THREE.Vector3(0, 0, h), new THREE.Euler(0, Math.PI, 0));      // Front
+
+        // --- Citadel Platforms (Exterior Face: 111x111x111) ---
+        const hullGeo = new THREE.BoxGeometry(HULL_SIZE, HULL_SIZE, HULL_SIZE);
+        const hullWireframe = new THREE.Mesh(
+            hullGeo,
+            new THREE.MeshBasicMaterial({ color: 0x444444, wireframe: true, transparent: true, opacity: 0.1, side: THREE.BackSide })
+        );
+        scene.add(hullWireframe);
+
+        // Add some "Activation Beacons" on the floor
+        for (let i = 0; i < 4; i++) {
+            const beaconGeo = new THREE.CylinderGeometry(2, 2, 0.5, 8);
+            const beaconMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5 });
+            const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+            const angle = (i / 4) * Math.PI * 2;
+            beacon.position.set(Math.cos(angle) * 30, -50 + 0.25, Math.sin(angle) * 30);
+            scene.add(beacon);
+        }
+
+        // --- Gravity Lift (Central transition to exterior) ---
+        const liftGeo = new THREE.CylinderGeometry(4, 4, 0.1, 32);
+        const liftMat = new THREE.MeshPhongMaterial({
+            color: 0x00ffff,
+            emissive: 0x00ffff,
+            emissiveIntensity: 2,
+            transparent: true,
+            opacity: 0.6
+        });
+        const gravityLift = new THREE.Mesh(liftGeo, liftMat);
+        gravityLift.position.set(0, -50 + 0.05, 0);
+        scene.add(gravityLift);
+
+        const liftBeamGeo = new THREE.CylinderGeometry(3, 3, 100, 32, 1, true);
+        const liftBeamMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide
+        });
+        const liftBeam = new THREE.Mesh(liftBeamGeo, liftBeamMat);
+        scene.add(liftBeam);
+
+        for (let i = 0; i < 100; i++) {
+            const size = Math.random() * 2 + 0.5;
+            const geom = new THREE.BoxGeometry(size, size, size);
+            const mat = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
+            const voxel = new THREE.Mesh(geom, mat);
+            voxel.position.set(
+                (Math.random() - 0.5) * (VOID_SIZE - 4),
+                (Math.random() - 0.5) * (VOID_SIZE - 4),
+                (Math.random() - 0.5) * (VOID_SIZE - 4)
+            );
+            // Don't spawn voxels inside the Tesseract Core
+            if (Math.abs(voxel.position.x) < 26 && Math.abs(voxel.position.y) < 26 && Math.abs(voxel.position.z) < 26) {
+                i--; continue;
+            }
+            scene.add(voxel);
+        }
+
+        // --- Chroma-ID Generation ---
+        function getChromaColor(username) {
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return new THREE.Color("#" + "00000".substring(0, 6 - c.length) + c);
+        }
+
+        // --- Player State ---
+        const username = "NexusPlayer_" + Math.floor(Math.random() * 1000);
+        const playerColor = getChromaColor(username);
+
+        document.documentElement.style.setProperty('--player-color', '#' + playerColor.getHexString());
+
+        const player = {
+            // --- Character Sheet (Ledger) ---
+            profile: {
+                username: username,
+                chroma_id: '0x' + playerColor.getHexString()
+            },
+            sequence_id: 0,
+            stats: {
+                blocks_broken: 0,
+                gravity_flips: 0,
+                legendary_etched: 0
+            },
+            active_matrix_slots: {
+                slot_alpha: null,
+                slot_beta: null
+            },
+            state_root_hash: "awaiting_genesis...",
+
+            // --- Physics & Live State ---
+            position: new THREE.Vector3(10, -roomSize / 2 + 0.5, 0),
+            velocity: new THREE.Vector3(),
+            bodyQuaternion: new THREE.Quaternion(),
+            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            height: 1.6,
+            isGrounded: false,
+            isLeaping: false,
+            leapTargetQuaternion: new THREE.Quaternion(),
+            leapStartQuaternion: new THREE.Quaternion(),
+            leapStartTime: 0,
+            leapDuration: 0.3,
+            energy: 100,
+            maxEnergy: 100,
+            facesVisited: {
+                top: false, bottom: false,
+                left: false, right: false,
+                front: false, back: false
+            },
+            currentSector: "DYSON_INTERIOR_HUB"
+        };
+
+        // --- Input Handling ---
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space') handleJump();
+            checkGravityLeapTrigger(e.code);
+        });
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        const jumpForce = 8;
+        function handleJump() {
+            if (player.isGrounded && !player.isLeaping) {
+                const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+                player.velocity.addScaledVector(upVector, jumpForce);
+                player.isGrounded = false;
+            }
+        }
+
+        function checkGravityLeapTrigger(newlyPressedCode) {
+            if (keys['ShiftLeft'] || keys['ShiftRight']) {
+                if (keys['Space']) {
+                    const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+                    if (directionKeys.includes(newlyPressedCode)) {
+                        handleGravityLeap(newlyPressedCode);
+                    } else if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
+                        for (const k of directionKeys) {
+                            if (keys[k]) {
+                                handleGravityLeap(k);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const leapEnergyCost = 25;
+        const energyRegenRate = 15;
+
+        function handleGravityLeap(code) {
+            if (player.energy < leapEnergyCost || player.isLeaping) return;
+
+            let rotationAxis = null;
+            let angle = 0;
+
+            if (code === 'KeyW') {
+                rotationAxis = new THREE.Vector3(1, 0, 0);
+                angle = Math.PI / 2;
+            } else if (code === 'KeyS') {
+                rotationAxis = new THREE.Vector3(1, 0, 0);
+                angle = Math.PI;
+            } else if (code === 'KeyA') {
+                rotationAxis = new THREE.Vector3(0, 0, 1);
+                angle = -Math.PI / 2;
+            } else if (code === 'KeyD') {
+                rotationAxis = new THREE.Vector3(0, 0, 1);
+                angle = Math.PI / 2;
+            }
+
+            if (rotationAxis) {
+                player.energy -= leapEnergyCost;
+                initiateLeap(rotationAxis, angle);
+            }
+        }
+
+        function initiateLeap(axis, angle) {
+            player.isLeaping = true;
+            player.leapStartTime = performance.now();
+
+            // --- Physics & Target Setup ---
+            const snappedYaw = Math.round(player.lookRotation.y / (Math.PI / 2)) * (Math.PI / 2);
+            const snappedYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
+
+            // Current cardinal basis (the one we are leap "from")
+            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(snappedYawQuaternion);
+
+            // Target cardinal basis (the one we are leap "to")
+            const leapRotation = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+            player.leapTargetQuaternion.copy(player.leapStartQuaternion).multiply(leapRotation).normalize();
+
+            // Force application
+            const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(player.leapStartQuaternion);
+            player.velocity.addScaledVector(upVector, 8);
+            player.velocity.addScaledVector(forwardVector, 5);
+            player.isGrounded = false;
+
+            player.bodyQuaternion.copy(player.leapTargetQuaternion);
+            player.lookRotation.y = player.lookRotation.y - snappedYaw;
+
+            // --- Character Ledger Update ---
+            player.stats.gravity_flips++;
+            broadcastActionDelta("FORCE_JUMP");
+        }
+
+        let visualBodyQuaternion = new THREE.Quaternion();
+
+        const instructions = document.getElementById('instructions');
+        const mouseSensitivity = 0.002;
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                player.lookRotation.y -= e.movementX * mouseSensitivity;
+                player.lookRotation.x += e.movementY * mouseSensitivity;
+                player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
+            }
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const centerMouse = new THREE.Vector2(0, 0);
+        let hoveredPlanet = null;
+
+        function checkSkyboxTargeting() {
+            raycaster.setFromCamera(centerMouse, camera);
+            const intersects = raycaster.intersectObjects(celestialLayer.children, true);
+
+            if (intersects.length > 0) {
+                // Intersects could hit the planet mesh OR its core
+                let target = intersects[0].object;
+                while (target && !target.userData.isPlanet) target = target.parent;
+
+                if (target && target.userData.isPlanet) {
+                    hoveredPlanet = target.userData;
+                    trialCountEl.textContent = `LOCKED ONTO: ${hoveredPlanet.planetName}`;
+                    trialCountEl.style.color = '#ffd166';
+                    return;
+                }
+            }
+
+            hoveredPlanet = null;
+            updateTrialHUD(); // Restore standard trial HUD
+        }
+
+        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
+
+        document.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+
+            // 1. Interstellar Teleport Check
+            if (hoveredPlanet) {
+                openPlanetTeleporterMenu(hoveredPlanet.planetId, hoveredPlanet.planetName);
+                document.exitPointerLock();
+                return;
+            }
+
+            // 2. Standard Voxel Breaking
+            raycaster.setFromCamera(centerMouse, camera);
+            // Filter out architectural meshes from destructible voxels
+            const voxels = scene.children.filter(obj =>
+                obj.type === 'Mesh' &&
+                obj !== tesseract &&
+                obj !== tesseractWire &&
+                obj !== gravityLift &&
+                obj !== liftBeam &&
+                obj !== hullWireframe &&
+                !interiorGroup.children.includes(obj)
+            );
+            const intersects = raycaster.intersectObjects(voxels);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                const dist = intersects[0].distance;
+
+                // Anti-cheat Mesh Audit: Must be close enough (e.g., 5 units)
+                if (dist < 5) {
+                    scene.remove(target);
+                    player.stats.blocks_broken++;
+                    broadcastActionDelta("BLOCK_BREAK", [target.position.x, target.position.y, target.position.z]);
+                }
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            instructions.style.display = document.pointerLockElement === document.body ? 'none' : 'block';
+        });
+
+        const moveSpeed = 5;
+        const gravityForce = 20;
+        const arrowLookSpeed = 2.0;
+
+        // --- HUD ---
+        const energyContainer = document.getElementById('energy-container');
+        const trialCountEl = document.getElementById('trial-count');
+        const ledgerSeqEl = document.getElementById('ledger-seq');
+        const ledgerBlocksEl = document.getElementById('ledger-blocks');
+        const ledgerHashEl = document.getElementById('ledger-hash');
+
+        const dotCount = 10;
+        const dots = [];
+        for (let i = 0; i < dotCount; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'energy-dot';
+            energyContainer.appendChild(dot);
+            dots.push(dot);
+        }
+
+        function updateHUD() {
+            const energyPerDot = player.maxEnergy / dotCount;
+            dots.forEach((dot, i) => {
+                if (player.energy > i * energyPerDot) {
+                    dot.classList.remove('depleted');
+                } else {
+                    dot.classList.add('depleted');
+                }
+            });
+        }
+
+        function updateTrialHUD() {
+            const visitedCount = Object.values(player.facesVisited).filter(v => v).length;
+            trialCountEl.textContent = `${visitedCount}/6`;
+            if (visitedCount === 6) {
+                trialCountEl.style.color = '#00ff00';
+                trialCountEl.style.textShadow = '0 0 10px #00ff00';
+            }
+        }
+
+        function updateLedgerHUD() {
+            ledgerSeqEl.textContent = player.sequence_id;
+            ledgerBlocksEl.textContent = player.stats.blocks_broken;
+            ledgerHashEl.textContent = player.state_root_hash.substring(0, 16) + "...";
+        }
+
+        // --- Teleporter Handshake UI ---
+        const teleporterModal = document.getElementById('teleporter-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        window.openPlanetTeleporterMenu = (planetId, planetName) => {
+            teleporterModal.style.display = 'flex';
+            modalContent.innerHTML = `
+                <h2>🌌 Quantum Link: ${planetName}</h2>
+                <p>Scanning peer mesh network for active rooms...</p>
+                <div class="room-list">
+                    <div class="room-item">
+                        <span>Room #1 (3/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 1)">JOIN</button>
+                    </div>
+                    <div class="room-item">
+                        <span>Room #2 (1/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 2)">JOIN</button>
+                    </div>
+                </div>
+                <button class="btn" onclick="window.createNewMeshRoom('${planetId}')">INITIALIZE NEW ORBIT</button>
+                <button class="btn btn-cancel" onclick="window.closePlanetMenu()">CANCEL</button>
+            `;
+        }
+
+        window.closePlanetMenu = () => { teleporterModal.style.display = 'none'; };
+        window.connectToMesh = (id, room) => { alert(`Connecting to ${id} Room ${room}...`); window.closePlanetMenu(); };
+        window.createNewMeshRoom = (id) => { alert(`Creating new room in ${id} orbit...`); window.closePlanetMenu(); };
+
+        // --- Main Loop ---
+        let lastTime = performance.now();
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            let delta = (time - lastTime) / 1000;
+            lastTime = time;
+
+            if (delta > 0.1) delta = 0.1;
+
+            // --- Controls ---
+            if (keys['ArrowLeft']) player.lookRotation.y += arrowLookSpeed * delta;
+            if (keys['ArrowRight']) player.lookRotation.y -= arrowLookSpeed * delta;
+            if (keys['ArrowUp']) player.lookRotation.x -= arrowLookSpeed * delta;
+            if (keys['ArrowDown']) player.lookRotation.x += arrowLookSpeed * delta;
+            player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
+
+            const moveDir = new THREE.Vector3(0, 0, 0);
+            if (keys['KeyW']) moveDir.z -= 1;
+            if (keys['KeyS']) moveDir.z += 1;
+            if (keys['KeyA']) moveDir.x -= 1;
+            if (keys['KeyD']) moveDir.x += 1;
+            moveDir.normalize();
+
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            const combinedMoveQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
+            moveDir.applyQuaternion(combinedMoveQuaternion);
+
+            player.position.addScaledVector(moveDir, moveSpeed * delta);
+
+            const downVector = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
+            if (!player.isGrounded) {
+                player.velocity.addScaledVector(downVector, gravityForce * delta);
+            } else {
+                player.velocity.set(0, 0, 0);
+            }
+            player.position.addScaledVector(player.velocity, delta);
+
+            // --- Collision (Manual Subjective Gravity) ---
+            const margin = 0.5;
+            player.isGrounded = false;
+
+            // 1. Exterior Boundary (111-unit cube)
+            const halfExt = HULL_SIZE / 2;
+            const localPos = player.position.clone().applyQuaternion(player.bodyQuaternion.clone().invert());
+
+            if (localPos.y <= -halfExt + margin) {
+                localPos.y = -halfExt + margin;
+                player.isGrounded = true;
+                updateFacesVisited();
+            }
+            if (localPos.y >= halfExt - margin) localPos.y = halfExt - margin;
+            if (localPos.x <= -halfExt + margin) localPos.x = -halfExt + margin;
+            if (localPos.x >= halfExt - margin) localPos.x = halfExt - margin;
+            if (localPos.z <= -halfExt + margin) localPos.z = -halfExt + margin;
+            if (localPos.z >= halfExt - margin) localPos.z = halfExt - margin;
+
+            // 2. Interior Dyson Hull (100-unit shell with openings)
+            const halfInt = VOID_SIZE / 2;
+            const gapSize = 12;
+
+            // If we are touching the interior hull plane...
+            if (Math.abs(localPos.y - (-halfInt)) < margin || Math.abs(localPos.y - halfInt) < margin ||
+                Math.abs(localPos.x - (-halfInt)) < margin || Math.abs(localPos.x - halfInt) < margin ||
+                Math.abs(localPos.z - (-halfInt)) < margin || Math.abs(localPos.z - halfInt) < margin) {
+
+                // Check if we are NOT in a gap
+                const inGapX = Math.abs(localPos.x) < gapSize / 2;
+                const inGapY = Math.abs(localPos.y) < gapSize / 2;
+                const inGapZ = Math.abs(localPos.z) < gapSize / 2;
+
+                // Simple collision for interior faces if not in the central 12x12 gap
+                const checkInteriorCollision = (val, target, isGap1, isGap2) => {
+                    if (Math.abs(val - target) < margin && !(isGap1 && isGap2)) {
+                        // We hit the wall
+                        if (val > target) return target + margin;
+                        else return target - margin;
+                    }
+                    return val;
+                };
+
+                localPos.y = checkInteriorCollision(localPos.y, -halfInt, inGapX, inGapZ);
+                localPos.y = checkInteriorCollision(localPos.y, halfInt, inGapX, inGapZ);
+                localPos.x = checkInteriorCollision(localPos.x, -halfInt, inGapY, inGapZ);
+                localPos.x = checkInteriorCollision(localPos.x, halfInt, inGapY, inGapZ);
+                localPos.z = checkInteriorCollision(localPos.z, -halfInt, inGapX, inGapY);
+                localPos.z = checkInteriorCollision(localPos.z, halfInt, inGapX, inGapY);
+            }
+
+            player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
+
+            // CRITICAL SKYBOX HACK: Move the celestial star map with the player
+            // so they can never fly closer or further away from the selector meshes
+            celestialLayer.position.copy(player.position);
+
+            // Spin the planets slowly in place over time just for visual flair
+            celestialLayer.children.forEach(planet => {
+                planet.rotation.y += 0.005;
+            });
+
+            // Tesseract Pulse Animation
+            const pulse = 0.5 + Math.sin(time * 0.002) * 0.2;
+            tesseractWireMat.opacity = pulse;
+            tesseract.scale.setScalar(1 + Math.sin(time * 0.001) * 0.01);
+
+            // Check if the player is looking at any distant worlds
+            checkSkyboxTargeting();
+        }
+
+        function updateFacesVisited() {
+            // Transform the unit "up" vector (0,1,0) in local space to world space
+            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+
+            // The world face we are grounded on is the one worldUp is pointing AWAY from.
+            // i.e., worldDown = -worldUp.
+            const worldDown = worldUp.clone().negate();
+
+            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
+            else if (worldDown.y > 0.9) player.facesVisited.top = true;
+            else if (worldDown.x < -0.9) player.facesVisited.left = true;
+            else if (worldDown.x > 0.9) player.facesVisited.right = true;
+            else if (worldDown.z < -0.9) player.facesVisited.front = true;
+            else if (worldDown.z > 0.9) player.facesVisited.back = true;
+
+            updateTrialHUD();
+        }
+
+            // --- Camera Smoothing ---
+            if (player.isLeaping) {
+                const elapsed = (time - player.leapStartTime) / 1000;
+                const t = Math.min(elapsed / player.leapDuration, 1);
+                visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, t);
+                if (t >= 1) player.isLeaping = false;
+            } else {
+                visualBodyQuaternion.copy(player.bodyQuaternion);
+            }
+
+            const lookQuaternion = new THREE.Quaternion().setFromEuler(player.lookRotation);
+            camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuaternion);
+            const upOffset = new THREE.Vector3(0, player.height, 0).applyQuaternion(visualBodyQuaternion);
+            camera.position.copy(player.position).add(upOffset);
+
+            // --- HUD ---
+            if (player.energy < player.maxEnergy) {
+                player.energy = Math.min(player.maxEnergy, player.energy + energyRegenRate * delta);
+            }
+            updateHUD();
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
