@@ -32,16 +32,47 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 10px;
             z-index: 10;
         }
 
+        #ledger-hud {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 0.8em;
+            border: 1px solid #00ff00;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 300px;
+        }
+
+        .ledger-line {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hash-text {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        #energy-container {
+            display: flex;
+            gap: 10px;
+        }
+
         .energy-dot {
-            width: 12px;
-            height: 12px;
-            background: #00ffff;
+            width: 6px;
+            height: 6px;
+            background: var(--player-color, #00ffff);
             border-radius: 50%;
-            box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            box-shadow: 0 0 10px var(--player-color, #00ffff), 0 0 20px var(--player-color, #00ffff);
             transition: opacity 0.2s, transform 0.2s;
         }
 
@@ -50,6 +81,60 @@
             box-shadow: none;
             transform: scale(0.8);
         }
+
+        #trial-hud {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        .trial-count {
+            color: #00ffff;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        #teleporter-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .modal-content {
+            background: #111;
+            padding: 30px;
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h2 { color: #00ffff; margin-bottom: 20px; }
+        .room-list { list-style: none; padding: 0; margin: 20px 0; text-align: left; }
+        .room-item {
+            display: flex; justify-content: space-between;
+            padding: 10px; border-bottom: 1px solid #333;
+        }
+        .btn {
+            background: #00ffff; color: #000; border: none;
+            padding: 10px 20px; cursor: pointer; font-weight: bold;
+            margin-top: 10px; transition: 0.2s;
+        }
+        .btn:hover { background: #fff; box-shadow: 0 0 15px #00ffff; }
+        .btn-cancel { background: transparent; color: #888; border: 1px solid #444; }
     </style>
     <script type="importmap">
         {
@@ -61,25 +146,124 @@
 </head>
 <body>
     <div id="instructions">
-        <h1>Gravity Leap Sandbox</h1>
+        <h1>Gemverse Nexus Hub</h1>
         <p>W, A, S, D - Move</p>
         <p>Mouse / Arrows - Look</p>
-        <p>Shift + Space + W/A/S/D - Gravity Leap (Costs Life Force)</p>
+        <p>Shift + Space + W/A/S/D - Force Jump (Costs Life Force)</p>
+        <p>Space (Grounded) - Jump</p>
         <p>Click to start</p>
     </div>
 
     <div id="hud">
-        <!-- Energy dots will be generated here -->
+        <div id="ledger-hud">
+            <div class="ledger-line"><span>SEQUENCE_ID:</span> <span id="ledger-seq">0</span></div>
+            <div class="ledger-line"><span>VERIFIED_BLOCKS:</span> <span id="ledger-blocks">0</span></div>
+            <div class="ledger-line"><span>STATE_ROOT:</span> <span id="ledger-hash" class="hash-text">awaiting...</span></div>
+        </div>
+        <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
+        <div id="energy-container">
+            <!-- Energy dots will be generated here -->
+        </div>
+    </div>
+
+    <div id="teleporter-modal">
+        <div class="modal-content" id="modal-content">
+            <!-- Content dynamic -->
+        </div>
     </div>
     <script type="module">
         import * as THREE from 'three';
+
+        // --- Background Cryptography Worker (Inline) ---
+        const workerCode = `
+            self.onmessage = async (e) => {
+                const { state, sequence_id } = e.data;
+                const encoder = new TextEncoder();
+                const data = encoder.encode(JSON.stringify(state) + sequence_id);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                self.postMessage({ hash: hashHex, sequence_id });
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const accountWorker = new Worker(URL.createObjectURL(blob));
+
+        accountWorker.onmessage = (e) => {
+            const { hash, sequence_id } = e.data;
+            if (sequence_id >= player.sequence_id) {
+                player.state_root_hash = hash;
+                updateLedgerHUD();
+            }
+        };
+
+        function requestStateHash() {
+            const ledgerState = {
+                profile: player.profile,
+                stats: player.stats,
+                active_matrix_slots: player.active_matrix_slots
+            };
+            accountWorker.postMessage({ state: ledgerState, sequence_id: player.sequence_id });
+        }
+
+        // --- Networking Compression ---
+        function serializeKinematics(posX, posY, posZ, qx, qy, qz, qw) {
+            const buffer = new ArrayBuffer(29);
+            const view = new DataView(buffer);
+            view.setUint8(0, 1); // Type 1: Kinematics
+            view.setFloat32(1, posX);
+            view.setFloat32(5, posY);
+            view.setFloat32(9, posZ);
+            view.setFloat32(13, qx);
+            view.setFloat32(17, qy);
+            view.setFloat32(21, qz);
+            view.setFloat32(25, qw);
+            return buffer;
+        }
+
+        function compressVoxelRow(rawBlocksArray) {
+            const compressed = [];
+            let currentBlockId = rawBlocksArray[0];
+            let runLength = 1;
+            for (let i = 1; i < rawBlocksArray.length; i++) {
+                if (rawBlocksArray[i] === currentBlockId) {
+                    runLength++;
+                } else {
+                    compressed.push(runLength, currentBlockId);
+                    currentBlockId = rawBlocksArray[i];
+                    runLength = 1;
+                }
+            }
+            compressed.push(runLength, currentBlockId);
+            return compressed;
+        }
+
+        // --- State Delta Attestation Loop ---
+        function broadcastActionDelta(action, targetCoords = null) {
+            player.sequence_id++;
+
+            const delta = {
+                type: "ACTION_DELTA",
+                player: player.profile.chroma_id,
+                sequence_id: player.sequence_id,
+                action: action,
+                target_coords: targetCoords,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+
+            // In a real P2P mesh, we would send this over WebRTC.
+            // For the sandbox, we log it and update our local ledger.
+            console.log("Broadcasting Delta:", delta);
+
+            // Request the background worker to update our state root hash
+            requestStateHash();
+        }
 
         // --- Scene Setup ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x202020);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Player position will be managed manually
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -94,17 +278,64 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
-        // --- Environment (Voxel Room) ---
-        const roomSize = 20;
+        // --- Environment (Nexus Room) ---
+        const roomSize = 24;
+
+        // --- Celestial Skybox Layer (Interactive Lobby) ---
+        const celestialLayer = new THREE.Group();
+        scene.add(celestialLayer);
+
+        function spawnSkyboxPlanet(id, name, color, distance, angle) {
+            const geo = new THREE.SphereGeometry(8, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const planetMesh = new THREE.Mesh(geo, mat);
+
+            // Position in the sky (infinitely far away via positioning hack in animate)
+            planetMesh.position.set(
+                Math.cos(angle) * distance,
+                20 + Math.sin(angle * 0.5) * 40,
+                Math.sin(angle) * distance
+            );
+
+            planetMesh.userData = { isPlanet: true, planetId: id, planetName: name };
+            celestialLayer.add(planetMesh);
+
+            // Add a subtle glow/inner core
+            const coreGeo = new THREE.SphereGeometry(2, 8, 8);
+            const coreMat = new THREE.MeshBasicMaterial({ color: color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            planetMesh.add(core);
+        }
+
+        spawnSkyboxPlanet("emerald_ridge", "Emerald Ridge (Survival)", 0x4ade80, 400, 0);
+        spawnSkyboxPlanet("ruby_core", "The Ruby Core (PvP Arena)", 0xfc4a1a, 400, Math.PI * 0.5);
+        spawnSkyboxPlanet("void_nexus", "Void Nexus (Creative)", 0xa855f7, 400, Math.PI);
         const boxGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
-        const boxMaterial = new THREE.MeshPhongMaterial({
-            color: 0x808080,
-            side: THREE.BackSide, // Inside of the box
+
+        // Add a subtle grid/wireframe on top of the dark room for a "Nexus" feel
+        const roomMaterial = new THREE.MeshPhongMaterial({
+            color: 0x111111,
+            side: THREE.BackSide,
         });
-        const room = new THREE.Mesh(boxGeometry, boxMaterial);
+        const room = new THREE.Mesh(boxGeometry, roomMaterial);
         scene.add(room);
 
-        // Add some "voxels" inside for reference
+        const wireframeGeom = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
+        const wireframeMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.BackSide
+        });
+        const wireframe = new THREE.Mesh(wireframeGeom, wireframeMat);
+        scene.add(wireframe);
+
         for (let i = 0; i < 50; i++) {
             const size = Math.random() * 2 + 0.5;
             const geom = new THREE.BoxGeometry(size, size, size);
@@ -118,13 +349,44 @@
             scene.add(voxel);
         }
 
+        // --- Chroma-ID Generation ---
+        function getChromaColor(username) {
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return new THREE.Color("#" + "00000".substring(0, 6 - c.length) + c);
+        }
+
         // --- Player State ---
+        const username = "NexusPlayer_" + Math.floor(Math.random() * 1000);
+        const playerColor = getChromaColor(username);
+
+        document.documentElement.style.setProperty('--player-color', '#' + playerColor.getHexString());
+
         const player = {
+            // --- Character Sheet (Ledger) ---
+            profile: {
+                username: username,
+                chroma_id: '0x' + playerColor.getHexString()
+            },
+            sequence_id: 0,
+            stats: {
+                blocks_broken: 0,
+                gravity_flips: 0,
+                legendary_etched: 0
+            },
+            active_matrix_slots: {
+                slot_alpha: null,
+                slot_beta: null
+            },
+            state_root_hash: "awaiting_genesis...",
+
+            // --- Physics & Live State ---
             position: new THREE.Vector3(0, -roomSize / 2 + 0.5, 0),
             velocity: new THREE.Vector3(),
-            // bodyQuaternion represents the orientation of the "floor"
             bodyQuaternion: new THREE.Quaternion(),
-            // lookRotation represents yaw (y) and pitch (x) relative to bodyQuaternion
             lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
             height: 1.6,
             isGrounded: false,
@@ -132,32 +394,41 @@
             leapTargetQuaternion: new THREE.Quaternion(),
             leapStartQuaternion: new THREE.Quaternion(),
             leapStartTime: 0,
-            leapDuration: 0.6,
+            leapDuration: 0.3,
             energy: 100,
             maxEnergy: 100,
+            facesVisited: {
+                top: false, bottom: false,
+                left: false, right: false,
+                front: false, back: false
+            }
         };
 
         // --- Input Handling ---
         const keys = {};
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
+            if (e.code === 'Space') handleJump();
             checkGravityLeapTrigger(e.code);
         });
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        const jumpForce = 8;
+        function handleJump() {
+            if (player.isGrounded && !player.isLeaping) {
+                const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+                player.velocity.addScaledVector(upVector, jumpForce);
+                player.isGrounded = false;
+            }
+        }
 
         function checkGravityLeapTrigger(newlyPressedCode) {
-            // Must have Shift, Space, and one of W/A/S/D held
             if (keys['ShiftLeft'] || keys['ShiftRight']) {
                 if (keys['Space']) {
                     const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
-
-                    // If the newly pressed key is a direction key, trigger leap
                     if (directionKeys.includes(newlyPressedCode)) {
                         handleGravityLeap(newlyPressedCode);
-                        return;
-                    }
-
-                    // If the newly pressed key was Space or Shift, check if a direction is already held
-                    if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
+                    } else if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
                         for (const k of directionKeys) {
                             if (keys[k]) {
                                 handleGravityLeap(k);
@@ -168,36 +439,31 @@
                 }
             }
         }
-        document.addEventListener('keyup', (e) => keys[e.code] = false);
 
         const leapEnergyCost = 25;
         const energyRegenRate = 15;
 
         function handleGravityLeap(code) {
-            if (player.energy < leapEnergyCost) return;
+            if (player.energy < leapEnergyCost || player.isLeaping) return;
 
             let rotationAxis = null;
             let angle = 0;
 
             if (code === 'KeyW') {
-                // Pitch forward 90 degrees
                 rotationAxis = new THREE.Vector3(1, 0, 0);
                 angle = Math.PI / 2;
             } else if (code === 'KeyS') {
-                // Flip backward 180 degrees
                 rotationAxis = new THREE.Vector3(1, 0, 0);
                 angle = Math.PI;
             } else if (code === 'KeyA') {
-                // Roll left 90 degrees -> Left wall becomes floor
                 rotationAxis = new THREE.Vector3(0, 0, 1);
                 angle = -Math.PI / 2;
             } else if (code === 'KeyD') {
-                // Roll right 90 degrees -> Right wall becomes floor
                 rotationAxis = new THREE.Vector3(0, 0, 1);
                 angle = Math.PI / 2;
             }
 
-            if (rotationAxis && !player.isLeaping) {
+            if (rotationAxis) {
                 player.energy -= leapEnergyCost;
                 initiateLeap(rotationAxis, angle);
             }
@@ -207,38 +473,32 @@
             player.isLeaping = true;
             player.leapStartTime = performance.now();
 
-            // 1. Get current yaw rotation and snap it to the nearest 90-degree increment for "block world"
+            // --- Physics & Target Setup ---
             const snappedYaw = Math.round(player.lookRotation.y / (Math.PI / 2)) * (Math.PI / 2);
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
+            const snappedYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
 
-            // 2. orientedBodyQuaternion is the cardinal direction the player is "aiming" their leap
-            const orientedBodyQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
+            // Current cardinal basis (the one we are leap "from")
+            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(snappedYawQuaternion);
 
-            // We slerp FROM the current look basis (not snapped) for visual smoothness
-            const currentYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
-            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(currentYawQuaternion);
-
-            // 3. Apply the leap rotation (pitch/roll) relative to the SNAPPED oriented basis
+            // Target cardinal basis (the one we are leap "to")
             const leapRotation = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-            player.leapTargetQuaternion.copy(orientedBodyQuaternion).multiply(leapRotation).normalize();
+            player.leapTargetQuaternion.copy(player.leapStartQuaternion).multiply(leapRotation).normalize();
 
-            // Apply leap forces
+            // Force application
             const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(orientedBodyQuaternion);
-
-            player.velocity.addScaledVector(upVector, 8); // Jump up
-            player.velocity.addScaledVector(forwardVector, 5); // Leap forward
-
+            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(player.leapStartQuaternion);
+            player.velocity.addScaledVector(upVector, 8);
+            player.velocity.addScaledVector(forwardVector, 5);
             player.isGrounded = false;
 
-            // Update body quaternion instantly for physics
             player.bodyQuaternion.copy(player.leapTargetQuaternion);
-
-            // Reset yaw relative to the new floor, accounting for the difference between snapped and current yaw
             player.lookRotation.y = player.lookRotation.y - snappedYaw;
+
+            // --- Character Ledger Update ---
+            player.stats.gravity_flips++;
+            broadcastActionDelta("FORCE_JUMP");
         }
 
-        // Current visual orientation of the player's body (for smoothing)
         let visualBodyQuaternion = new THREE.Quaternion();
 
         const instructions = document.getElementById('instructions');
@@ -247,51 +507,143 @@
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
                 player.lookRotation.y -= e.movementX * mouseSensitivity;
-                player.lookRotation.x -= e.movementY * mouseSensitivity;
-
-                // Clamp pitch
+                player.lookRotation.x += e.movementY * mouseSensitivity;
                 player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
             }
         });
 
-        instructions.addEventListener('click', () => {
-            document.body.requestPointerLock();
+        const raycaster = new THREE.Raycaster();
+        const centerMouse = new THREE.Vector2(0, 0);
+        let hoveredPlanet = null;
+
+        function checkSkyboxTargeting() {
+            raycaster.setFromCamera(centerMouse, camera);
+            const intersects = raycaster.intersectObjects(celestialLayer.children, true);
+
+            if (intersects.length > 0) {
+                // Intersects could hit the planet mesh OR its core
+                let target = intersects[0].object;
+                while (target && !target.userData.isPlanet) target = target.parent;
+
+                if (target && target.userData.isPlanet) {
+                    hoveredPlanet = target.userData;
+                    trialCountEl.textContent = `LOCKED ONTO: ${hoveredPlanet.planetName}`;
+                    trialCountEl.style.color = '#ffd166';
+                    return;
+                }
+            }
+
+            hoveredPlanet = null;
+            updateTrialHUD(); // Restore standard trial HUD
+        }
+
+        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
+
+        document.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+
+            // 1. Interstellar Teleport Check
+            if (hoveredPlanet) {
+                openPlanetTeleporterMenu(hoveredPlanet.planetId, hoveredPlanet.planetName);
+                document.exitPointerLock();
+                return;
+            }
+
+            // 2. Standard Voxel Breaking
+            raycaster.setFromCamera(centerMouse, camera);
+            const voxels = scene.children.filter(obj => obj.type === 'Mesh' && obj !== room && obj !== wireframe);
+            const intersects = raycaster.intersectObjects(voxels);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                const dist = intersects[0].distance;
+
+                // Anti-cheat Mesh Audit: Must be close enough (e.g., 5 units)
+                if (dist < 5) {
+                    scene.remove(target);
+                    player.stats.blocks_broken++;
+                    broadcastActionDelta("BLOCK_BREAK", [target.position.x, target.position.y, target.position.z]);
+                }
+            }
         });
 
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
-                instructions.style.display = 'none';
-            } else {
-                instructions.style.display = 'block';
-            }
+            instructions.style.display = document.pointerLockElement === document.body ? 'none' : 'block';
         });
 
         const moveSpeed = 5;
         const gravityForce = 20;
         const arrowLookSpeed = 2.0;
 
-        // --- HUD Implementation ---
-        const hud = document.getElementById('hud');
+        // --- HUD ---
+        const energyContainer = document.getElementById('energy-container');
+        const trialCountEl = document.getElementById('trial-count');
+        const ledgerSeqEl = document.getElementById('ledger-seq');
+        const ledgerBlocksEl = document.getElementById('ledger-blocks');
+        const ledgerHashEl = document.getElementById('ledger-hash');
+
         const dotCount = 10;
         const dots = [];
-
         for (let i = 0; i < dotCount; i++) {
             const dot = document.createElement('div');
             dot.className = 'energy-dot';
-            hud.appendChild(dot);
+            energyContainer.appendChild(dot);
             dots.push(dot);
         }
 
         function updateHUD() {
             const energyPerDot = player.maxEnergy / dotCount;
             dots.forEach((dot, i) => {
-                if (player.energy >= (i + 1) * energyPerDot) {
+                if (player.energy > i * energyPerDot) {
                     dot.classList.remove('depleted');
                 } else {
                     dot.classList.add('depleted');
                 }
             });
         }
+
+        function updateTrialHUD() {
+            const visitedCount = Object.values(player.facesVisited).filter(v => v).length;
+            trialCountEl.textContent = `${visitedCount}/6`;
+            if (visitedCount === 6) {
+                trialCountEl.style.color = '#00ff00';
+                trialCountEl.style.textShadow = '0 0 10px #00ff00';
+            }
+        }
+
+        function updateLedgerHUD() {
+            ledgerSeqEl.textContent = player.sequence_id;
+            ledgerBlocksEl.textContent = player.stats.blocks_broken;
+            ledgerHashEl.textContent = player.state_root_hash.substring(0, 16) + "...";
+        }
+
+        // --- Teleporter Handshake UI ---
+        const teleporterModal = document.getElementById('teleporter-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        window.openPlanetTeleporterMenu = (planetId, planetName) => {
+            teleporterModal.style.display = 'flex';
+            modalContent.innerHTML = `
+                <h2>🌌 Quantum Link: ${planetName}</h2>
+                <p>Scanning peer mesh network for active rooms...</p>
+                <div class="room-list">
+                    <div class="room-item">
+                        <span>Room #1 (3/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 1)">JOIN</button>
+                    </div>
+                    <div class="room-item">
+                        <span>Room #2 (1/5 Peers)</span>
+                        <button class="btn" onclick="window.connectToMesh('${planetId}', 2)">JOIN</button>
+                    </div>
+                </div>
+                <button class="btn" onclick="window.createNewMeshRoom('${planetId}')">INITIALIZE NEW ORBIT</button>
+                <button class="btn btn-cancel" onclick="window.closePlanetMenu()">CANCEL</button>
+            `;
+        }
+
+        window.closePlanetMenu = () => { teleporterModal.style.display = 'none'; };
+        window.connectToMesh = (id, room) => { alert(`Connecting to ${id} Room ${room}...`); window.closePlanetMenu(); };
+        window.createNewMeshRoom = (id) => { alert(`Creating new room in ${id} orbit...`); window.closePlanetMenu(); };
 
         // --- Main Loop ---
         let lastTime = performance.now();
@@ -301,16 +653,15 @@
             let delta = (time - lastTime) / 1000;
             lastTime = time;
 
-            if (delta > 0.1) delta = 0.1; // Cap delta to avoid huge jumps
+            if (delta > 0.1) delta = 0.1;
 
-            // --- Arrow Key Look ---
+            // --- Controls ---
             if (keys['ArrowLeft']) player.lookRotation.y += arrowLookSpeed * delta;
             if (keys['ArrowRight']) player.lookRotation.y -= arrowLookSpeed * delta;
-            if (keys['ArrowUp']) player.lookRotation.x += arrowLookSpeed * delta;
-            if (keys['ArrowDown']) player.lookRotation.x -= arrowLookSpeed * delta;
+            if (keys['ArrowUp']) player.lookRotation.x -= arrowLookSpeed * delta;
+            if (keys['ArrowDown']) player.lookRotation.x += arrowLookSpeed * delta;
             player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
 
-            // --- Movement Physics ---
             const moveDir = new THREE.Vector3(0, 0, 0);
             if (keys['KeyW']) moveDir.z -= 1;
             if (keys['KeyS']) moveDir.z += 1;
@@ -318,15 +669,12 @@
             if (keys['KeyD']) moveDir.x += 1;
             moveDir.normalize();
 
-            // Rotate moveDir to align with body orientation and yaw
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
             const combinedMoveQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
             moveDir.applyQuaternion(combinedMoveQuaternion);
 
-            // Apply movement
             player.position.addScaledVector(moveDir, moveSpeed * delta);
 
-            // Apply gravity
             const downVector = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
             if (!player.isGrounded) {
                 player.velocity.addScaledVector(downVector, gravityForce * delta);
@@ -335,54 +683,70 @@
             }
             player.position.addScaledVector(player.velocity, delta);
 
-            // --- Collision Detection (Room bounds) ---
+            // --- Collision ---
             const halfRoom = roomSize / 2;
             const margin = 0.5;
             player.isGrounded = false;
-
-            // Check bottom collision relative to body orientation
             const localPos = player.position.clone().applyQuaternion(player.bodyQuaternion.clone().invert());
             if (localPos.y <= -halfRoom + margin) {
                 localPos.y = -halfRoom + margin;
-                player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
                 player.isGrounded = true;
+                // Identify which WORLD face is currently the "floor" based on bodyQuaternion
+                updateFacesVisited();
             }
-            // Ceiling
-            if (localPos.y >= halfRoom - margin) {
-                localPos.y = halfRoom - margin;
-                player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
-            }
-            // Walls
+            if (localPos.y >= halfRoom - margin) localPos.y = halfRoom - margin;
             if (localPos.x <= -halfRoom + margin) localPos.x = -halfRoom + margin;
             if (localPos.x >= halfRoom - margin) localPos.x = halfRoom - margin;
             if (localPos.z <= -halfRoom + margin) localPos.z = -halfRoom + margin;
             if (localPos.z >= halfRoom - margin) localPos.z = halfRoom - margin;
             player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
 
+            // CRITICAL SKYBOX HACK: Move the celestial star map with the player
+            // so they can never fly closer or further away from the selector meshes
+            celestialLayer.position.copy(player.position);
+
+            // Spin the planets slowly in place over time just for visual flair
+            celestialLayer.children.forEach(planet => {
+                planet.rotation.y += 0.005;
+            });
+
+            // Check if the player is looking at any distant worlds
+            checkSkyboxTargeting();
+
+        function updateFacesVisited() {
+            // Transform the unit "up" vector (0,1,0) in local space to world space
+            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+
+            // The world face we are grounded on is the one worldUp is pointing AWAY from.
+            // i.e., worldDown = -worldUp.
+            const worldDown = worldUp.clone().negate();
+
+            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
+            else if (worldDown.y > 0.9) player.facesVisited.top = true;
+            else if (worldDown.x < -0.9) player.facesVisited.left = true;
+            else if (worldDown.x > 0.9) player.facesVisited.right = true;
+            else if (worldDown.z < -0.9) player.facesVisited.front = true;
+            else if (worldDown.z > 0.9) player.facesVisited.back = true;
+
+            updateTrialHUD();
+        }
+
             // --- Camera Smoothing ---
             if (player.isLeaping) {
                 const elapsed = (time - player.leapStartTime) / 1000;
                 const t = Math.min(elapsed / player.leapDuration, 1);
-
-                // Slerp from start to target
                 visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, t);
-
-                if (t >= 1) {
-                    player.isLeaping = false;
-                }
+                if (t >= 1) player.isLeaping = false;
             } else {
                 visualBodyQuaternion.copy(player.bodyQuaternion);
             }
 
-            // Update camera orientation
             const lookQuaternion = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuaternion);
-
-            // Update camera position to follow player position (accounting for eye level)
             const upOffset = new THREE.Vector3(0, player.height, 0).applyQuaternion(visualBodyQuaternion);
             camera.position.copy(player.position).add(upOffset);
 
-            // --- Energy Regeneration ---
+            // --- HUD ---
             if (player.energy < player.maxEnergy) {
                 player.energy = Math.min(player.maxEnergy, player.energy + energyRegenRate * delta);
             }
@@ -393,7 +757,6 @@
 
         animate();
 
-        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
