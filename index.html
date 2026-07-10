@@ -35,7 +35,109 @@
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            z-index: 10;
+            z-index: 200;
+        }
+
+        #power-bar-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            z-index: 300;
+        }
+
+        #power-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #00ffff;
+            box-shadow: 0 0 15px #00ffff;
+            transition: width 0.3s;
+        }
+
+        #power-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #000;
+            font-size: 0.7em;
+            font-weight: bold;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        #settings-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #111;
+            padding: 30px;
+            border: 2px solid #00ffff;
+            color: white;
+            z-index: 150;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .hidden { display: none !important; }
+
+        #mobile-hud {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .joystick-zone {
+            position: absolute;
+            bottom: 0;
+            width: 50%;
+            height: 60%;
+            pointer-events: auto;
+        }
+        #touch-zone-left { left: 0; }
+        #touch-zone-right { right: 0; }
+
+        #action-cluster {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .hud-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00ffff;
+            border-radius: 50%;
+            color: #00ffff;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 0.8em;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .special-btn {
+            background: rgba(0, 255, 255, 0.2);
+            font-size: 0.7em;
+        }
+
+        .hud-btn:active {
+            background: #00ffff;
+            color: #000;
         }
 
         #ledger-hud {
@@ -157,11 +259,36 @@
 <body>
     <div id="instructions">
         <h1>Gemverse Nexus Hub</h1>
-        <p>W, A, S, D - Move</p>
-        <p>Mouse / Arrows - Look</p>
-        <p>Shift + Space + W/A/S/D - Force Jump (Costs Life Force)</p>
-        <p>Space (Grounded) - Jump</p>
+        <p>W, A, S, D - Move | Mouse / Arrows - Look</p>
+        <p>Shift + Space + W/A/S/D - Force Jump</p>
+        <p>Space - Jump</p>
+        <p><i>Mobile: Tap Power Bar for Settings</i></p>
         <p>Click to start</p>
+    </div>
+
+    <div id="power-bar-container">
+        <div id="power-bar-fill"></div>
+        <span id="power-text">ENERGY SHIELD: 100%</span>
+    </div>
+
+    <div id="settings-menu" class="hidden">
+        <h2>SYSTEM SETTINGS</h2>
+        <div style="margin: 20px 0;">
+            <label style="cursor: pointer;">
+                <input type="checkbox" id="toggle-touch-controls"> ENABLE TOUCH HUD
+            </label>
+        </div>
+        <button id="close-menu-btn" class="btn">RESUME</button>
+    </div>
+
+    <div id="mobile-hud" class="hidden">
+        <div id="touch-zone-left" class="joystick-zone"></div>
+        <div id="touch-zone-right" class="joystick-zone"></div>
+
+        <div id="action-cluster">
+            <button id="btn-touch-jump" class="hud-btn">JUMP</button>
+            <button id="btn-touch-force" class="hud-btn special-btn">FORCE<br>SHIFT</button>
+        </div>
     </div>
 
     <div id="hud">
@@ -501,6 +628,10 @@
             },
             state_root_hash: "awaiting_genesis...",
 
+            // --- Input State ---
+            moveVector: { x: 0, z: 0 },
+            touchControlsEnabled: false,
+
             // --- Physics & Live State ---
             position: new THREE.Vector3(10, -roomSize / 2 + 0.5, 0),
             velocity: new THREE.Vector3(),
@@ -703,6 +834,111 @@
         const gravityForce = 20;
         const arrowLookSpeed = 2.0;
 
+        // --- Mobile Touch Implementation ---
+        const powerBar = document.getElementById('power-bar-container');
+        const settingsMenu = document.getElementById('settings-menu');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+        const toggleTouch = document.getElementById('toggle-touch-controls');
+        const mobileHud = document.getElementById('mobile-hud');
+        const leftZone = document.getElementById('touch-zone-left');
+        const rightZone = document.getElementById('touch-zone-right');
+
+        powerBar.addEventListener('click', () => {
+            settingsMenu.classList.toggle('hidden');
+        });
+        closeMenuBtn.addEventListener('click', () => settingsMenu.classList.add('hidden'));
+
+        toggleTouch.addEventListener('change', (e) => {
+            player.touchControlsEnabled = e.target.checked;
+            mobileHud.classList.toggle('hidden', !player.touchControlsEnabled);
+        });
+
+        let movePointerId = null;
+        let moveStartPos = { x: 0, y: 0 };
+
+        leftZone.addEventListener('pointerdown', (e) => {
+            movePointerId = e.pointerId;
+            moveStartPos = { x: e.clientX, y: e.clientY };
+        });
+
+        leftZone.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== movePointerId) return;
+            const deltaX = e.clientX - moveStartPos.x;
+            const deltaY = e.clientY - moveStartPos.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const maxRadius = 50;
+            const angle = Math.atan2(deltaY, deltaX);
+            const intensity = Math.min(distance / maxRadius, 1);
+            player.moveVector.x = Math.cos(angle) * intensity;
+            player.moveVector.z = Math.sin(angle) * intensity;
+        });
+
+        leftZone.addEventListener('pointerup', (e) => {
+            if (e.pointerId === movePointerId) {
+                movePointerId = null;
+                player.moveVector = { x: 0, z: 0 };
+            }
+        });
+
+        rightZone.addEventListener('pointermove', (e) => {
+            if (e.pointerType === 'touch' || e.buttons === 1) {
+                player.lookRotation.y -= e.movementX * mouseSensitivity;
+                player.lookRotation.x += e.movementY * mouseSensitivity;
+                player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
+            }
+        });
+
+        document.getElementById('btn-touch-jump').addEventListener('pointerdown', handleJump);
+
+        document.getElementById('btn-touch-force').addEventListener('pointerdown', () => {
+            if (player.energy < leapEnergyCost || player.isLeaping) return;
+
+            const lookDirection = new THREE.Vector3(0, 0, -1);
+            const visualLookQuaternion = new THREE.Quaternion().copy(visualBodyQuaternion).multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
+            lookDirection.applyQuaternion(visualLookQuaternion);
+
+            raycaster.set(player.position, lookDirection);
+            // Raycast against the environment (Interior, Hull, Tesseract)
+            const targetable = [tesseract, ...interiorGroup.children, hullWireframe];
+            const intersects = raycaster.intersectObjects(targetable, true);
+
+            if (intersects.length > 0) {
+                const hitNormal = intersects[0].face.normal.clone();
+                // We need the normal in WORLD space
+                // But the face normal is in LOCAL space of the object.
+                // For our specific cube setup, we can use the hit normal and the object rotation.
+                const worldNormal = hitNormal.applyQuaternion(intersects[0].object.getWorldQuaternion(new THREE.Quaternion()));
+
+                // Trigger the Force Shift
+                // In our model, a Force Shift is a specialized leap that aligns player.bodyQuaternion
+                // so that player.upVector (local Y) is worldNormal.
+
+                // Determine target axis/angle relative to current body orientation
+                // For simplicity in this prototype, we'll snap to the cardinal normal.
+                initiateForceShiftToNormal(worldNormal);
+            }
+        });
+
+        function initiateForceShiftToNormal(targetWorldUp) {
+            player.isLeaping = true;
+            player.leapStartTime = performance.now();
+            player.leapStartQuaternion.copy(player.bodyQuaternion);
+
+            // Calculate target quaternion where local (0,1,0) becomes targetWorldUp
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            const rotationToTarget = new THREE.Quaternion().setFromUnitVectors(currentUp, targetWorldUp);
+            player.leapTargetQuaternion.copy(rotationToTarget).multiply(player.bodyQuaternion).normalize();
+
+            // Apply slight push
+            const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            player.velocity.addScaledVector(upVector, 8);
+            player.isGrounded = false;
+            player.bodyQuaternion.copy(player.leapTargetQuaternion);
+
+            player.stats.gravity_flips++;
+            broadcastActionDelta("FORCE_SHIFT", [targetWorldUp.x, targetWorldUp.y, targetWorldUp.z]);
+        }
+
         // --- HUD ---
         const energyContainer = document.getElementById('energy-container');
         const trialCountEl = document.getElementById('trial-count');
@@ -791,11 +1027,16 @@
             player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
 
             const moveDir = new THREE.Vector3(0, 0, 0);
-            if (keys['KeyW']) moveDir.z -= 1;
-            if (keys['KeyS']) moveDir.z += 1;
-            if (keys['KeyA']) moveDir.x -= 1;
-            if (keys['KeyD']) moveDir.x += 1;
-            moveDir.normalize();
+            if (player.touchControlsEnabled) {
+                moveDir.x = player.moveVector.x;
+                moveDir.z = player.moveVector.z;
+            } else {
+                if (keys['KeyW']) moveDir.z -= 1;
+                if (keys['KeyS']) moveDir.z += 1;
+                if (keys['KeyA']) moveDir.x -= 1;
+                if (keys['KeyD']) moveDir.x += 1;
+                moveDir.normalize();
+            }
 
             const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
             const combinedMoveQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
@@ -880,25 +1121,6 @@
 
             // Check if the player is looking at any distant worlds
             checkSkyboxTargeting();
-        }
-
-        function updateFacesVisited() {
-            // Transform the unit "up" vector (0,1,0) in local space to world space
-            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-
-            // The world face we are grounded on is the one worldUp is pointing AWAY from.
-            // i.e., worldDown = -worldUp.
-            const worldDown = worldUp.clone().negate();
-
-            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
-            else if (worldDown.y > 0.9) player.facesVisited.top = true;
-            else if (worldDown.x < -0.9) player.facesVisited.left = true;
-            else if (worldDown.x > 0.9) player.facesVisited.right = true;
-            else if (worldDown.z < -0.9) player.facesVisited.front = true;
-            else if (worldDown.z > 0.9) player.facesVisited.back = true;
-
-            updateTrialHUD();
-        }
 
             // --- Camera Smoothing ---
             if (player.isLeaping) {
@@ -922,6 +1144,24 @@
             updateHUD();
 
             renderer.render(scene, camera);
+        }
+
+        function updateFacesVisited() {
+            // Transform the unit "up" vector (0,1,0) in local space to world space
+            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+
+            // The world face we are grounded on is the one worldUp is pointing AWAY from.
+            // i.e., worldDown = -worldUp.
+            const worldDown = worldUp.clone().negate();
+
+            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
+            else if (worldDown.y > 0.9) player.facesVisited.top = true;
+            else if (worldDown.x < -0.9) player.facesVisited.left = true;
+            else if (worldDown.x > 0.9) player.facesVisited.right = true;
+            else if (worldDown.z < -0.9) player.facesVisited.front = true;
+            else if (worldDown.z > 0.9) player.facesVisited.back = true;
+
+            updateTrialHUD();
         }
 
         animate();

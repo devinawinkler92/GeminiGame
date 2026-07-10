@@ -1,4 +1,4 @@
-# Architectural Specification: The Tesseract-Dyson Nexus (Rev 5.0)
+# Architectural Specification: The Tesseract-Dyson Nexus (Rev 6.0)
 
 ## 1. Executive Summary
 The Gemverse Nexus Hub serves as the primary cryptographic, social, and network architectural anchor for the distributed peer-to-peer (P2P) simulation. The world layout uses a nested cube framework built outward from the absolute coordinate origin (0,0,0).
@@ -53,3 +53,35 @@ Instead of the engine imposing an environment-wide downward acceleration vector,
 $$\vec{g}_{\text{player}} = 9.8 \cdot \hat{u}_{\text{player}}$$
 
 *Where $\hat{u}_{\text{player}}$ is a real-time, user-mutated unit directional vector assigned via client-side input updates. The simulation engine maps voxel collisions based on this local orientation matrix, allowing multiple players to navigate the exact same layout surface from entirely inverted physical frameworks simultaneously.*
+
+## 4. Cross-Platform Control Paradigms & Mobile UX
+
+To maintain strict mechanical parity between desktop and mobile environments, the simulation uses an adaptive UI overlay framework that translates high-velocity spatial movement tasks into multi-touch inputs.
+
+### 4.1 Interface Architecture
+* **The Power Bar Hub Interface:** The core status bar displaying real-time node performance indicators (or armor/power levels) functions as a tactile link to system settings. Tapping the bar halts non-physics render tasks and reveals the configuration menu, containing the toggles for on-screen controls.
+* **Dual-Zone Invisible Joysticks:** Rather than cluttering the 3D viewport with permanent static graphic circles, the interface dynamically instantiates pointer registration anchors upon user interaction:
+  * **Left Hemisphere:** Evaluates dynamic vector displacement from the first touch index, driving forward, backward, and side-stepping velocity variables.
+  * **Right Hemisphere:** Maps raw movement deltas to camera yaw and pitch, acting as an invisible trackpad to keep views of the central Tesseract Core and outer Celestial Skybox fully unblocked.
+
+### 4.2 The Kinetic Action Cluster
+Mobile traversal depends on two critical input triggers anchored to the bottom-right corner of the interface:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ [POWER BAR] ──► Opens Settings ──► Enable Touch HUD   │
+├───────────────────────────┬────────────────────────────┤
+│                           │                            │
+│   LEFT SIDE TOUCH ZONE    │   RIGHT SIDE TOUCH ZONE    │
+│  [ Invisible Joystick ]   │   [ Invisible Trackpad ]   │
+│   Controls Movement       │   Controls Free Look       │
+│                           │                            │
+│                           │         [ JUMP ]           │
+│                           │    [ FORCE SHIFT/JUMP ] ◄──┼─ Executes mid-air
+└───────────────────────────┴────────────────────────────┘  gravity redirection
+```
+
+1. **The Standard Jump Button:** Appends an upward acceleration step oriented exactly parallel to the player's active personal `upVector`, executing standard obstacle hops.
+2. **The Force Shift/Jump Button:** The primary mechanical engine for professional high-velocity movement. Pressing this executes an instantaneous client-side raycast directly down the camera's true vector. If a valid voxel surface (the inner hub deck, the basement layers, or the external clan citadels) is detected, the engine forces a manual shift event.
+
+This instantly updates the client's internal down-acceleration vector to align directly with the targeted surface normal, turning free-falling through structural hull openings into a controllable skill curve.
