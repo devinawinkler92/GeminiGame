@@ -114,6 +114,7 @@
             flex-direction: column;
             gap: 15px;
             pointer-events: auto;
+            z-index: 110;
         }
 
         .hud-btn {
@@ -164,25 +165,6 @@
             font-size: 0.9em;
         }
 
-        #energy-container {
-            display: flex;
-            gap: 10px;
-        }
-
-        .energy-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--player-color, #00ffff);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--player-color, #00ffff), 0 0 20px var(--player-color, #00ffff);
-            transition: opacity 0.2s, transform 0.2s;
-        }
-
-        .energy-dot.depleted {
-            opacity: 0.2;
-            box-shadow: none;
-            transform: scale(0.8);
-        }
 
         #trial-hud {
             background: rgba(0, 0, 0, 0.4);
@@ -298,9 +280,6 @@
             <div class="ledger-line"><span>STATE_ROOT:</span> <span id="ledger-hash" class="hash-text">awaiting...</span></div>
         </div>
         <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
-        <div id="energy-container">
-            <!-- Energy dots will be generated here -->
-        </div>
     </div>
 
     <div id="teleporter-modal">
@@ -857,6 +836,8 @@
         let moveStartPos = { x: 0, y: 0 };
 
         leftZone.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            leftZone.setPointerCapture(e.pointerId);
             movePointerId = e.pointerId;
             moveStartPos = { x: e.clientX, y: e.clientY };
         });
@@ -866,58 +847,95 @@
             const deltaX = e.clientX - moveStartPos.x;
             const deltaY = e.clientY - moveStartPos.y;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const maxRadius = 50;
+            const maxRadius = 40;
             const angle = Math.atan2(deltaY, deltaX);
             const intensity = Math.min(distance / maxRadius, 1);
             player.moveVector.x = Math.cos(angle) * intensity;
             player.moveVector.z = Math.sin(angle) * intensity;
         });
 
-        leftZone.addEventListener('pointerup', (e) => {
+        const resetLeftZone = (e) => {
             if (e.pointerId === movePointerId) {
                 movePointerId = null;
                 player.moveVector = { x: 0, z: 0 };
             }
-        });
+        };
+        leftZone.addEventListener('pointerup', resetLeftZone);
+        leftZone.addEventListener('pointercancel', resetLeftZone);
 
         rightZone.addEventListener('pointermove', (e) => {
             if (e.pointerType === 'touch' || e.buttons === 1) {
-                player.lookRotation.y -= e.movementX * mouseSensitivity;
-                player.lookRotation.x += e.movementY * mouseSensitivity;
+                // For touch move, we use e.movementX/Y if available, otherwise fallback
+                // Most modern browsers support movementX/Y on pointermove now.
+                const speed = mouseSensitivity * 1.5;
+                player.lookRotation.y -= e.movementX * speed;
+                player.lookRotation.x += e.movementY * speed;
                 player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
             }
         });
 
-        document.getElementById('btn-touch-jump').addEventListener('pointerdown', handleJump);
+        document.getElementById('btn-touch-jump').addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handleJump();
+        });
 
-        document.getElementById('btn-touch-force').addEventListener('pointerdown', () => {
+        // --- Swipe-to-Force-Shift ---
+        let forcePointerId = null;
+        let forceStartPos = { x: 0, y: 0 };
+        const forceBtn = document.getElementById('btn-touch-force');
+
+        forceBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            forceBtn.setPointerCapture(e.pointerId);
+            forcePointerId = e.pointerId;
+            forceStartPos = { x: e.clientX, y: e.clientY };
+            forceBtn.style.background = 'rgba(0, 255, 255, 0.4)';
+        });
+
+        forceBtn.addEventListener('pointerup', (e) => {
+            if (e.pointerId !== forcePointerId) return;
+            forceBtn.style.background = '';
+
+            const deltaX = e.clientX - forceStartPos.x;
+            const deltaY = e.clientY - forceStartPos.y;
+            const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            if (dist > 30) {
+                // Swipe detected
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    // Horizontal swipe
+                    if (deltaX > 0) handleGravityLeap('KeyD');
+                    else handleGravityLeap('KeyA');
+                } else {
+                    // Vertical swipe
+                    if (deltaY > 0) handleGravityLeap('KeyS');
+                    else handleGravityLeap('KeyW');
+                }
+            } else {
+                // Minimal swipe / Tap - perform the original raycast Force Shift
+                executeRaycastForceShift();
+            }
+            forcePointerId = null;
+        });
+
+        forceBtn.addEventListener('pointercancel', (e) => {
+            forceBtn.style.background = '';
+            forcePointerId = null;
+        });
+
+        function executeRaycastForceShift() {
             if (player.energy < leapEnergyCost || player.isLeaping) return;
-
             const lookDirection = new THREE.Vector3(0, 0, -1);
             const visualLookQuaternion = new THREE.Quaternion().copy(visualBodyQuaternion).multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
             lookDirection.applyQuaternion(visualLookQuaternion);
-
             raycaster.set(player.position, lookDirection);
-            // Raycast against the environment (Interior, Hull, Tesseract)
             const targetable = [tesseract, ...interiorGroup.children, hullWireframe];
             const intersects = raycaster.intersectObjects(targetable, true);
-
             if (intersects.length > 0) {
-                const hitNormal = intersects[0].face.normal.clone();
-                // We need the normal in WORLD space
-                // But the face normal is in LOCAL space of the object.
-                // For our specific cube setup, we can use the hit normal and the object rotation.
-                const worldNormal = hitNormal.applyQuaternion(intersects[0].object.getWorldQuaternion(new THREE.Quaternion()));
-
-                // Trigger the Force Shift
-                // In our model, a Force Shift is a specialized leap that aligns player.bodyQuaternion
-                // so that player.upVector (local Y) is worldNormal.
-
-                // Determine target axis/angle relative to current body orientation
-                // For simplicity in this prototype, we'll snap to the cardinal normal.
+                const worldNormal = intersects[0].face.normal.clone().applyQuaternion(intersects[0].object.getWorldQuaternion(new THREE.Quaternion()));
                 initiateForceShiftToNormal(worldNormal);
             }
-        });
+        }
 
         function initiateForceShiftToNormal(targetWorldUp) {
             player.isLeaping = true;
@@ -940,30 +958,17 @@
         }
 
         // --- HUD ---
-        const energyContainer = document.getElementById('energy-container');
+        const powerBarFill = document.getElementById('power-bar-fill');
+        const powerText = document.getElementById('power-text');
         const trialCountEl = document.getElementById('trial-count');
         const ledgerSeqEl = document.getElementById('ledger-seq');
         const ledgerBlocksEl = document.getElementById('ledger-blocks');
         const ledgerHashEl = document.getElementById('ledger-hash');
 
-        const dotCount = 10;
-        const dots = [];
-        for (let i = 0; i < dotCount; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'energy-dot';
-            energyContainer.appendChild(dot);
-            dots.push(dot);
-        }
-
         function updateHUD() {
-            const energyPerDot = player.maxEnergy / dotCount;
-            dots.forEach((dot, i) => {
-                if (player.energy > i * energyPerDot) {
-                    dot.classList.remove('depleted');
-                } else {
-                    dot.classList.add('depleted');
-                }
-            });
+            const energyPercent = Math.floor((player.energy / player.maxEnergy) * 100);
+            powerBarFill.style.width = energyPercent + '%';
+            powerText.textContent = `ENERGY SHIELD: ${energyPercent}%`;
         }
 
         function updateTrialHUD() {
