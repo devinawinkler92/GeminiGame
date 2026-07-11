@@ -863,16 +863,31 @@
         leftZone.addEventListener('pointerup', resetLeftZone);
         leftZone.addEventListener('pointercancel', resetLeftZone);
 
+        let lookLastPos = null;
+        rightZone.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            rightZone.setPointerCapture(e.pointerId);
+            lookLastPos = { x: e.clientX, y: e.clientY };
+        });
+
         rightZone.addEventListener('pointermove', (e) => {
-            if (e.pointerType === 'touch' || e.buttons === 1) {
-                // For touch move, we use e.movementX/Y if available, otherwise fallback
-                // Most modern browsers support movementX/Y on pointermove now.
+            if (lookLastPos) {
+                const deltaX = e.clientX - lookLastPos.x;
+                const deltaY = e.clientY - lookLastPos.y;
+                lookLastPos = { x: e.clientX, y: e.clientY };
+
                 const speed = mouseSensitivity * 1.5;
-                player.lookRotation.y -= e.movementX * speed;
-                player.lookRotation.x += e.movementY * speed;
+                player.lookRotation.y -= deltaX * speed;
+                player.lookRotation.x += deltaY * speed;
                 player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
             }
         });
+
+        const resetLookZone = (e) => {
+            lookLastPos = null;
+        };
+        rightZone.addEventListener('pointerup', resetLookZone);
+        rightZone.addEventListener('pointercancel', resetLookZone);
 
         document.getElementById('btn-touch-jump').addEventListener('pointerdown', (e) => {
             e.preventDefault();
@@ -1091,21 +1106,25 @@
                 const inGapZ = Math.abs(localPos.z) < gapSize / 2;
 
                 // Simple collision for interior faces if not in the central 12x12 gap
-                const checkInteriorCollision = (val, target, isGap1, isGap2) => {
+                const checkInteriorCollision = (val, target, isGap1, isGap2, isFloorCheck) => {
                     if (Math.abs(val - target) < margin && !(isGap1 && isGap2)) {
                         // We hit the wall
+                        if (isFloorCheck && val >= target) {
+                            player.isGrounded = true;
+                            updateFacesVisited();
+                        }
                         if (val > target) return target + margin;
                         else return target - margin;
                     }
                     return val;
                 };
 
-                localPos.y = checkInteriorCollision(localPos.y, -halfInt, inGapX, inGapZ);
-                localPos.y = checkInteriorCollision(localPos.y, halfInt, inGapX, inGapZ);
-                localPos.x = checkInteriorCollision(localPos.x, -halfInt, inGapY, inGapZ);
-                localPos.x = checkInteriorCollision(localPos.x, halfInt, inGapY, inGapZ);
-                localPos.z = checkInteriorCollision(localPos.z, -halfInt, inGapX, inGapY);
-                localPos.z = checkInteriorCollision(localPos.z, halfInt, inGapX, inGapY);
+                localPos.y = checkInteriorCollision(localPos.y, -halfInt, inGapX, inGapZ, true);
+                localPos.y = checkInteriorCollision(localPos.y, halfInt, inGapX, inGapZ, false);
+                localPos.x = checkInteriorCollision(localPos.x, -halfInt, inGapY, inGapZ, false);
+                localPos.x = checkInteriorCollision(localPos.x, halfInt, inGapY, inGapZ, false);
+                localPos.z = checkInteriorCollision(localPos.z, -halfInt, inGapX, inGapY, false);
+                localPos.z = checkInteriorCollision(localPos.z, halfInt, inGapX, inGapY, false);
             }
 
             player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
