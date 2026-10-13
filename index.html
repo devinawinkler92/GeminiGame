@@ -67,7 +67,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 10;
+            z-index: 50;
         }
 
         /* Crosshair */
@@ -95,39 +95,41 @@
         /* Gravity Vector Real-time Overlay directly above Gyro Widget */
         #gravity-vector-hud {
             position: absolute;
-            top: 15px;
-            right: 20px;
-            width: 130px;
+            top: 8px;
+            right: 12px;
+            width: 90px;
             text-align: center;
             font-family: monospace;
-            font-size: 0.8em;
+            font-size: 0.65em;
             font-weight: bold;
             color: #00f0ff;
             background: rgba(13, 14, 21, 0.85);
             border: 1px solid rgba(0, 240, 255, 0.5);
-            border-radius: 6px;
-            padding: 4px 6px;
+            border-radius: 4px;
+            padding: 2px 4px;
             box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
             backdrop-filter: blur(5px);
+            z-index: 100;
+            pointer-events: auto;
         }
 
         /* Gyro Compass Widget Corner */
         #gyro-widget-container {
             position: absolute;
-            top: 45px;
-            right: 20px;
-            width: 130px;
-            height: 130px;
-            background: rgba(13, 14, 21, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.4);
+            top: 32px;
+            right: 12px;
+            width: 90px;
+            height: 90px;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.5);
             border-radius: 50%;
             pointer-events: auto;
             cursor: pointer;
             backdrop-filter: blur(5px);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
             transition: transform 0.2s, border-color 0.2s;
             overflow: hidden;
-            z-index: 50;
+            z-index: 110;
         }
 
         #gyro-widget-container:hover {
@@ -144,49 +146,50 @@
 
         #gyro-label {
             position: absolute;
-            bottom: 6px;
+            bottom: 4px;
             left: 0;
             width: 100%;
             text-align: center;
-            font-size: 0.65em;
+            font-size: 0.55em;
             color: #00f0ff;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             pointer-events: none;
         }
 
         /* Vertical Energy Bar under Gyro Compass */
         #energy-bar-wrapper {
             position: absolute;
-            top: 190px;
-            right: 60px;
-            width: 50px;
-            background: rgba(13, 14, 21, 0.8);
+            top: 130px;
+            right: 42px;
+            width: 30px;
+            background: rgba(13, 14, 21, 0.85);
             border: 1px solid rgba(0, 240, 255, 0.4);
-            border-radius: 20px;
-            padding: 12px 8px;
+            border-radius: 12px;
+            padding: 6px 4px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
             backdrop-filter: blur(5px);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
-            z-index: 25;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+            z-index: 100;
+            pointer-events: auto;
         }
 
         #energy-label {
-            font-size: 0.6em;
+            font-size: 0.45em;
             font-weight: bold;
             color: #00f0ff;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
         }
 
         #energy-bar-outer {
-            width: 14px;
-            height: 160px;
+            width: 8px;
+            height: 70px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 7px;
+            border-radius: 4px;
             overflow: hidden;
             position: relative;
             display: flex;
@@ -198,7 +201,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(180deg, #00f0ff, #0077ff);
-            border-radius: 7px;
+            border-radius: 4px;
             transition: height 0.05s linear;
             box-shadow: 0 0 8px #00f0ff;
         }
@@ -298,12 +301,14 @@
 
         .settings-content {
             background: #12141d;
-            padding: 30px;
+            padding: 20px;
             border-radius: 12px;
             border: 2px solid #00f0ff;
             box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
-            max-width: 450px;
-            width: 90%;
+            max-width: 480px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
             color: white;
         }
 
@@ -505,50 +510,54 @@
 
     <!-- 9-Slot Hotbar HUD -->
     <div id="inventory-hud">
-        <div class="inv-slot selected" data-type="platform" data-index="1">
+        <div id="btn-open-inventory" class="inv-slot" style="border-color: #00f0ff; background: rgba(0, 240, 255, 0.15);" title="Open Full Inventory">
+            <span style="font-size: 1.1em;">🎒</span>
+            <span style="font-size: 0.55em; color: #00f0ff; text-transform: uppercase;">BAG</span>
+        </div>
+        <div class="inv-slot selected" data-index="1">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">1</span>
-            <div class="inv-color-preview" style="background: #2a2f45; border: 1px solid #00f0ff;"></div>
-            <span class="inv-count" id="count-platform">0</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="gold" data-index="2">
+        <div class="inv-slot" data-index="2">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">2</span>
-            <div class="inv-color-preview" style="background: #ffaa00;"></div>
-            <span class="inv-count" id="count-gold">0</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="green" data-index="3">
+        <div class="inv-slot" data-index="3">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">3</span>
-            <div class="inv-color-preview" style="background: #00ff88;"></div>
-            <span class="inv-count" id="count-green">0</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="cyan" data-index="4">
+        <div class="inv-slot" data-index="4">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">4</span>
-            <div class="inv-color-preview" style="background: #00f0ff;"></div>
-            <span class="inv-count" id="count-cyan">0</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="magenta" data-index="5">
+        <div class="inv-slot" data-index="5">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">5</span>
-            <div class="inv-color-preview" style="background: #ff0077;"></div>
-            <span class="inv-count" id="count-magenta">0</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="platform" data-index="6">
+        <div class="inv-slot" data-index="6">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">6</span>
-            <div class="inv-color-preview" style="background: #2a2f45;"></div>
-            <span class="inv-count">-</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="gold" data-index="7">
+        <div class="inv-slot" data-index="7">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">7</span>
-            <div class="inv-color-preview" style="background: #ffaa00;"></div>
-            <span class="inv-count">-</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="green" data-index="8">
+        <div class="inv-slot" data-index="8">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">8</span>
-            <div class="inv-color-preview" style="background: #00ff88;"></div>
-            <span class="inv-count">-</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
-        <div class="inv-slot" data-type="cyan" data-index="9">
+        <div class="inv-slot" data-index="9">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">9</span>
-            <div class="inv-color-preview" style="background: #00f0ff;"></div>
-            <span class="inv-count">-</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
         </div>
     </div>
 
@@ -984,12 +993,15 @@
             }
         }
 
-        const invSlots = document.querySelectorAll('.inv-slot');
+        let selectedHotbarIndex = 1;
+
+        const invSlots = document.querySelectorAll('.inv-slot[data-index]');
         invSlots.forEach(slot => {
             slot.addEventListener('click', (e) => {
-                invSlots.forEach(s => s.classList.remove('selected'));
-                slot.classList.add('selected');
-                selectedBlockType = slot.dataset.type;
+                const idx = parseInt(slot.dataset.index, 10);
+                if (idx) {
+                    selectHotbarSlotByIndex(idx);
+                }
             });
         });
 
@@ -1059,12 +1071,54 @@
         }
 
         function updateInventoryUI() {
+            // Collect all non-empty block types in inventory (count > 0)
+            const activeItems = [];
             for (const type in playerInventory) {
-                const countEl = document.getElementById(`count-${type}`);
-                if (countEl) countEl.textContent = playerInventory[type];
+                if (playerInventory[type] > 0) {
+                    activeItems.push({ type: type, count: playerInventory[type] });
+                }
             }
+
+            // Populate hotbar slots 1 through 9 from left to right
+            const slots = document.querySelectorAll('.inv-slot[data-index]');
+            slots.forEach((slot, i) => {
+                const item = activeItems[i];
+                const colorPrev = slot.querySelector('.inv-color-preview');
+                const countSpan = slot.querySelector('.inv-count');
+
+                if (item) {
+                    slot.dataset.type = item.type;
+                    if (colorPrev) {
+                        colorPrev.style.background = BLOCK_COLORS[item.type] || '#fff';
+                        colorPrev.style.display = 'block';
+                    }
+                    if (countSpan) {
+                        countSpan.textContent = item.count;
+                    }
+                } else {
+                    delete slot.dataset.type;
+                    if (colorPrev) {
+                        colorPrev.style.display = 'none';
+                    }
+                    if (countSpan) {
+                        countSpan.textContent = '';
+                    }
+                }
+            });
+
+            // Update active selectedBlockType based on current selectedHotbarIndex
+            const selectedSlot = document.querySelector(`.inv-slot[data-index="${selectedHotbarIndex}"]`);
+            if (selectedSlot && selectedSlot.dataset.type) {
+                selectedBlockType = selectedSlot.dataset.type;
+            } else {
+                selectedBlockType = null;
+            }
+
             renderProgressionInventoryMenu();
         }
+
+        // Render inventory grid initially
+        updateInventoryUI();
 
         // Raycasting & Break Progress Overlay
         const raycaster = new THREE.Raycaster();
@@ -1213,13 +1267,26 @@
         let lastSpaceTime = 0;
 
         function selectHotbarSlotByIndex(idx) {
-            const slot = document.querySelector(`.inv-slot[data-index="${idx}"]`);
-            if (slot) {
-                invSlots.forEach(s => s.classList.remove('selected'));
-                slot.classList.add('selected');
-                selectedBlockType = slot.dataset.type;
+            selectedHotbarIndex = idx;
+            const allSlots = document.querySelectorAll('.inv-slot[data-index]');
+            allSlots.forEach(s => s.classList.remove('selected'));
+            const targetSlot = document.querySelector(`.inv-slot[data-index="${idx}"]`);
+            if (targetSlot) {
+                targetSlot.classList.add('selected');
+                selectedBlockType = targetSlot.dataset.type || null;
             }
         }
+
+        // Mouse wheel hotbar scrolling
+        window.addEventListener('wheel', (e) => {
+            if (settingsModal.style.display === 'flex') return;
+            if (e.deltaY > 0) {
+                selectedHotbarIndex = (selectedHotbarIndex % 9) + 1;
+            } else if (e.deltaY < 0) {
+                selectedHotbarIndex = selectedHotbarIndex === 1 ? 9 : selectedHotbarIndex - 1;
+            }
+            selectHotbarSlotByIndex(selectedHotbarIndex);
+        });
 
         document.addEventListener('keydown', (e) => {
             if (!keys[e.code]) {
@@ -1651,8 +1718,8 @@
         // --- Gyro Compass Widget & Settings Menu ---
         const gyroCanvas = document.getElementById('gyro-canvas');
         const gyroContext = gyroCanvas.getContext('2d');
-        gyroCanvas.width = 130;
-        gyroCanvas.height = 130;
+        gyroCanvas.width = 90;
+        gyroCanvas.height = 90;
 
         const gyroContainer = document.getElementById('gyro-widget-container');
         const settingsModal = document.getElementById('settings-modal');
@@ -1715,6 +1782,32 @@
             tabBtnInventory.style.color = '#aaa';
         });
 
+        const btnOpenInventory = document.getElementById('btn-open-inventory');
+        function openInventoryTabDirectly(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            // Switch to inventory tab
+            tabContentInventory.style.display = 'block';
+            tabContentSettings.style.display = 'none';
+            tabBtnInventory.style.background = 'rgba(0, 240, 255, 0.2)';
+            tabBtnInventory.style.borderColor = '#00f0ff';
+            tabBtnInventory.style.color = '#00f0ff';
+            tabBtnSettings.style.background = 'rgba(255, 255, 255, 0.05)';
+            tabBtnSettings.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            tabBtnSettings.style.color = '#aaa';
+
+            if (settingsModal.style.display !== 'flex') {
+                toggleSettingsModal();
+            }
+        }
+
+        if (btnOpenInventory) {
+            btnOpenInventory.addEventListener('touchstart', openInventoryTabDirectly);
+            btnOpenInventory.addEventListener('click', openInventoryTabDirectly);
+        }
+
         btnCloseSettings.addEventListener('click', () => {
             toggleSettingsModal();
         });
@@ -1724,6 +1817,7 @@
                 settingsModal.style.display = 'none';
                 document.body.requestPointerLock();
             } else {
+                renderProgressionInventoryMenu();
                 settingsModal.style.display = 'flex';
                 document.exitPointerLock();
             }
