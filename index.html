@@ -567,32 +567,44 @@
         <div class="settings-content">
             <h2>⚙ Gemverse Nexus Menu</h2>
 
-            <!-- Dedicated Progression Inventory Modal Grid -->
-            <div style="margin-bottom: 20px; background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 EXPANDABLE INVENTORY</h3>
-                    <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 / 24 SLOTS UNLOCKED</span>
-                </div>
-                <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
-                    <!-- 12 Starting Unlocked + 12 Locked Progression Slots generated via JS -->
+            <!-- Gyro Menu Navigation Tabs -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
+                <button id="tab-btn-inventory" style="flex: 1; padding: 10px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-settings" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
+            </div>
+
+            <!-- Tab 1: Dedicated Expandable Inventory Sub-Menu -->
+            <div id="tab-content-inventory" style="display: block;">
+                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
+                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 / 24 SLOTS UNLOCKED</span>
+                    </div>
+                    <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+                        <!-- 12 Starting Unlocked + 12 Locked Progression Slots generated via JS -->
+                    </div>
                 </div>
             </div>
 
-            <div class="setting-group">
-                <label for="gyro-mode-select">Gyro Compass Mode:</label>
-                <select id="gyro-mode-select">
-                    <option value="axes">X / Y / Z Axes</option>
-                    <option value="horizon">Artificial Horizon</option>
-                </select>
+            <!-- Tab 2: Settings Sub-Menu -->
+            <div id="tab-content-settings" style="display: none;">
+                <div class="setting-group">
+                    <label for="gyro-mode-select">Gyro Compass Mode:</label>
+                    <select id="gyro-mode-select">
+                        <option value="axes">X / Y / Z Axes</option>
+                        <option value="horizon">Artificial Horizon</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label for="touch-hud-select">Touch Controls HUD:</label>
+                    <select id="touch-hud-select">
+                        <option value="auto">Auto-detect</option>
+                        <option value="on">Always On</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
             </div>
-            <div class="setting-group">
-                <label for="touch-hud-select">Touch Controls HUD:</label>
-                <select id="touch-hud-select">
-                    <option value="auto">Auto-detect</option>
-                    <option value="on">Always On</option>
-                    <option value="off">Off</option>
-                </select>
-            </div>
+
             <button class="btn-close" id="btn-close-settings">Resume Sandbox</button>
         </div>
     </div>
@@ -1668,6 +1680,39 @@
 
         gyroModeSelect.addEventListener('change', (e) => {
             gyroMode = e.target.value;
+        });
+
+        const tabBtnInventory = document.getElementById('tab-btn-inventory');
+        const tabBtnSettings = document.getElementById('tab-btn-settings');
+        const tabContentInventory = document.getElementById('tab-content-inventory');
+        const tabContentSettings = document.getElementById('tab-content-settings');
+
+        tabBtnInventory.addEventListener('click', (e) => {
+            e.preventDefault();
+            tabContentInventory.style.display = 'block';
+            tabContentSettings.style.display = 'none';
+
+            tabBtnInventory.style.background = 'rgba(0, 240, 255, 0.2)';
+            tabBtnInventory.style.borderColor = '#00f0ff';
+            tabBtnInventory.style.color = '#00f0ff';
+
+            tabBtnSettings.style.background = 'rgba(255, 255, 255, 0.05)';
+            tabBtnSettings.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            tabBtnSettings.style.color = '#aaa';
+        });
+
+        tabBtnSettings.addEventListener('click', (e) => {
+            e.preventDefault();
+            tabContentInventory.style.display = 'none';
+            tabContentSettings.style.display = 'block';
+
+            tabBtnSettings.style.background = 'rgba(0, 240, 255, 0.2)';
+            tabBtnSettings.style.borderColor = '#00f0ff';
+            tabBtnSettings.style.color = '#00f0ff';
+
+            tabBtnInventory.style.background = 'rgba(255, 255, 255, 0.05)';
+            tabBtnInventory.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            tabBtnInventory.style.color = '#aaa';
         });
 
         btnCloseSettings.addEventListener('click', () => {
