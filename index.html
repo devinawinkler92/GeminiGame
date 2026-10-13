@@ -985,9 +985,12 @@
             gold: 0,
             green: 0,
             cyan: 0,
-            magenta: 0
+            magenta: 0,
+            wall: 0
         };
         let selectedBlockType = 'platform';
+
+        const HOTBAR_TYPE_MAP = ['platform', 'gold', 'green', 'cyan', 'magenta', 'wall'];
 
         const BLOCK_HARDNESS = {
             platform: 1.0,
@@ -998,12 +1001,40 @@
             wall: 1.5
         };
 
+        const BLOCK_COLORS = {
+            platform: '#2a2f45',
+            gold: '#ffaa00',
+            green: '#00ff88',
+            cyan: '#00f0ff',
+            magenta: '#ff0077',
+            wall: '#1f283d'
+        };
+
+        const BLOCK_HEX = {
+            platform: 0x2a2f45,
+            gold: 0xffaa00,
+            green: 0x00ff88,
+            cyan: 0x00f0ff,
+            magenta: 0xff0077,
+            wall: 0x1f283d
+        };
+
+        const BLOCK_EMISSIVE = {
+            platform: 0x003355,
+            gold: 0x885500,
+            green: 0x00a855,
+            cyan: 0x00aacc,
+            magenta: 0xaa0044,
+            wall: 0x050811
+        };
+
         // Debris Particle Animation Engine for Voxel Mining
         const activeDebrisParticles = [];
         const miniBlockGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
 
         function spawnMiningDebris(pos, baseType = 'platform') {
-            const particleMat = createPsiVoxelMaterial(pos.x, pos.y, pos.z, baseType);
+            const emissive = BLOCK_EMISSIVE[baseType] || 0x000000;
+            const particleMat = createPsiVoxelMaterial(pos.x, pos.y, pos.z, baseType, emissive);
             for (let i = 0; i < 6; i++) {
                 const mesh = new THREE.Mesh(miniBlockGeo, particleMat);
                 mesh.position.copy(pos).add(new THREE.Vector3(
@@ -1059,26 +1090,10 @@
 
         let unlockedInventorySlots = 12;
 
-        const BLOCK_COLORS = {
-            platform: '#2a2f45',
-            gold: '#ffaa00',
-            green: '#00ff88',
-            cyan: '#00f0ff',
-            magenta: '#ff0077'
-        };
-
         function renderProgressionInventoryMenu() {
             const gridContainer = document.getElementById('progression-inventory-grid');
             if (!gridContainer) return;
             gridContainer.innerHTML = '';
-
-            // Collect active items (count > 0)
-            const activeItems = [];
-            for (const type in playerInventory) {
-                if (playerInventory[type] > 0) {
-                    activeItems.push({ type: type, count: playerInventory[type] });
-                }
-            }
 
             for (let i = 0; i < unlockedInventorySlots; i++) {
                 const slotDiv = document.createElement('div');
@@ -1096,18 +1111,20 @@
                 slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
                 slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
 
-                if (i < activeItems.length) {
-                    const item = activeItems[i];
+                const type = HOTBAR_TYPE_MAP[i];
+                const count = type ? (playerInventory[type] || 0) : 0;
+
+                if (type && count > 0) {
                     const colorPrev = document.createElement('div');
                     colorPrev.style.width = '16px';
                     colorPrev.style.height = '16px';
                     colorPrev.style.borderRadius = '3px';
-                    colorPrev.style.background = BLOCK_COLORS[item.type] || '#fff';
+                    colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
                     colorPrev.style.marginTop = '2px';
 
                     const countSpan = document.createElement('span');
                     countSpan.style.color = '#00f0ff';
-                    countSpan.textContent = item.count;
+                    countSpan.textContent = count;
 
                     slotDiv.appendChild(colorPrev);
                     slotDiv.appendChild(countSpan);
@@ -1121,29 +1138,33 @@
         }
 
         function updateInventoryUI() {
-            // Collect all non-empty block types in inventory (count > 0)
-            const activeItems = [];
-            for (const type in playerInventory) {
-                if (playerInventory[type] > 0) {
-                    activeItems.push({ type: type, count: playerInventory[type] });
-                }
-            }
-
-            // Populate hotbar slots 1 through 9 from left to right
+            // Map each hotbar slot 1-6 to its fixed block type from HOTBAR_TYPE_MAP
             const slots = document.querySelectorAll('.inv-slot[data-index]');
-            slots.forEach((slot, i) => {
-                const item = activeItems[i];
+            slots.forEach((slot) => {
+                const idx = parseInt(slot.dataset.index, 10) - 1;
+                const type = HOTBAR_TYPE_MAP[idx];
+                const count = type ? (playerInventory[type] || 0) : 0;
+
                 const colorPrev = slot.querySelector('.inv-color-preview');
                 const countSpan = slot.querySelector('.inv-count');
 
-                if (item) {
-                    slot.dataset.type = item.type;
-                    if (colorPrev) {
-                        colorPrev.style.background = BLOCK_COLORS[item.type] || '#fff';
-                        colorPrev.style.display = 'block';
-                    }
-                    if (countSpan) {
-                        countSpan.textContent = item.count;
+                if (type) {
+                    slot.dataset.type = type;
+                    if (count > 0) {
+                        if (colorPrev) {
+                            colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
+                            colorPrev.style.display = 'block';
+                        }
+                        if (countSpan) {
+                            countSpan.textContent = count;
+                        }
+                    } else {
+                        if (colorPrev) {
+                            colorPrev.style.display = 'none';
+                        }
+                        if (countSpan) {
+                            countSpan.textContent = '';
+                        }
                     }
                 } else {
                     delete slot.dataset.type;
@@ -1157,15 +1178,14 @@
             });
 
             // Update active selectedBlockType based on current selectedHotbarIndex
-            const selectedSlot = document.querySelector(`.inv-slot[data-index="${selectedHotbarIndex}"]`);
-            if (selectedSlot && selectedSlot.dataset.type) {
-                selectedBlockType = selectedSlot.dataset.type;
-            } else {
-                selectedBlockType = null;
-            }
+            const selectedType = HOTBAR_TYPE_MAP[selectedHotbarIndex - 1];
+            selectedBlockType = selectedType || null;
 
             renderProgressionInventoryMenu();
         }
+
+        window.playerInventory = playerInventory;
+        window.updateInventoryUI = updateInventoryUI;
 
         // Render inventory grid initially
         updateInventoryUI();
@@ -1287,27 +1307,31 @@
             playerInventory[selectedBlockType]--;
             updateInventoryUI();
 
-            // 1. Spawn Translucent Ghost Block (Pending L2 verification, solid collision)
+            // 1. Spawn Translucent Ghost Block matching target block color (Pending L2 verification, solid collision)
+            const ghostColor = BLOCK_HEX[selectedBlockType] || 0x00f0ff;
+            const ghostEmissive = BLOCK_EMISSIVE[selectedBlockType] || 0x00f0ff;
             const ghostMat = new THREE.MeshStandardMaterial({
-                color: 0x00f0ff,
+                color: ghostColor,
                 transparent: true,
                 opacity: 0.55,
                 roughness: 0.1,
                 metalness: 0.9,
                 wireframe: false,
-                emissive: 0x00f0ff,
+                emissive: ghostEmissive,
                 emissiveIntensity: 0.4
             });
 
             const ghostVoxel = spawnVoxelBlock(newX, newY, newZ, ghostMat, selectedBlockType, true);
 
             // 2. Simulate L2 Distributed Settlement / Verification Delay (~0.8s)
+            const blockTypeToPlace = selectedBlockType;
             setTimeout(() => {
                 if (collidableVoxels.includes(ghostVoxel)) {
                     // Replace ghost material with synthesized Psi procedural texture
                     removeVoxelBlock(ghostVoxel);
-                    const solidMat = createPsiVoxelMaterial(newX, newY, newZ, selectedBlockType);
-                    spawnVoxelBlock(newX, newY, newZ, solidMat, selectedBlockType, false);
+                    const emissive = BLOCK_EMISSIVE[blockTypeToPlace] || 0x000000;
+                    const solidMat = createPsiVoxelMaterial(newX, newY, newZ, blockTypeToPlace, emissive);
+                    spawnVoxelBlock(newX, newY, newZ, solidMat, blockTypeToPlace, false);
                 }
             }, 800);
         }
