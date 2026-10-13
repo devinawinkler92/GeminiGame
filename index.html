@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGL Voxel Physics - Gravity Leap Sandbox</title>
+    <title>WebGL Voxel Physics - Sovereign Gravity Sandbox</title>
     <style>
         * {
             box-sizing: border-box;
@@ -91,57 +91,29 @@
             top: 0; left: 4px; width: 2px; height: 10px;
         }
 
-        /* Vertical Energy Bar under Gyro Compass */
-        #energy-bar-wrapper {
+        /* Gravity Vector Real-time Overlay directly above Gyro Widget */
+        #gravity-vector-hud {
             position: absolute;
-            top: 165px;
-            right: 60px; /* Centered under 130px Gyro at right:20px */
-            width: 50px;
-            background: rgba(13, 14, 21, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.4);
-            border-radius: 20px;
-            padding: 12px 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
-        }
-
-        #energy-label {
-            font-size: 0.6em;
+            top: 15px;
+            right: 20px;
+            width: 130px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.8em;
             font-weight: bold;
             color: #00f0ff;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        #energy-bar-outer {
-            width: 14px;
-            height: 160px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 7px;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start; /* Charges top-down, drains bottom-up */
-        }
-
-        #energy-bar-fill {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(180deg, #00f0ff, #0077ff);
-            border-radius: 7px;
-            transition: height 0.05s linear;
-            box-shadow: 0 0 8px #00f0ff;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            border-radius: 6px;
+            padding: 4px 6px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            backdrop-filter: blur(5px);
         }
 
         /* Gyro Compass Widget Corner */
         #gyro-widget-container {
             position: absolute;
-            top: 20px;
+            top: 45px;
             right: 20px;
             width: 130px;
             height: 130px;
@@ -179,6 +151,53 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             pointer-events: none;
+        }
+
+        /* Vertical Energy Bar under Gyro Compass */
+        #energy-bar-wrapper {
+            position: absolute;
+            top: 190px;
+            right: 60px;
+            width: 50px;
+            background: rgba(13, 14, 21, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 20px;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+
+        #energy-label {
+            font-size: 0.6em;
+            font-weight: bold;
+            color: #00f0ff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #energy-bar-outer {
+            width: 14px;
+            height: 160px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        #energy-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #00f0ff, #0077ff);
+            border-radius: 7px;
+            transition: height 0.05s linear;
+            box-shadow: 0 0 8px #00f0ff;
         }
 
         /* Settings Modal */
@@ -261,7 +280,7 @@
 <body>
     <div id="instructions">
         <h1>Gravity Leap Sandbox</h1>
-        <p>Explore Box Gravity & Intuitive Spatial Gravity Leaps!</p>
+        <p>Sovereign Gravity Engine - Gravity strictly follows active player orientation!</p>
         <div class="controls-grid">
             <div><span>W, A, S, D</span> - Move</div>
             <div><span>Mouse</span> - Look Around</div>
@@ -277,6 +296,7 @@
 
     <div id="hud">
         <div id="crosshair"></div>
+        <div id="gravity-vector-hud">g: [0, -1, 0]</div>
         <div id="gyro-widget-container" title="Click or Press ESC for Settings">
             <canvas id="gyro-canvas"></canvas>
             <div id="gyro-label">Compass</div>
@@ -392,7 +412,7 @@
         const matAccentGold = createVoxelMaterial(0xffaa00, 0x885500);
         const matAccentGreen = createVoxelMaterial(0x00ff88, 0x00a855);
 
-        // 1. Central Floating Island
+        // Floating Platforms
         for (let x = -3; x <= 3; x++) {
             for (let z = -3; z <= 3; z++) {
                 const mat = (Math.abs(x) === 3 || Math.abs(z) === 3) ? matAccentCyan : matPlatformMain;
@@ -400,7 +420,6 @@
             }
         }
 
-        // 2. Multi-directional Staircases
         for (let i = 0; i < 8; i++) {
             const yPos = -ROOM_SIZE / 2 + 1 + i * 1.5;
             const zPos = -12 + i * 1.2;
@@ -416,7 +435,6 @@
             }
         }
 
-        // 3. Wall Platforms & High Towers
         for (let y = -4; y <= 4; y += 2) {
             for (let z = -4; z <= 4; z += 2) {
                 spawnVoxelBlock(-ROOM_SIZE / 2 + 1.5, y, z, matAccentMagenta);
@@ -427,24 +445,8 @@
                 spawnVoxelBlock(ROOM_SIZE / 2 - 1.5, y, z, matAccentCyan);
             }
         }
-        for (let y = -10; y <= 10; y += 4) {
-            spawnVoxelBlock(0, y, -ROOM_SIZE / 2 + 1.5, matPlatformMain);
-            spawnVoxelBlock(1, y, -ROOM_SIZE / 2 + 1.5, matAccentGold);
-            spawnVoxelBlock(-1, y, -ROOM_SIZE / 2 + 1.5, matAccentGold);
-        }
-        for (let x = -4; x <= 4; x += 2) {
-            for (let z = -4; z <= 4; z += 2) {
-                spawnVoxelBlock(x, ROOM_SIZE / 2 - 2, z, matAccentGreen);
-            }
-        }
 
-        // Floating Voxel Islands
-        spawnVoxelBlock(-8, 5, -8, matAccentCyan);
-        spawnVoxelBlock(-10, 8, -5, matAccentMagenta);
-        spawnVoxelBlock(8, -5, 8, matAccentGold);
-        spawnVoxelBlock(10, -8, 5, matAccentGreen);
-
-        // --- Player State & Physics ---
+        // --- Player State & Sovereign Physics ---
         const player = {
             position: new THREE.Vector3(0, -ROOM_SIZE / 2 + 1.6, 0),
             velocity: new THREE.Vector3(0, 0, 0),
@@ -476,7 +478,6 @@
             if (e.code === 'Space') {
                 const now = performance.now();
                 if (now - lastSpaceTime < 300) {
-                    // Double-Tap Space detected -> Ceiling Leap!
                     handleCeilingLeap();
                 } else {
                     handleJump();
@@ -500,7 +501,6 @@
             if (document.pointerLockElement === document.body) {
                 player.lookRotation.y -= e.movementX * mouseSensitivity;
                 player.lookRotation.x -= e.movementY * mouseSensitivity;
-                // Clamp pitch between -89 deg and +89 deg
                 player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
             }
         });
@@ -518,7 +518,7 @@
             }
         });
 
-        // --- Leap & Gravity Shift Mechanics ---
+        // --- Active Gravity Leaps & Vector Shifts ---
         const LEAP_ENERGY_COST = 25;
         const ENERGY_REGEN_RATE = 18;
 
@@ -551,11 +551,9 @@
         function handleCeilingLeap() {
             if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
-            // Camera orientation in world space
             const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
             const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
 
-            // Ceiling is in direction of camUp. New floor normal (Local UP) should be -camUp
             initiateGravityShift(camUp.clone().negate(), 10);
             player.energy -= LEAP_ENERGY_COST;
         }
@@ -563,29 +561,25 @@
         function triggerSpatialLeap(code) {
             if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
-            // Get current camera orientation in world space
             const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
 
             let leapDirWorld = new THREE.Vector3();
             if (code === 'KeyW') {
-                leapDirWorld.set(0, 0, -1).applyQuaternion(camQuat); // Forward
+                leapDirWorld.set(0, 0, -1).applyQuaternion(camQuat);
             } else if (code === 'KeyS') {
-                leapDirWorld.set(0, 0, 1).applyQuaternion(camQuat);  // Backward
+                leapDirWorld.set(0, 0, 1).applyQuaternion(camQuat);
             } else if (code === 'KeyA') {
-                leapDirWorld.set(-1, 0, 0).applyQuaternion(camQuat); // Left
+                leapDirWorld.set(-1, 0, 0).applyQuaternion(camQuat);
             } else if (code === 'KeyD') {
-                leapDirWorld.set(1, 0, 0).applyQuaternion(camQuat);  // Right
+                leapDirWorld.set(1, 0, 0).applyQuaternion(camQuat);
             }
 
-            // Target wall/surface is in leapDirWorld direction.
-            // New floor normal (Local UP) should point OUT from that surface, i.e. -leapDirWorld
             const newFloorNormal = leapDirWorld.clone().negate();
 
             initiateGravityShift(newFloorNormal, 10, leapDirWorld);
             player.energy -= LEAP_ENERGY_COST;
         }
 
-        // Helper to snap a world vector to nearest cardinal axis (+X, -X, +Y, -Y, +Z, -Z)
         const CARDINALS = [
             new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
             new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
@@ -610,30 +604,19 @@
             player.leapStartTime = performance.now();
             player.leapStartQuaternion.copy(visualBodyQuaternion);
 
-            // Snap target local UP to nearest world cardinal vector
             const targetUp = snapToNearestCardinal(desiredUpWorld);
-
-            // Current body UP in world space
             const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-
-            // Calculate rotation quaternion to rotate currentUp to targetUp
             const shiftQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
-
-            // Raw target body quaternion
             const targetBodyRaw = shiftQuat.clone().multiply(player.bodyQuaternion);
 
-            // Ensure target body quaternion is perfectly cardinal-aligned
             const rawZ = new THREE.Vector3(0, 0, 1).applyQuaternion(targetBodyRaw);
-            // Project rawZ onto plane perpendicular to targetUp
             const projZ = rawZ.clone().addScaledVector(targetUp, -rawZ.dot(targetUp)).normalize();
             const cardinalZ = snapToNearestCardinal(projZ);
             const cardinalX = new THREE.Vector3().crossVectors(targetUp, cardinalZ).normalize();
 
-            // Construct 3x3 orientation matrix
             const rotMatrix = new THREE.Matrix4().makeBasis(cardinalX, targetUp, cardinalZ);
             player.leapTargetQuaternion.setFromRotationMatrix(rotMatrix).normalize();
 
-            // Apply push impulse if specified
             if (pushImpulse > 0 && impulseDir) {
                 player.velocity.addScaledVector(impulseDir.clone().normalize(), pushImpulse);
             }
@@ -651,8 +634,9 @@
         const settingsModal = document.getElementById('settings-modal');
         const gyroModeSelect = document.getElementById('gyro-mode-select');
         const btnCloseSettings = document.getElementById('btn-close-settings');
+        const gravityVectorHud = document.getElementById('gravity-vector-hud');
 
-        let gyroMode = 'axes'; // 'axes' or 'horizon'
+        let gyroMode = 'axes';
 
         gyroContainer.addEventListener('click', () => {
             toggleSettingsModal();
@@ -685,15 +669,12 @@
 
             gyroContext.clearRect(0, 0, w, h);
 
-            // Current camera world quaternion
             const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
 
             if (gyroMode === 'axes') {
-                // Render 3D World X, Y, Z Axes projected onto 2D HUD widget
                 gyroContext.save();
                 gyroContext.translate(cx, cy);
 
-                // World axes vectors transformed into camera space
                 const invCamQuat = camQuat.clone().invert();
                 const xAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(invCamQuat);
                 const yAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(invCamQuat);
@@ -705,12 +686,11 @@
                     { vec: zAxis, color: '#4488ff', label: 'Z' }
                 ];
 
-                // Sort by Z for proper depth rendering
                 axes.sort((a, b) => a.vec.z - b.vec.z);
 
                 axes.forEach(axis => {
                     const px = axis.vec.x * r;
-                    const py = -axis.vec.y * r; // Invert Y for canvas
+                    const py = -axis.vec.y * r;
 
                     gyroContext.beginPath();
                     gyroContext.moveTo(0, 0);
@@ -719,7 +699,6 @@
                     gyroContext.lineWidth = axis.vec.z > 0 ? 3 : 1.5;
                     gyroContext.stroke();
 
-                    // Axis dot / label
                     gyroContext.beginPath();
                     gyroContext.arc(px, py, 4, 0, Math.PI * 2);
                     gyroContext.fillStyle = axis.color;
@@ -732,36 +711,27 @@
 
                 gyroContext.restore();
             } else {
-                // Render Artificial Horizon
                 gyroContext.save();
                 gyroContext.translate(cx, cy);
 
-                // World Up vector in camera space
                 const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat.clone().invert());
-
-                // Pitch angle relative to horizon
                 const pitchAngle = Math.asin(Math.max(-1, Math.min(1, worldUp.y)));
-                // Roll angle relative to view
                 const rollAngle = Math.atan2(worldUp.x, worldUp.y);
 
                 gyroContext.rotate(-rollAngle);
 
                 const pitchOffset = pitchAngle * (r / (Math.PI / 2));
 
-                // Sky & Ground clipping
                 gyroContext.beginPath();
                 gyroContext.arc(0, 0, r, 0, Math.PI * 2);
                 gyroContext.clip();
 
-                // Sky fill
                 gyroContext.fillStyle = '#115588';
                 gyroContext.fillRect(-r, -r * 2 + pitchOffset, r * 2, r * 2);
 
-                // Ground fill
                 gyroContext.fillStyle = '#664422';
                 gyroContext.fillRect(-r, pitchOffset, r * 2, r * 2);
 
-                // Horizon Line
                 gyroContext.beginPath();
                 gyroContext.moveTo(-r, pitchOffset);
                 gyroContext.lineTo(r, pitchOffset);
@@ -773,7 +743,7 @@
             }
         }
 
-        // --- Main Physics Loop & Collision Resolution ---
+        // --- Main Sovereign Physics Loop & Collision Resolution ---
         const energyBarFill = document.getElementById('energy-bar-fill');
 
         let lastTime = performance.now();
@@ -787,14 +757,12 @@
             let delta = (time - lastTime) / 1000;
             lastTime = time;
 
-            if (delta > 0.1) delta = 0.1; // Cap large delta frame spikes
+            if (delta > 0.1) delta = 0.1;
 
             // --- Camera Slerp Transition ---
             if (player.isLeaping) {
                 const elapsed = (time - player.leapStartTime) / 1000;
                 const t = Math.min(elapsed / player.leapDuration, 1);
-
-                // Smooth cubic ease
                 const smoothT = t * t * (3 - 2 * t);
                 visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, smoothT);
 
@@ -807,6 +775,13 @@
                 visualBodyQuaternion.copy(player.bodyQuaternion);
             }
 
+            // Update real-time Sovereign Gravity Vector g HUD display
+            const currentGravityVector = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
+            const gx = Math.round(currentGravityVector.x);
+            const gy = Math.round(currentGravityVector.y);
+            const gz = Math.round(currentGravityVector.z);
+            gravityVectorHud.textContent = `g: [${gx}, ${gy}, ${gz}]`;
+
             // --- Movement Input Relative to Local View ---
             const moveInput = new THREE.Vector3();
             if (keys['KeyW']) moveInput.z -= 1;
@@ -815,26 +790,24 @@
             if (keys['KeyD']) moveInput.x += 1;
             moveInput.normalize();
 
-            // Yaw rotation relative to local body
             const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
             const moveQuat = visualBodyQuaternion.clone().multiply(yawQuat);
             const moveWorldDir = moveInput.clone().applyQuaternion(moveQuat);
 
             player.position.addScaledVector(moveWorldDir, moveSpeed * delta);
 
-            // --- Gravity Acceleration along Local Down ---
+            // --- Sovereign Gravity Acceleration along Local Down ---
             const currentLocalDown = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
 
             if (!player.isGrounded) {
                 player.velocity.addScaledVector(currentLocalDown, gravityAccel * delta);
             } else {
-                // Dampen velocity along local surface
                 player.velocity.set(0, 0, 0);
             }
 
             player.position.addScaledVector(player.velocity, delta);
 
-            // --- Collision Resolution & Surface Reorientation ---
+            // --- Sovereign Collision Resolution ---
             player.isGrounded = false;
             const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
 
@@ -853,15 +826,14 @@
 
             for (const col of roomCollisions) {
                 if (col.dist < 0) {
-                    // Penetrating boundary wall
                     player.position.addScaledVector(col.normal, -col.dist);
 
-                    // Check if player is falling onto floor surface
-                    if (localUpWorld.dot(col.normal) > 0.8) {
+                    const dotUp = localUpWorld.dot(col.normal);
+                    if (dotUp > 0.8) {
                         player.isGrounded = true;
-                    } else if (!player.isLeaping) {
-                        // Collision reorientation: reorient player to match hit wall normal!
-                        initiateGravityShift(col.normal);
+                    } else if (dotUp < -0.8 && !player.isLeaping) {
+                        // Hitting head on ceiling -> invert gravity vector!
+                        initiateGravityShift(localUpWorld.clone().negate());
                     }
                 }
             }
@@ -875,7 +847,6 @@
                     pMax.y > vox.min.y && pMin.y < vox.max.y &&
                     pMax.z > vox.min.z && pMin.z < vox.max.z) {
 
-                    // Calculate overlap along each axis
                     const overlapX1 = vox.max.x - pMin.x;
                     const overlapX2 = pMax.x - vox.min.x;
                     const overlapY1 = vox.max.y - pMin.y;
@@ -891,7 +862,6 @@
                     const absY = Math.abs(minY);
                     const absZ = Math.abs(minZ);
 
-                    // Resolve along smallest overlap axis
                     let hitNormal = new THREE.Vector3();
                     if (absX < absY && absX < absZ) {
                         player.position.x += minX;
@@ -904,11 +874,12 @@
                         hitNormal.set(0, 0, Math.sign(minZ));
                     }
 
-                    if (localUpWorld.dot(hitNormal) > 0.8) {
+                    const dotUp = localUpWorld.dot(hitNormal);
+                    if (dotUp > 0.8) {
                         player.isGrounded = true;
-                    } else if (!player.isLeaping) {
-                        // Reorient to voxel surface normal
-                        initiateGravityShift(hitNormal);
+                    } else if (dotUp < -0.8 && !player.isLeaping) {
+                        // Hitting head on ceiling -> invert gravity vector!
+                        initiateGravityShift(localUpWorld.clone().negate());
                     }
                 }
             }
@@ -917,7 +888,6 @@
             const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
 
-            // Camera offset in local UP direction
             const cameraOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
             camera.position.copy(player.position).add(cameraOffset);
 
@@ -925,17 +895,14 @@
             if (player.energy < player.maxEnergy) {
                 player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta);
             }
-            // Vertical bar fill height (Terraria style: charges top-down, drains bottom-up)
             energyBarFill.style.height = `${(player.energy / player.maxEnergy) * 100}%`;
 
-            // --- Render Gyro Compass & Main Scene ---
             renderGyroWidget();
             renderer.render(scene, camera);
         }
 
         animate();
 
-        // --- Window Resize ---
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
