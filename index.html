@@ -212,7 +212,7 @@
             height: 100%;
             pointer-events: auto;
             z-index: 15;
-            display: none; /* Auto or toggle controlled */
+            display: none;
         }
 
         #touch-left-zone {
@@ -368,10 +368,10 @@
         <div class="controls-grid">
             <div><span>W, A, S, D</span> - Move</div>
             <div><span>Mouse / Touch</span> - Look Around</div>
-            <div><span>Space / JUMP</span> - Jump</div>
+            <div><span>Space / JUMP</span> - Jump (Hold for Higher)</div>
             <div><span>Double Space</span> - Ceiling Flip</div>
             <div><span>Shift + WASD</span> - Gravity Leap</div>
-            <div><span>Swipe (Air)</span> - Leap Direction</div>
+            <div><span>Swipe (In Air)</span> - Leap Direction</div>
         </div>
         <p style="font-size: 0.85em; color: #aaa;">Click anywhere to start & lock pointer</p>
     </div>
@@ -558,6 +558,10 @@
             energy: 100,
             maxEnergy: 100,
 
+            // Variable jump height state
+            isJumpHolding: false,
+            jumpStartTime: 0,
+
             // Movement vector from joystick or keyboard
             touchMoveInput: new THREE.Vector3(),
 
@@ -576,27 +580,32 @@
         let lastSpaceTime = 0;
 
         document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
+            if (!keys[e.code]) {
+                keys[e.code] = true;
 
-            if (e.code === 'Space') {
-                const now = performance.now();
-                if (now - lastSpaceTime < 300) {
-                    handleCeilingLeap();
-                } else {
-                    handleJump();
+                if (e.code === 'Space') {
+                    const now = performance.now();
+                    if (now - lastSpaceTime < 300) {
+                        handleCeilingLeap();
+                    } else {
+                        handleJumpStart();
+                    }
+                    lastSpaceTime = now;
                 }
-                lastSpaceTime = now;
-            }
 
-            checkDirectionalLeapTrigger(e.code);
+                checkDirectionalLeapTrigger(e.code);
 
-            if (e.code === 'Escape') {
-                toggleSettingsModal();
+                if (e.code === 'Escape') {
+                    toggleSettingsModal();
+                }
             }
         });
 
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
+            if (e.code === 'Space') {
+                handleJumpEnd();
+            }
         });
 
         const mouseSensitivity = 0.002;
@@ -621,16 +630,25 @@
             }
         });
 
-        // --- Active Gravity Leaps & Vector Shifts ---
+        // --- Active Gravity Leaps & Variable Jump Physics ---
         const LEAP_ENERGY_COST = 25;
         const ENERGY_REGEN_RATE = 18;
+        const INITIAL_JUMP_IMPULSE = 4.5;
+        const JUMP_SUSTAIN_FORCE = 16.0;
+        const MAX_JUMP_HOLD_TIME = 0.22; // Seconds
 
-        function handleJump() {
+        function handleJumpStart() {
             if (player.isGrounded && !player.isLeaping) {
                 const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-                player.velocity.addScaledVector(localUp, 8);
+                player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE);
                 player.isGrounded = false;
+                player.isJumpHolding = true;
+                player.jumpStartTime = performance.now();
             }
+        }
+
+        function handleJumpEnd() {
+            player.isJumpHolding = false;
         }
 
         function checkDirectionalLeapTrigger(newlyPressedCode) {
@@ -789,7 +807,6 @@
 
                     touchJoystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
 
-                    // Normalize input (-1 to +1)
                     player.touchMoveInput.x = knobX / maxRadius;
                     player.touchMoveInput.z = knobY / maxRadius;
                 }
@@ -812,10 +829,11 @@
         let lookStartX = 0;
         let lookStartY = 0;
         let lookStartTime = 0;
+        let touchStartWasGrounded = true;
 
         touchRightZone.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (e.target === touchJumpBtn) return; // Managed separately
+            if (e.target === touchJumpBtn) return;
             if (lookTouchId !== null) return;
 
             const touch = e.changedTouches[0];
@@ -825,6 +843,7 @@
             lookStartX = touch.clientX;
             lookStartY = touch.clientY;
             lookStartTime = performance.now();
+            touchStartWasGrounded = player.isGrounded;
         });
 
         touchRightZone.addEventListener('touchmove', (e) => {
@@ -855,8 +874,8 @@
                     const duration = performance.now() - lookStartTime;
                     const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
 
-                    // Swipe gesture in air or jump state triggers Directional Gravity Leap
-                    if (duration < 250 && dist > 40 && !player.isGrounded) {
+                    // Strictly trigger swipe leap ONLY if player was in air when touch started OR is currently in mid-air
+                    if (duration < 250 && dist > 45 && !touchStartWasGrounded && !player.isGrounded) {
                         if (Math.abs(totalDx) > Math.abs(totalDy)) {
                             triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
                         } else {
@@ -879,9 +898,19 @@
             if (now - lastJumpTouchTime < 300) {
                 handleCeilingLeap();
             } else {
-                handleJump();
+                handleJumpStart();
             }
             lastJumpTouchTime = now;
+        });
+
+        touchJumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleJumpEnd();
+        });
+
+        touchJumpBtn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            handleJumpEnd();
         });
 
         // Initialize touch visibility
@@ -1045,6 +1074,17 @@
             const gz = Math.round(currentGravityVector.z);
             gravityVectorHud.textContent = `g: [${gx}, ${gy}, ${gz}]`;
 
+            // --- Variable Jump Height Physics ---
+            const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
+            if (player.isJumpHolding) {
+                const holdElapsed = (time - player.jumpStartTime) / 1000;
+                if (holdElapsed < MAX_JUMP_HOLD_TIME) {
+                    player.velocity.addScaledVector(localUpWorld, JUMP_SUSTAIN_FORCE * delta);
+                } else {
+                    player.isJumpHolding = false;
+                }
+            }
+
             // --- Movement Input Relative to Local View (Keyboard + Touch Joystick) ---
             const moveInput = new THREE.Vector3();
             if (keys['KeyW']) moveInput.z -= 1;
@@ -1052,7 +1092,6 @@
             if (keys['KeyA']) moveInput.x -= 1;
             if (keys['KeyD']) moveInput.x += 1;
 
-            // Combine touch joystick input
             moveInput.x += player.touchMoveInput.x;
             moveInput.z += player.touchMoveInput.z;
 
@@ -1077,7 +1116,6 @@
 
             // --- Sovereign Collision Resolution ---
             player.isGrounded = false;
-            const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
 
             // 1. Room Boundary Collision
             const halfRoom = ROOM_SIZE / 2;
@@ -1099,9 +1137,6 @@
                     const dotUp = localUpWorld.dot(col.normal);
                     if (dotUp > 0.8) {
                         player.isGrounded = true;
-                    } else if (dotUp < -0.8 && !player.isLeaping) {
-                        // Hitting head on ceiling -> invert gravity vector!
-                        initiateGravityShift(localUpWorld.clone().negate());
                     }
                 }
             }
@@ -1145,9 +1180,6 @@
                     const dotUp = localUpWorld.dot(hitNormal);
                     if (dotUp > 0.8) {
                         player.isGrounded = true;
-                    } else if (dotUp < -0.8 && !player.isLeaping) {
-                        // Hitting head on ceiling -> invert gravity vector!
-                        initiateGravityShift(localUpWorld.clone().negate());
                     }
                 }
             }
