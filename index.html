@@ -1395,6 +1395,8 @@
         window.inventorySlots = inventorySlots;
         window.addItemToInventory = addItemToInventory;
         window.updateInventoryUI = updateInventoryUI;
+        window.player = player;
+        window.THREE = THREE;
 
         // Render inventory grid initially
         updateInventoryUI();
@@ -1699,10 +1701,23 @@
 
             if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
-            const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
-            const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
+            // Perform exact 180° inverted ceiling leap (Half-Backflip around local X axis)
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            const pushDir = currentUp.clone(); // Push upward towards ceiling
 
-            initiateGravityShift(camUp.clone().negate(), 10);
+            // Half-backflip rotation: 180 degrees around local X axis (Right)
+            const halfBackflip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+            const targetBodyQuat = player.bodyQuaternion.clone().multiply(halfBackflip);
+
+            player.isLeaping = true;
+            player.leapStartTime = performance.now();
+            player.leapStartQuaternion.copy(visualBodyQuaternion);
+            player.leapTargetQuaternion.copy(targetBodyQuat).normalize();
+
+            // Apply upward impulse towards ceiling
+            player.velocity.addScaledVector(pushDir, 10);
+            player.isGrounded = false;
+
             player.energy -= LEAP_ENERGY_COST;
 
             if (isGshiftActive) {
