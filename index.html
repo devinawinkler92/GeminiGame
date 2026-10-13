@@ -701,6 +701,17 @@
             });
         }
 
+        // Material & Texture Caching for High-Performance Rendering
+        const psiMaterialCache = new Map();
+        function getCachedPsiVoxelMaterial(x, y, z, baseType = 'platform', emissiveHex = 0x000000) {
+            const cacheKey = `${baseType}_${emissiveHex}`;
+            if (!psiMaterialCache.has(cacheKey)) {
+                const mat = createPsiVoxelMaterial(x, y, z, baseType, emissiveHex);
+                psiMaterialCache.set(cacheKey, mat);
+            }
+            return psiMaterialCache.get(cacheKey);
+        }
+
         // --- Voxel World & Environment Setup ---
         const ROOM_SIZE = 36;
         const VOXEL_SIZE = 1;
@@ -716,19 +727,19 @@
             });
         }
 
-        const roomMat = createVoxelMaterial(0x161a29, 0x050811);
+        const roomBoxMat = createPsiVoxelMaterial(0, 0, 0, 'wall', 0x050811);
+        roomBoxMat.side = THREE.BackSide;
+
+        const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
+        const roomMesh = new THREE.Mesh(roomBox, roomBoxMat);
+        scene.add(roomMesh);
+
         const wireframeRoomMat = new THREE.MeshBasicMaterial({
             color: 0x00f0ff,
             wireframe: true,
             transparent: true,
             opacity: 0.08
         });
-
-        const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
-        const roomMesh = new THREE.Mesh(roomBox, roomMat);
-        roomMesh.material.side = THREE.BackSide;
-        scene.add(roomMesh);
-
         const roomWireframe = new THREE.Mesh(roomBox, wireframeRoomMat);
         roomWireframe.material.side = THREE.BackSide;
         scene.add(roomWireframe);
@@ -865,8 +876,56 @@
             gold: 0.5,
             green: 0.6,
             cyan: 0.8,
-            magenta: 0.8
+            magenta: 0.8,
+            wall: 1.5
         };
+
+        // Debris Particle Animation Engine for Voxel Mining
+        const activeDebrisParticles = [];
+        const miniBlockGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+
+        function spawnMiningDebris(pos, baseType = 'platform') {
+            const particleMat = createPsiVoxelMaterial(pos.x, pos.y, pos.z, baseType);
+            for (let i = 0; i < 6; i++) {
+                const mesh = new THREE.Mesh(miniBlockGeo, particleMat);
+                mesh.position.copy(pos).add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.6,
+                    (Math.random() - 0.5) * 0.6,
+                    (Math.random() - 0.5) * 0.6
+                ));
+                scene.add(mesh);
+
+                activeDebrisParticles.push({
+                    mesh: mesh,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 4.0,
+                        Math.random() * 3.0 + 1.0,
+                        (Math.random() - 0.5) * 4.0
+                    ),
+                    birthTime: performance.now(),
+                    lifetime: 600 + Math.random() * 300
+                });
+            }
+        }
+
+        function updateDebrisParticles(delta) {
+            const now = performance.now();
+            for (let i = activeDebrisParticles.length - 1; i >= 0; i--) {
+                const p = activeDebrisParticles[i];
+                const age = now - p.birthTime;
+                if (age >= p.lifetime) {
+                    scene.remove(p.mesh);
+                    activeDebrisParticles.splice(i, 1);
+                } else {
+                    p.velocity.y -= 12.0 * delta; // particle gravity
+                    p.mesh.position.addScaledVector(p.velocity, delta);
+                    p.mesh.rotation.x += 5.0 * delta;
+                    p.mesh.rotation.y += 5.0 * delta;
+                    const scale = 1.0 - (age / p.lifetime);
+                    p.mesh.scale.set(scale, scale, scale);
+                }
+            }
+        }
 
         const invSlots = document.querySelectorAll('.inv-slot');
         invSlots.forEach(slot => {
@@ -904,14 +963,11 @@
             breakTargetVoxel = voxelObj;
             breakStartTime = performance.now();
             breakRequiredTime = BLOCK_HARDNESS[voxelObj.baseType] || 1.0;
-            breakProgressContainer.style.display = 'block';
         }
 
         function stopBreakingTarget() {
             isBreakingBlock = false;
             breakTargetVoxel = null;
-            breakProgressContainer.style.display = 'none';
-            breakProgressCircle.style.strokeDashoffset = '100';
         }
 
         document.addEventListener('mousedown', (e) => {
@@ -1067,9 +1123,9 @@
         // --- Active Gravity Leaps & Variable Jump Physics ---
         const LEAP_ENERGY_COST = 25;
         const ENERGY_REGEN_RATE = 18;
-        const INITIAL_JUMP_IMPULSE = 4.5;
-        const JUMP_SUSTAIN_FORCE = 16.0;
-        const MAX_JUMP_HOLD_TIME = 0.22; // Seconds
+        const INITIAL_JUMP_IMPULSE = 5.2; // Tapped jump clears ~1.1 blocks
+        const JUMP_SUSTAIN_FORCE = 26.0;  // Continuous holding boosts up to ~2.2 blocks
+        const MAX_JUMP_HOLD_TIME = 0.25; // Seconds
 
         function handleJumpStart() {
             if (player.isGrounded && !player.isLeaping) {
@@ -1351,17 +1407,15 @@
                             handlePlaceBlock(target.voxel, target.faceNormal);
                         }
                     } else if (dist > 35 && duration < 350) {
-                        // Swipe Gesture -> Trigger Spatial Gravity Leap if airborne or if G-SHIFT is active
-                        if (!touchStartWasGrounded || isGshiftActive) {
+                        // Swipe Gesture -> Trigger Spatial Gravity Leap STRICTLY when G-SHIFT button is active
+                        if (isGshiftActive) {
                             if (Math.abs(totalDx) > Math.abs(totalDy)) {
                                 triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
                             } else {
                                 triggerSpatialLeap(totalDy > 0 ? 'KeyS' : 'KeyW');
                             }
-                            if (isGshiftActive) {
-                                isGshiftActive = false;
-                                touchGshiftBtn.classList.remove('active');
-                            }
+                            isGshiftActive = false;
+                            touchGshiftBtn.classList.remove('active');
                         }
                     }
 
@@ -1559,20 +1613,29 @@
             const pz = Math.round(player.position.z);
             gravityVectorHud.textContent = `Pos: [${px}, ${py}, ${pz}]`;
 
-            // Process Block Breaking Progress
+            // Process Block Breaking Progress & Mini Voxel Debris Animation
             if (isBreakingBlock && breakTargetVoxel) {
                 const elapsed = (performance.now() - breakStartTime) / 1000;
                 const progress = Math.min(elapsed / breakRequiredTime, 1.0);
-                breakProgressCircle.style.strokeDashoffset = `${100 - progress * 100}`;
+
+                // Periodically spawn mini voxel block debris particles during mining
+                if (Math.random() < 0.35) {
+                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
+                }
 
                 if (progress >= 1.0) {
-                    // Block broken!
+                    // Block broken! Burst particles, add to inventory, and remove block
+                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
+                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
                     playerInventory[breakTargetVoxel.baseType] = (playerInventory[breakTargetVoxel.baseType] || 0) + 1;
                     updateInventoryUI();
                     removeVoxelBlock(breakTargetVoxel);
                     stopBreakingTarget();
                 }
             }
+
+            // Update mini block mining particles
+            updateDebrisParticles(delta);
 
             // --- Variable Jump Height Physics ---
             const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
@@ -1625,7 +1688,7 @@
             // --- Sovereign Collision Resolution ---
             player.isGrounded = false;
 
-            // 1. Room Boundary Collision
+            // 1. Outer Room Boundary Collision
             const halfRoom = ROOM_SIZE / 2;
             const margin = player.radius;
 
