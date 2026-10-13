@@ -555,6 +555,7 @@
             height: 1.6,
             radius: 0.4,
             isGrounded: false,
+            lastGroundedTime: 0,
             energy: 100,
             maxEnergy: 100,
 
@@ -829,7 +830,12 @@
         let lookStartX = 0;
         let lookStartY = 0;
         let lookStartTime = 0;
-        let touchStartWasGrounded = true;
+        let touchGroundedDuringGesture = false;
+
+        function isGroundedOrRecent() {
+            const timeSinceGrounded = performance.now() - (player.lastGroundedTime || 0);
+            return player.isGrounded || timeSinceGrounded < 300;
+        }
 
         touchRightZone.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -843,11 +849,14 @@
             lookStartX = touch.clientX;
             lookStartY = touch.clientY;
             lookStartTime = performance.now();
-            touchStartWasGrounded = player.isGrounded;
+            touchGroundedDuringGesture = isGroundedOrRecent();
         });
 
         touchRightZone.addEventListener('touchmove', (e) => {
             e.preventDefault();
+            if (isGroundedOrRecent()) {
+                touchGroundedDuringGesture = true;
+            }
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === lookTouchId) {
@@ -874,8 +883,12 @@
                     const duration = performance.now() - lookStartTime;
                     const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
 
-                    // Strictly trigger swipe leap ONLY if player was in air when touch started OR is currently in mid-air
-                    if (duration < 250 && dist > 45 && !touchStartWasGrounded && !player.isGrounded) {
+                    if (isGroundedOrRecent()) {
+                        touchGroundedDuringGesture = true;
+                    }
+
+                    // Strictly trigger swipe leap ONLY if player was airborne throughout the entire touch gesture
+                    if (duration < 250 && dist > 45 && !touchGroundedDuringGesture) {
                         if (Math.abs(totalDx) > Math.abs(totalDy)) {
                             triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
                         } else {
@@ -1139,6 +1152,10 @@
                         player.isGrounded = true;
                     }
                 }
+            }
+
+            if (player.isGrounded) {
+                player.lastGroundedTime = performance.now();
             }
 
             // 2. Voxel Platform Collision (AABB)
