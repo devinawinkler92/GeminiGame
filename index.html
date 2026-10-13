@@ -971,7 +971,7 @@
         }
 
         document.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement === document.body) {
+            if (document.pointerLockElement) {
                 if (e.button === 0) {
                     // Left Click -> Break Target
                     const target = getTargetedVoxelAndFace();
@@ -998,17 +998,44 @@
 
         function getTargetedVoxelAndFace() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const meshes = collidableVoxels.map(v => v.mesh);
+            const meshes = collidableVoxels.map(v => v.mesh).concat([roomMesh]);
             const intersects = raycaster.intersectObjects(meshes, false);
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
-                return {
-                    voxel: hitVoxel,
-                    point: hit.point,
-                    faceNormal: hit.face.normal.clone()
-                };
+                if (hit.object === roomMesh) {
+                    // Raycast hit outer room wall boundary!
+                    const normal = hit.face.normal.clone();
+
+                    // Snap wall contact point to nearest grid voxel center on wall interior face
+                    const rawX = hit.point.x - normal.x * (VOXEL_SIZE / 2);
+                    const rawY = hit.point.y - normal.y * (VOXEL_SIZE / 2);
+                    const rawZ = hit.point.z - normal.z * (VOXEL_SIZE / 2);
+
+                    const gridX = Math.round(rawX);
+                    const gridY = Math.round(rawY);
+                    const gridZ = Math.round(rawZ);
+
+                    const wallVoxel = {
+                        x: gridX,
+                        y: gridY,
+                        z: gridZ,
+                        baseType: 'wall'
+                    };
+
+                    return {
+                        voxel: wallVoxel,
+                        point: hit.point,
+                        faceNormal: normal.negate() // Invert BackSide normal to point inward
+                    };
+                } else {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
+                    return {
+                        voxel: hitVoxel,
+                        point: hit.point,
+                        faceNormal: hit.face.normal.clone()
+                    };
+                }
             }
             return null;
         }
@@ -1101,7 +1128,7 @@
 
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === document.body) {
+            if (document.pointerLockElement) {
                 // Ensure consistent pointer lock mouse look pitch and yaw rotation
                 player.lookRotation.y -= e.movementX * mouseSensitivity;
                 player.lookRotation.x -= e.movementY * mouseSensitivity;
@@ -1111,11 +1138,11 @@
 
         const instructions = document.getElementById('instructions');
         instructions.addEventListener('click', () => {
-            document.body.requestPointerLock();
+            renderer.domElement.requestPointerLock();
         });
 
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
+            if (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body) {
                 instructions.style.display = 'none';
             } else if (settingsModal.style.display !== 'flex') {
                 instructions.style.display = 'block';
@@ -1145,16 +1172,14 @@
 
         function checkDirectionalLeapTrigger(newlyPressedCode) {
             if (keys['ShiftLeft'] || keys['ShiftRight']) {
-                if (keys['Space']) {
-                    const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
-                    if (directionKeys.includes(newlyPressedCode)) {
-                        triggerSpatialLeap(newlyPressedCode);
-                    } else if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
-                        for (const k of directionKeys) {
-                            if (keys[k]) {
-                                triggerSpatialLeap(k);
-                                break;
-                            }
+                const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+                if (directionKeys.includes(newlyPressedCode)) {
+                    triggerSpatialLeap(newlyPressedCode);
+                } else if (newlyPressedCode.startsWith('Shift')) {
+                    for (const k of directionKeys) {
+                        if (keys[k]) {
+                            triggerSpatialLeap(k);
+                            break;
                         }
                     }
                 }
@@ -1446,9 +1471,13 @@
         touchJumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const now = performance.now();
-            if (isGshiftActive && (now - lastJumpTouchTime < 300)) {
+            const isDoubleTap = (now - lastJumpTouchTime) < 350;
+
+            if (isGshiftActive && isDoubleTap) {
+                // Double tap while G-SHIFT is active -> Inverted Ceiling Flip 180°
                 handleCeilingLeap();
             } else {
+                // Single tap or first tap -> Standard Jump
                 handleJumpStart();
             }
             lastJumpTouchTime = now;
@@ -1481,7 +1510,9 @@
 
         let gyroMode = 'axes';
 
-        gyroContainer.addEventListener('click', () => {
+        gyroContainer.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             toggleSettingsModal();
         });
 
@@ -1635,13 +1666,40 @@
                 }
 
                 if (progress >= 1.0) {
-                    // Block broken! Burst particles, add to inventory, and remove block
-                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
-                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
-                    playerInventory[breakTargetVoxel.baseType] = (playerInventory[breakTargetVoxel.baseType] || 0) + 1;
+                    // Block broken! Burst particles, convert into non-solid ghost block pending L2 de-settlement
+                    const targetType = breakTargetVoxel.baseType;
+                    const targetPos = breakTargetVoxel.position.clone();
+
+                    spawnMiningDebris(targetPos, targetType);
+                    spawnMiningDebris(targetPos, targetType);
+
+                    playerInventory[targetType] = (playerInventory[targetType] || 0) + 1;
                     updateInventoryUI();
+
+                    // Convert into non-solid translucent red ghost block (players fall through)
+                    const breakGhostMat = new THREE.MeshStandardMaterial({
+                        color: 0xff0055,
+                        transparent: true,
+                        opacity: 0.4,
+                        roughness: 0.1,
+                        wireframe: true,
+                        emissive: 0xff0055,
+                        emissiveIntensity: 0.5
+                    });
+
+                    // Remove solid collision block immediately so entities fall through
                     removeVoxelBlock(breakTargetVoxel);
                     stopBreakingTarget();
+
+                    // Spawn non-collidable visual ghost block during state de-settlement verification (~0.8s)
+                    const ghostMesh = new THREE.Mesh(voxelGeo, breakGhostMat);
+                    ghostMesh.position.copy(targetPos);
+                    scene.add(ghostMesh);
+
+                    setTimeout(() => {
+                        scene.remove(ghostMesh);
+                        breakGhostMat.dispose();
+                    }, 800);
                 }
             }
 
