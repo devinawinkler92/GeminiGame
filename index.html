@@ -980,7 +980,8 @@
         const visualBodyQuaternion = new THREE.Quaternion();
 
         // --- Glowing Energy Cube Avatar (Sovereign Initial Form) ---
-        const avatarGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        // Scaled to 1.0x1.0x1.0 with DoubleSide rendering so player feels inside the glowing avatar
+        const avatarGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
         const avatarMat = new THREE.MeshStandardMaterial({
             color: 0x00f0ff,
             emissive: 0x00f0ff,
@@ -988,11 +989,14 @@
             roughness: 0.1,
             metalness: 0.9,
             transparent: true,
-            opacity: 0.85
+            opacity: 0.25,
+            side: THREE.DoubleSide
         });
         const avatarWireMat = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            wireframe: true
+            color: 0x00f0ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.6
         });
 
         const avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
@@ -1205,34 +1209,39 @@
             });
         }
 
-        function handleSlotInteraction(slotIndex) {
+        function handleSlotInteraction(slotIndex, isHotbarClick = false) {
             const slotData = inventorySlots[slotIndex];
 
+            if (isHotbarClick) {
+                // Hotbar clicks ONLY select the active hotbar slot and show item toast
+                selectedSwapSlotIndex = null;
+                selectHotbarSlotByIndex(slotIndex + 1);
+                if (slotData && slotData.type && slotData.count > 0) {
+                    showItemToast(slotData.type);
+                } else {
+                    showItemToast('Empty Slot');
+                }
+                return;
+            }
+
+            // Inventory menu clicks handle item selection and swapping
             if (selectedSwapSlotIndex === null) {
-                // First click: select for swap if slot has item, or select hotbar slot
                 if (slotData && slotData.type && slotData.count > 0) {
                     selectedSwapSlotIndex = slotIndex;
                     showItemToast(slotData.type);
                 } else {
                     showItemToast('Empty Slot');
                 }
-
-                if (slotIndex < 9) {
-                    selectHotbarSlotByIndex(slotIndex + 1);
-                } else {
-                    updateInventoryUI();
-                }
+                updateInventoryUI();
             } else {
-                // Second click: swap with target slot
                 if (selectedSwapSlotIndex === slotIndex) {
-                    // Clicking same slot deselects swap
                     selectedSwapSlotIndex = null;
                     if (slotData && slotData.type && slotData.count > 0) {
                         showItemToast(slotData.type);
                     }
                     updateInventoryUI();
                 } else {
-                    // Swap items between selectedSwapSlotIndex and slotIndex
+                    // Swap items in inventory
                     const temp = inventorySlots[selectedSwapSlotIndex];
                     inventorySlots[selectedSwapSlotIndex] = inventorySlots[slotIndex];
                     inventorySlots[slotIndex] = temp;
@@ -1250,7 +1259,7 @@
             }
         }
 
-        function attachHoldAndClickListeners(element, slotIndex) {
+        function attachHoldAndClickListeners(element, slotIndex, isHotbar = false) {
             const startPress = (e) => {
                 isLongPressTriggered = false;
                 if (holdTimer) clearTimeout(holdTimer);
@@ -1283,14 +1292,14 @@
                     isLongPressTriggered = false;
                     return;
                 }
-                handleSlotInteraction(slotIndex);
+                handleSlotInteraction(slotIndex, isHotbar);
             });
         }
 
         const invSlots = document.querySelectorAll('.inv-slot[data-index]');
         invSlots.forEach(slot => {
             const idx = parseInt(slot.dataset.index, 10) - 1;
-            attachHoldAndClickListeners(slot, idx);
+            attachHoldAndClickListeners(slot, idx, true);
         });
 
         let unlockedInventorySlots = 12;
@@ -1340,7 +1349,7 @@
                     slotDiv.appendChild(countSpan);
                 }
 
-                attachHoldAndClickListeners(slotDiv, i);
+                attachHoldAndClickListeners(slotDiv, i, false);
                 gridContainer.appendChild(slotDiv);
             }
 
@@ -2398,19 +2407,19 @@
                 }
             }
 
-            // Update Glowing Energy Cube Avatar Position & Pulse Animation
-            avatarMesh.position.copy(player.position);
-            avatarMesh.quaternion.copy(visualBodyQuaternion);
-
-            const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
-            avatarMat.emissiveIntensity = pulse;
-
             // --- Camera Position & Orientation Update ---
             const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
 
             const cameraOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
             camera.position.copy(player.position).add(cameraOffset);
+
+            // Update Glowing Energy Cube Avatar Centered directly at Camera Eye Position
+            avatarMesh.position.copy(camera.position);
+            avatarMesh.quaternion.copy(visualBodyQuaternion);
+
+            const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
+            avatarMat.emissiveIntensity = pulse;
 
             // --- Energy Regeneration & HUD Update ---
             if (player.energy < player.maxEnergy) {
