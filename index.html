@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>WebGL Voxel Physics - Sovereign Gravity Sandbox</title>
     <style>
         * {
@@ -15,6 +15,7 @@
             background-color: #0d0e15;
             color: #ffffff;
             user-select: none;
+            touch-action: none;
         }
 
         #instructions {
@@ -28,7 +29,7 @@
             padding: 30px;
             border-radius: 12px;
             cursor: pointer;
-            z-index: 20;
+            z-index: 30;
             border: 2px solid #00f0ff;
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
             max-width: 500px;
@@ -126,6 +127,7 @@
             box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
             transition: transform 0.2s, border-color 0.2s;
             overflow: hidden;
+            z-index: 25;
         }
 
         #gyro-widget-container:hover {
@@ -169,6 +171,7 @@
             gap: 8px;
             backdrop-filter: blur(5px);
             box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            z-index: 25;
         }
 
         #energy-label {
@@ -198,6 +201,87 @@
             border-radius: 7px;
             transition: height 0.05s linear;
             box-shadow: 0 0 8px #00f0ff;
+        }
+
+        /* --- Touch Controls Overlay --- */
+        #touch-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 15;
+            display: none; /* Auto or toggle controlled */
+        }
+
+        #touch-left-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #touch-right-zone {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #touch-joystick-base {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(0, 240, 255, 0.5);
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.1);
+            transform: translate(-50%, -50%);
+            display: none;
+            pointer-events: none;
+        }
+
+        #touch-joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: #00f0ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #00f0ff;
+        }
+
+        #touch-jump-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 120px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.2);
+            border: 2px solid #00f0ff;
+            color: #00f0ff;
+            font-weight: bold;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            pointer-events: auto;
+            touch-action: none;
+            z-index: 25;
+            backdrop-filter: blur(5px);
+        }
+
+        #touch-jump-btn:active {
+            background: rgba(0, 240, 255, 0.6);
+            transform: scale(0.95);
         }
 
         /* Settings Modal */
@@ -280,16 +364,14 @@
 <body>
     <div id="instructions">
         <h1>Gravity Leap Sandbox</h1>
-        <p>Sovereign Gravity Engine - Gravity strictly follows active player orientation!</p>
+        <p>Sovereign Gravity Engine - Touch & Pointer Enabled!</p>
         <div class="controls-grid">
             <div><span>W, A, S, D</span> - Move</div>
-            <div><span>Mouse</span> - Look Around</div>
-            <div><span>Space</span> - Jump</div>
-            <div><span>Double-Tap Space</span> - Ceiling Leap</div>
-            <div><span>Shift + Space + W</span> - Leap Forward</div>
-            <div><span>Shift + Space + S</span> - Leap Backward</div>
-            <div><span>Shift + Space + A</span> - Leap Left</div>
-            <div><span>Shift + Space + D</span> - Leap Right</div>
+            <div><span>Mouse / Touch</span> - Look Around</div>
+            <div><span>Space / JUMP</span> - Jump</div>
+            <div><span>Double Space</span> - Ceiling Flip</div>
+            <div><span>Shift + WASD</span> - Gravity Leap</div>
+            <div><span>Swipe (Air)</span> - Leap Direction</div>
         </div>
         <p style="font-size: 0.85em; color: #aaa;">Click anywhere to start & lock pointer</p>
     </div>
@@ -309,6 +391,16 @@
         </div>
     </div>
 
+    <!-- Touch Controls Overlay -->
+    <div id="touch-overlay">
+        <div id="touch-left-zone"></div>
+        <div id="touch-right-zone"></div>
+        <div id="touch-joystick-base">
+            <div id="touch-joystick-knob"></div>
+        </div>
+        <div id="touch-jump-btn">JUMP</div>
+    </div>
+
     <div id="settings-modal">
         <div class="settings-content">
             <h2>⚙ Sandbox Settings</h2>
@@ -317,6 +409,14 @@
                 <select id="gyro-mode-select">
                     <option value="axes">X / Y / Z Axes</option>
                     <option value="horizon">Artificial Horizon</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label for="touch-hud-select">Touch Controls HUD:</label>
+                <select id="touch-hud-select">
+                    <option value="auto">Auto-detect</option>
+                    <option value="on">Always On</option>
+                    <option value="off">Off</option>
                 </select>
             </div>
             <button class="btn-close" id="btn-close-settings">Resume Sandbox</button>
@@ -450,13 +550,16 @@
         const player = {
             position: new THREE.Vector3(0, -ROOM_SIZE / 2 + 1.6, 0),
             velocity: new THREE.Vector3(0, 0, 0),
-            bodyQuaternion: new THREE.Quaternion(), // Local orientation (UP = +Y in local)
-            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'), // Pitch (X), Yaw (Y)
+            bodyQuaternion: new THREE.Quaternion(),
+            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
             height: 1.6,
             radius: 0.4,
             isGrounded: false,
             energy: 100,
             maxEnergy: 100,
+
+            // Movement vector from joystick or keyboard
+            touchMoveInput: new THREE.Vector3(),
 
             // Slerp transition state
             isLeaping: false,
@@ -624,6 +727,166 @@
             player.isGrounded = false;
         }
 
+        // --- Touch Controls Engine ---
+        const touchOverlay = document.getElementById('touch-overlay');
+        const touchLeftZone = document.getElementById('touch-left-zone');
+        const touchRightZone = document.getElementById('touch-right-zone');
+        const touchJoystickBase = document.getElementById('touch-joystick-base');
+        const touchJoystickKnob = document.getElementById('touch-joystick-knob');
+        const touchJumpBtn = document.getElementById('touch-jump-btn');
+        const touchHudSelect = document.getElementById('touch-hud-select');
+
+        let touchHudSetting = 'auto';
+
+        function updateTouchHudVisibility() {
+            const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+            if (touchHudSetting === 'on' || (touchHudSetting === 'auto' && isTouchDevice)) {
+                touchOverlay.style.display = 'block';
+            } else {
+                touchOverlay.style.display = 'none';
+            }
+        }
+
+        touchHudSelect.addEventListener('change', (e) => {
+            touchHudSetting = e.target.value;
+            updateTouchHudVisibility();
+        });
+
+        // Touch Joystick Logic (Left Side)
+        let joystickTouchId = null;
+        let joystickStartX = 0;
+        let joystickStartY = 0;
+
+        touchLeftZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickStartX = touch.clientX;
+            joystickStartY = touch.clientY;
+
+            touchJoystickBase.style.left = `${joystickStartX}px`;
+            touchJoystickBase.style.top = `${joystickStartY}px`;
+            touchJoystickBase.style.display = 'block';
+            touchJoystickKnob.style.transform = 'translate(-50%, -50%)';
+        });
+
+        touchLeftZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    const dx = touch.clientX - joystickStartX;
+                    const dy = touch.clientY - joystickStartY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxRadius = 40;
+
+                    const clampedDist = Math.min(dist, maxRadius);
+                    const angle = Math.atan2(dy, dx);
+
+                    const knobX = Math.cos(angle) * clampedDist;
+                    const knobY = Math.sin(angle) * clampedDist;
+
+                    touchJoystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+                    // Normalize input (-1 to +1)
+                    player.touchMoveInput.x = knobX / maxRadius;
+                    player.touchMoveInput.z = knobY / maxRadius;
+                }
+            }
+        });
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            touchJoystickBase.style.display = 'none';
+            player.touchMoveInput.set(0, 0, 0);
+        }
+
+        touchLeftZone.addEventListener('touchend', resetJoystick);
+        touchLeftZone.addEventListener('touchcancel', resetJoystick);
+
+        // Touch Look & Swipe Logic (Right Side)
+        let lookTouchId = null;
+        let lastLookX = 0;
+        let lastLookY = 0;
+        let lookStartX = 0;
+        let lookStartY = 0;
+        let lookStartTime = 0;
+
+        touchRightZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.target === touchJumpBtn) return; // Managed separately
+            if (lookTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            lookTouchId = touch.identifier;
+            lastLookX = touch.clientX;
+            lastLookY = touch.clientY;
+            lookStartX = touch.clientX;
+            lookStartY = touch.clientY;
+            lookStartTime = performance.now();
+        });
+
+        touchRightZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === lookTouchId) {
+                    const dx = touch.clientX - lastLookX;
+                    const dy = touch.clientY - lastLookY;
+
+                    player.lookRotation.y -= dx * mouseSensitivity * 1.5;
+                    player.lookRotation.x -= dy * mouseSensitivity * 1.5;
+                    player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+
+                    lastLookX = touch.clientX;
+                    lastLookY = touch.clientY;
+                }
+            }
+        });
+
+        touchRightZone.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === lookTouchId) {
+                    const totalDx = touch.clientX - lookStartX;
+                    const totalDy = touch.clientY - lookStartY;
+                    const duration = performance.now() - lookStartTime;
+                    const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+
+                    // Swipe gesture in air or jump state triggers Directional Gravity Leap
+                    if (duration < 250 && dist > 40 && !player.isGrounded) {
+                        if (Math.abs(totalDx) > Math.abs(totalDy)) {
+                            triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
+                        } else {
+                            triggerSpatialLeap(totalDy > 0 ? 'KeyS' : 'KeyW');
+                        }
+                    }
+
+                    lookTouchId = null;
+                }
+            }
+        });
+
+        touchRightZone.addEventListener('touchcancel', () => { lookTouchId = null; });
+
+        // Touch JUMP Button Logic
+        let lastJumpTouchTime = 0;
+        touchJumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const now = performance.now();
+            if (now - lastJumpTouchTime < 300) {
+                handleCeilingLeap();
+            } else {
+                handleJump();
+            }
+            lastJumpTouchTime = now;
+        });
+
+        // Initialize touch visibility
+        updateTouchHudVisibility();
+
         // --- Gyro Compass Widget & Settings Menu ---
         const gyroCanvas = document.getElementById('gyro-canvas');
         const gyroContext = gyroCanvas.getContext('2d');
@@ -782,13 +1045,18 @@
             const gz = Math.round(currentGravityVector.z);
             gravityVectorHud.textContent = `g: [${gx}, ${gy}, ${gz}]`;
 
-            // --- Movement Input Relative to Local View ---
+            // --- Movement Input Relative to Local View (Keyboard + Touch Joystick) ---
             const moveInput = new THREE.Vector3();
             if (keys['KeyW']) moveInput.z -= 1;
             if (keys['KeyS']) moveInput.z += 1;
             if (keys['KeyA']) moveInput.x -= 1;
             if (keys['KeyD']) moveInput.x += 1;
-            moveInput.normalize();
+
+            // Combine touch joystick input
+            moveInput.x += player.touchMoveInput.x;
+            moveInput.z += player.touchMoveInput.z;
+
+            if (moveInput.lengthSq() > 1) moveInput.normalize();
 
             const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
             const moveQuat = visualBodyQuaternion.clone().multiply(yawQuat);
@@ -907,6 +1175,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            updateTouchHudVisibility();
         });
     </script>
 </body>
