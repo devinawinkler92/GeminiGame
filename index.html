@@ -303,28 +303,29 @@
 
         #touch-jump-btn {
             position: absolute;
-            bottom: 30px;
-            right: 120px;
-            width: 70px;
-            height: 70px;
+            bottom: 110px;
+            right: 25px;
+            width: 65px;
+            height: 65px;
             border-radius: 50%;
-            background: rgba(0, 240, 255, 0.2);
-            border: 2px solid #00f0ff;
-            color: #00f0ff;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: rgba(0, 240, 255, 0.75);
             font-weight: bold;
-            font-size: 0.9em;
+            font-size: 0.85em;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
             pointer-events: auto;
             touch-action: none;
             z-index: 25;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(3px);
+            transition: background 0.2s, border-color 0.2s;
         }
 
         #touch-jump-btn:active {
-            background: rgba(0, 240, 255, 0.6);
+            background: rgba(0, 240, 255, 0.4);
             transform: scale(0.95);
         }
 
@@ -499,24 +500,24 @@
 
         #touch-gshift-btn {
             position: absolute;
-            bottom: 110px;
-            right: 120px;
-            width: 70px;
-            height: 70px;
+            bottom: 185px;
+            right: 25px;
+            width: 65px;
+            height: 65px;
             border-radius: 50%;
-            background: rgba(0, 240, 255, 0.15);
-            border: 2px solid #00f0ff;
-            color: #00f0ff;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: rgba(0, 240, 255, 0.75);
             font-weight: bold;
-            font-size: 0.75em;
+            font-size: 0.7em;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
             pointer-events: auto;
             touch-action: none;
             z-index: 25;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(3px);
             transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
 
@@ -615,25 +616,25 @@
 
             <!-- Gyro Menu Navigation Tabs -->
             <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
-                <button id="tab-btn-inventory" style="flex: 1; padding: 10px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
-                <button id="tab-btn-settings" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
+                <button id="tab-btn-inventory" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-settings" style="flex: 1; padding: 10px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
             </div>
 
-            <!-- Tab 1: Dedicated Expandable Inventory Sub-Menu -->
-            <div id="tab-content-inventory" style="display: block;">
+            <!-- Tab 1: Dedicated Expandable Inventory Sub-Menu (Hidden by default) -->
+            <div id="tab-content-inventory" style="display: none;">
                 <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
-                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 / 24 SLOTS UNLOCKED</span>
+                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 INVENTORY SLOTS</span>
                     </div>
                     <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
-                        <!-- 12 Starting Unlocked + 12 Locked Progression Slots generated via JS -->
+                        <!-- Unlocked Slots generated via JS -->
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 2: Settings Sub-Menu -->
-            <div id="tab-content-settings" style="display: none;">
+            <!-- Tab 2: Settings Sub-Menu (Default view when menu opens) -->
+            <div id="tab-content-settings" style="display: block;">
                 <div class="setting-group">
                     <label for="gyro-mode-select">Gyro Compass Mode:</label>
                     <select id="gyro-mode-select">
@@ -1042,7 +1043,6 @@
             });
         });
 
-        const MAX_TOTAL_SLOTS = 24;
         let unlockedInventorySlots = 12;
 
         const BLOCK_COLORS = {
@@ -1059,7 +1059,7 @@
             gridContainer.innerHTML = '';
 
             const types = Object.keys(playerInventory);
-            for (let i = 0; i < MAX_TOTAL_SLOTS; i++) {
+            for (let i = 0; i < unlockedInventorySlots; i++) {
                 const slotDiv = document.createElement('div');
                 slotDiv.style.width = '100%';
                 slotDiv.style.aspectRatio = '1';
@@ -1072,39 +1072,31 @@
                 slotDiv.style.fontSize = '0.65em';
                 slotDiv.style.fontWeight = 'bold';
 
-                if (i < unlockedInventorySlots) {
-                    slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
-                    slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
+                slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
+                slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
 
-                    if (i < types.length) {
-                        const type = types[i];
-                        const colorPrev = document.createElement('div');
-                        colorPrev.style.width = '16px';
-                        colorPrev.style.height = '16px';
-                        colorPrev.style.borderRadius = '3px';
-                        colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
-                        colorPrev.style.marginTop = '2px';
+                if (i < types.length) {
+                    const type = types[i];
+                    const colorPrev = document.createElement('div');
+                    colorPrev.style.width = '16px';
+                    colorPrev.style.height = '16px';
+                    colorPrev.style.borderRadius = '3px';
+                    colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
+                    colorPrev.style.marginTop = '2px';
 
-                        const countSpan = document.createElement('span');
-                        countSpan.style.color = '#00f0ff';
-                        countSpan.textContent = playerInventory[type] || 0;
+                    const countSpan = document.createElement('span');
+                    countSpan.style.color = '#00f0ff';
+                    countSpan.textContent = playerInventory[type] || 0;
 
-                        slotDiv.appendChild(colorPrev);
-                        slotDiv.appendChild(countSpan);
-                    }
-                } else {
-                    slotDiv.style.background = 'rgba(0, 0, 0, 0.4)';
-                    slotDiv.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
-                    slotDiv.style.color = '#555';
-                    slotDiv.style.justifyContent = 'center';
-                    slotDiv.textContent = '🔒';
+                    slotDiv.appendChild(colorPrev);
+                    slotDiv.appendChild(countSpan);
                 }
 
                 gridContainer.appendChild(slotDiv);
             }
 
             const labelEl = document.getElementById('unlocked-slots-label');
-            if (labelEl) labelEl.textContent = `${unlockedInventorySlots} / ${MAX_TOTAL_SLOTS} SLOTS UNLOCKED`;
+            if (labelEl) labelEl.textContent = `${unlockedInventorySlots} INVENTORY SLOTS`;
         }
 
         function updateInventoryUI() {
@@ -1250,7 +1242,7 @@
 
         // --- Block Placement & Ghost Block System ---
         function handlePlaceBlock(targetVoxel, normal) {
-            if (playerInventory[selectedBlockType] <= 0) return;
+            if (!selectedBlockType || !playerInventory[selectedBlockType] || playerInventory[selectedBlockType] <= 0) return;
 
             const newX = targetVoxel.x + Math.round(normal.x);
             const newY = targetVoxel.y + Math.round(normal.y);
