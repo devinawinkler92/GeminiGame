@@ -510,10 +510,6 @@
 
     <!-- 9-Slot Hotbar HUD -->
     <div id="inventory-hud">
-        <div id="btn-open-inventory" class="inv-slot" style="border-color: #00f0ff; background: rgba(0, 240, 255, 0.15);" title="Open Full Inventory">
-            <span style="font-size: 1.1em;">🎒</span>
-            <span style="font-size: 0.55em; color: #00f0ff; text-transform: uppercase;">BAG</span>
-        </div>
         <div class="inv-slot selected" data-index="1">
             <span style="font-size: 0.6em; color: #888; align-self: flex-start;">1</span>
             <div class="inv-color-preview" style="display: none;"></div>
@@ -1782,31 +1778,6 @@
             tabBtnInventory.style.color = '#aaa';
         });
 
-        const btnOpenInventory = document.getElementById('btn-open-inventory');
-        function openInventoryTabDirectly(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            // Switch to inventory tab
-            tabContentInventory.style.display = 'block';
-            tabContentSettings.style.display = 'none';
-            tabBtnInventory.style.background = 'rgba(0, 240, 255, 0.2)';
-            tabBtnInventory.style.borderColor = '#00f0ff';
-            tabBtnInventory.style.color = '#00f0ff';
-            tabBtnSettings.style.background = 'rgba(255, 255, 255, 0.05)';
-            tabBtnSettings.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            tabBtnSettings.style.color = '#aaa';
-
-            if (settingsModal.style.display !== 'flex') {
-                toggleSettingsModal();
-            }
-        }
-
-        if (btnOpenInventory) {
-            btnOpenInventory.addEventListener('touchstart', openInventoryTabDirectly);
-            btnOpenInventory.addEventListener('click', openInventoryTabDirectly);
-        }
 
         btnCloseSettings.addEventListener('click', () => {
             toggleSettingsModal();
