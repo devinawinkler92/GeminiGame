@@ -451,31 +451,34 @@
             border-radius: 3px;
         }
 
-        #touch-place-btn {
+        #touch-gshift-btn {
             position: absolute;
             bottom: 110px;
             right: 120px;
             width: 70px;
             height: 70px;
             border-radius: 50%;
-            background: rgba(255, 170, 0, 0.2);
-            border: 2px solid #ffaa00;
-            color: #ffaa00;
+            background: rgba(0, 240, 255, 0.15);
+            border: 2px solid #00f0ff;
+            color: #00f0ff;
             font-weight: bold;
-            font-size: 0.85em;
+            font-size: 0.75em;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
             pointer-events: auto;
             touch-action: none;
             z-index: 25;
             backdrop-filter: blur(5px);
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
 
-        #touch-place-btn:active {
-            background: rgba(255, 170, 0, 0.6);
-            transform: scale(0.95);
+        #touch-gshift-btn.active {
+            background: rgba(255, 0, 119, 0.6);
+            border-color: #ff0077;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
         }
     </style>
 
@@ -531,7 +534,7 @@
         <div id="touch-joystick-base">
             <div id="touch-joystick-knob"></div>
         </div>
-        <div id="touch-place-btn">PLACE</div>
+        <div id="touch-gshift-btn">G-SHIFT</div>
         <div id="touch-jump-btn">JUMP</div>
     </div>
 
@@ -1025,6 +1028,7 @@
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement === document.body) {
+                // Ensure consistent pointer lock mouse look pitch and yaw rotation
                 player.lookRotation.y -= e.movementX * mouseSensitivity;
                 player.lookRotation.x -= e.movementY * mouseSensitivity;
                 player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
@@ -1236,23 +1240,33 @@
         touchLeftZone.addEventListener('touchend', resetJoystick);
         touchLeftZone.addEventListener('touchcancel', resetJoystick);
 
-        // Touch Look & Swipe Logic (Right Side)
+        // Touch G-SHIFT Toggle Logic
+        const touchGshiftBtn = document.getElementById('touch-gshift-btn');
+        let isGshiftActive = false;
+
+        touchGshiftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isGshiftActive = !isGshiftActive;
+            if (isGshiftActive) {
+                touchGshiftBtn.classList.add('active');
+            } else {
+                touchGshiftBtn.classList.remove('active');
+            }
+        });
+
+        // Touch Right-Zone Contextual Interaction: Tap (Place), Hold (Break), Airborne Swipe (Gravity Leap)
         let lookTouchId = null;
         let lastLookX = 0;
         let lastLookY = 0;
         let lookStartX = 0;
         let lookStartY = 0;
         let lookStartTime = 0;
-        let touchGroundedDuringGesture = false;
-
-        function isGroundedOrRecent() {
-            const timeSinceGrounded = performance.now() - (player.lastGroundedTime || 0);
-            return player.isGrounded || timeSinceGrounded < 300;
-        }
+        let touchStartWasGrounded = true;
+        let touchHoldTimer = null;
 
         touchRightZone.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (e.target === touchJumpBtn) return;
+            if (e.target === touchJumpBtn || e.target === touchGshiftBtn) return;
             if (lookTouchId !== null) return;
 
             const touch = e.changedTouches[0];
@@ -1262,14 +1276,19 @@
             lookStartX = touch.clientX;
             lookStartY = touch.clientY;
             lookStartTime = performance.now();
-            touchGroundedDuringGesture = isGroundedOrRecent();
+            touchStartWasGrounded = player.isGrounded;
+
+            // Touch & Hold to Break Block after 250ms if minimal finger movement
+            touchHoldTimer = setTimeout(() => {
+                const target = getTargetedVoxelAndFace();
+                if (target && target.voxel) {
+                    startBreakingTarget(target.voxel);
+                }
+            }, 250);
         });
 
         touchRightZone.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            if (isGroundedOrRecent()) {
-                touchGroundedDuringGesture = true;
-            }
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === lookTouchId) {
@@ -1282,30 +1301,51 @@
 
                     lastLookX = touch.clientX;
                     lastLookY = touch.clientY;
+
+                    // If finger moved significantly, cancel touch-and-hold block break timer
+                    const totalDist = Math.hypot(touch.clientX - lookStartX, touch.clientY - lookStartY);
+                    if (totalDist > 15 && touchHoldTimer) {
+                        clearTimeout(touchHoldTimer);
+                        touchHoldTimer = null;
+                    }
                 }
             }
         });
 
         touchRightZone.addEventListener('touchend', (e) => {
             e.preventDefault();
+            if (touchHoldTimer) {
+                clearTimeout(touchHoldTimer);
+                touchHoldTimer = null;
+            }
+            stopBreakingTarget();
+
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === lookTouchId) {
                     const totalDx = touch.clientX - lookStartX;
                     const totalDy = touch.clientY - lookStartY;
                     const duration = performance.now() - lookStartTime;
-                    const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+                    const dist = Math.hypot(totalDx, totalDy);
 
-                    if (isGroundedOrRecent()) {
-                        touchGroundedDuringGesture = true;
-                    }
-
-                    // Strictly trigger swipe leap ONLY if player was airborne throughout the entire touch gesture
-                    if (duration < 250 && dist > 45 && !touchGroundedDuringGesture) {
-                        if (Math.abs(totalDx) > Math.abs(totalDy)) {
-                            triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
-                        } else {
-                            triggerSpatialLeap(totalDy > 0 ? 'KeyS' : 'KeyW');
+                    if (dist < 15 && duration < 250) {
+                        // Short Tap -> Place Block
+                        const target = getTargetedVoxelAndFace();
+                        if (target && target.voxel && target.faceNormal) {
+                            handlePlaceBlock(target.voxel, target.faceNormal);
+                        }
+                    } else if (dist > 35 && duration < 350) {
+                        // Swipe Gesture -> Trigger Spatial Gravity Leap if airborne or if G-SHIFT is active
+                        if (!touchStartWasGrounded || isGshiftActive) {
+                            if (Math.abs(totalDx) > Math.abs(totalDy)) {
+                                triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
+                            } else {
+                                triggerSpatialLeap(totalDy > 0 ? 'KeyS' : 'KeyW');
+                            }
+                            if (isGshiftActive) {
+                                isGshiftActive = false;
+                                touchGshiftBtn.classList.remove('active');
+                            }
                         }
                     }
 
@@ -1314,16 +1354,10 @@
             }
         });
 
-        touchRightZone.addEventListener('touchcancel', () => { lookTouchId = null; });
-
-        // Touch PLACE & JUMP Controls Logic
-        const touchPlaceBtn = document.getElementById('touch-place-btn');
-        touchPlaceBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const target = getTargetedVoxelAndFace();
-            if (target && target.voxel && target.faceNormal) {
-                handlePlaceBlock(target.voxel, target.faceNormal);
-            }
+        touchRightZone.addEventListener('touchcancel', () => {
+            if (touchHoldTimer) clearTimeout(touchHoldTimer);
+            stopBreakingTarget();
+            lookTouchId = null;
         });
 
         // Touch JUMP Button Logic
@@ -1534,6 +1568,14 @@
                     player.isJumpHolding = false;
                 }
             }
+
+            // --- Arrow Key Camera Look Controls ---
+            const arrowRotateSpeed = 1.8;
+            if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
+            if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
+            if (keys['ArrowUp']) player.lookRotation.x += arrowRotateSpeed * delta;
+            if (keys['ArrowDown']) player.lookRotation.x -= arrowRotateSpeed * delta;
+            player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
 
             // --- Movement Input Relative to Local View (Keyboard + Touch Joystick) ---
             const moveInput = new THREE.Vector3();
