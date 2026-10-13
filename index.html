@@ -206,60 +206,6 @@
             box-shadow: 0 0 8px #00f0ff;
         }
 
-        /* Landscape Mobile Responsive Layouts */
-        @media (max-height: 520px) {
-            #gravity-vector-hud {
-                top: 4px;
-                right: 8px;
-                width: 76px;
-                font-size: 0.55em;
-                padding: 1px 2px;
-            }
-            #gyro-widget-container {
-                top: 24px;
-                right: 8px;
-                width: 76px;
-                height: 76px;
-            }
-            #energy-bar-wrapper {
-                top: 106px;
-                right: 33px;
-                width: 26px;
-                padding: 4px 2px;
-            }
-            #energy-bar-outer {
-                width: 6px;
-                height: 52px;
-            }
-            #inventory-hud {
-                bottom: 8px;
-                padding: 4px;
-                gap: 4px;
-            }
-            .inv-slot {
-                width: 36px;
-                height: 36px;
-                padding: 2px;
-            }
-            .inv-color-preview {
-                width: 12px;
-                height: 12px;
-            }
-            #touch-jump-btn {
-                bottom: 20px;
-                right: 85px;
-                width: 55px;
-                height: 55px;
-                font-size: 0.75em;
-            }
-            #touch-gshift-btn {
-                bottom: 85px;
-                right: 85px;
-                width: 55px;
-                height: 55px;
-                font-size: 0.65em;
-            }
-        }
 
         /* --- Touch Controls Overlay --- */
         #touch-overlay {
@@ -540,6 +486,61 @@
             border-color: #ff0077;
             color: #ffffff;
             box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
+        }
+
+        /* Landscape Mobile Responsive Layouts */
+        @media (max-height: 520px) {
+            #gravity-vector-hud {
+                top: 4px;
+                right: 8px;
+                width: 70px;
+                font-size: 0.55em;
+                padding: 1px 2px;
+            }
+            #gyro-widget-container {
+                top: 22px;
+                right: 8px;
+                width: 70px;
+                height: 70px;
+            }
+            #energy-bar-wrapper {
+                top: 96px;
+                right: 29px;
+                width: 24px;
+                padding: 3px 2px;
+            }
+            #energy-bar-outer {
+                width: 6px;
+                height: 48px;
+            }
+            #inventory-hud {
+                bottom: 8px;
+                padding: 4px;
+                gap: 4px;
+            }
+            .inv-slot {
+                width: 36px;
+                height: 36px;
+                padding: 2px;
+            }
+            .inv-color-preview {
+                width: 12px;
+                height: 12px;
+            }
+            #touch-jump-btn {
+                bottom: 12px !important;
+                right: 100px !important;
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 0.7em !important;
+            }
+            #touch-gshift-btn {
+                bottom: 70px !important;
+                right: 100px !important;
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 0.6em !important;
+            }
         }
     </style>
 
@@ -980,17 +981,51 @@
         scene.add(avatarMesh);
 
         // --- Inventory & Block Breaking / Placing Engine ---
-        const playerInventory = {
-            platform: 0,
-            gold: 0,
-            green: 0,
-            cyan: 0,
-            magenta: 0,
-            wall: 0
-        };
-        let selectedBlockType = 'platform';
+        const inventorySlots = Array(9).fill(null).map(() => ({ type: null, count: 0 }));
+        let selectedBlockType = null;
 
-        const HOTBAR_TYPE_MAP = ['platform', 'gold', 'green', 'cyan', 'magenta', 'wall'];
+        function addItemToInventory(type) {
+            // 1. Try to add to existing stack of same type
+            for (let i = 0; i < inventorySlots.length; i++) {
+                if (inventorySlots[i].type === type && inventorySlots[i].count > 0) {
+                    inventorySlots[i].count++;
+                    updateInventoryUI();
+                    return true;
+                }
+            }
+            // 2. Try to add to first empty slot
+            for (let i = 0; i < inventorySlots.length; i++) {
+                if (!inventorySlots[i].type || inventorySlots[i].count <= 0) {
+                    inventorySlots[i].type = type;
+                    inventorySlots[i].count = 1;
+                    updateInventoryUI();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function deductSelectedItem() {
+            const slot = inventorySlots[selectedHotbarIndex - 1];
+            if (slot && slot.type && slot.count > 0) {
+                slot.count--;
+                if (slot.count <= 0) {
+                    slot.type = null;
+                    slot.count = 0;
+                }
+                updateInventoryUI();
+                return true;
+            }
+            return false;
+        }
+
+        function getSelectedSlotItem() {
+            const slot = inventorySlots[selectedHotbarIndex - 1];
+            if (slot && slot.type && slot.count > 0) {
+                return slot;
+            }
+            return null;
+        }
 
         const BLOCK_HARDNESS = {
             platform: 1.0,
@@ -1111,20 +1146,18 @@
                 slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
                 slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
 
-                const type = HOTBAR_TYPE_MAP[i];
-                const count = type ? (playerInventory[type] || 0) : 0;
-
-                if (type && count > 0) {
+                const slotData = inventorySlots[i];
+                if (slotData && slotData.type && slotData.count > 0) {
                     const colorPrev = document.createElement('div');
                     colorPrev.style.width = '16px';
                     colorPrev.style.height = '16px';
                     colorPrev.style.borderRadius = '3px';
-                    colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
+                    colorPrev.style.background = BLOCK_COLORS[slotData.type] || '#fff';
                     colorPrev.style.marginTop = '2px';
 
                     const countSpan = document.createElement('span');
                     countSpan.style.color = '#00f0ff';
-                    countSpan.textContent = count;
+                    countSpan.textContent = slotData.count;
 
                     slotDiv.appendChild(colorPrev);
                     slotDiv.appendChild(countSpan);
@@ -1138,33 +1171,22 @@
         }
 
         function updateInventoryUI() {
-            // Map each hotbar slot 1-6 to its fixed block type from HOTBAR_TYPE_MAP
             const slots = document.querySelectorAll('.inv-slot[data-index]');
             slots.forEach((slot) => {
                 const idx = parseInt(slot.dataset.index, 10) - 1;
-                const type = HOTBAR_TYPE_MAP[idx];
-                const count = type ? (playerInventory[type] || 0) : 0;
+                const slotData = inventorySlots[idx];
 
                 const colorPrev = slot.querySelector('.inv-color-preview');
                 const countSpan = slot.querySelector('.inv-count');
 
-                if (type) {
-                    slot.dataset.type = type;
-                    if (count > 0) {
-                        if (colorPrev) {
-                            colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
-                            colorPrev.style.display = 'block';
-                        }
-                        if (countSpan) {
-                            countSpan.textContent = count;
-                        }
-                    } else {
-                        if (colorPrev) {
-                            colorPrev.style.display = 'none';
-                        }
-                        if (countSpan) {
-                            countSpan.textContent = '';
-                        }
+                if (slotData && slotData.type && slotData.count > 0) {
+                    slot.dataset.type = slotData.type;
+                    if (colorPrev) {
+                        colorPrev.style.background = BLOCK_COLORS[slotData.type] || '#fff';
+                        colorPrev.style.display = 'block';
+                    }
+                    if (countSpan) {
+                        countSpan.textContent = slotData.count;
                     }
                 } else {
                     delete slot.dataset.type;
@@ -1178,13 +1200,14 @@
             });
 
             // Update active selectedBlockType based on current selectedHotbarIndex
-            const selectedType = HOTBAR_TYPE_MAP[selectedHotbarIndex - 1];
-            selectedBlockType = selectedType || null;
+            const currentSlot = inventorySlots[selectedHotbarIndex - 1];
+            selectedBlockType = (currentSlot && currentSlot.count > 0) ? currentSlot.type : null;
 
             renderProgressionInventoryMenu();
         }
 
-        window.playerInventory = playerInventory;
+        window.inventorySlots = inventorySlots;
+        window.addItemToInventory = addItemToInventory;
         window.updateInventoryUI = updateInventoryUI;
 
         // Render inventory grid initially
@@ -1283,7 +1306,9 @@
 
         // --- Block Placement & Ghost Block System ---
         function handlePlaceBlock(targetVoxel, normal) {
-            if (!selectedBlockType || !playerInventory[selectedBlockType] || playerInventory[selectedBlockType] <= 0) return;
+            const currentItem = getSelectedSlotItem();
+            if (!currentItem) return;
+            const blockTypeToPlace = currentItem.type;
 
             const newX = targetVoxel.x + Math.round(normal.x);
             const newY = targetVoxel.y + Math.round(normal.y);
@@ -1303,13 +1328,12 @@
                 return;
             }
 
-            // Deduct block from inventory
-            playerInventory[selectedBlockType]--;
-            updateInventoryUI();
+            // Deduct block from inventory slot
+            deductSelectedItem();
 
             // 1. Spawn Translucent Ghost Block matching target block color (Pending L2 verification, solid collision)
-            const ghostColor = BLOCK_HEX[selectedBlockType] || 0x00f0ff;
-            const ghostEmissive = BLOCK_EMISSIVE[selectedBlockType] || 0x00f0ff;
+            const ghostColor = BLOCK_HEX[blockTypeToPlace] || 0x00f0ff;
+            const ghostEmissive = BLOCK_EMISSIVE[blockTypeToPlace] || 0x00f0ff;
             const ghostMat = new THREE.MeshStandardMaterial({
                 color: ghostColor,
                 transparent: true,
@@ -1321,10 +1345,9 @@
                 emissiveIntensity: 0.4
             });
 
-            const ghostVoxel = spawnVoxelBlock(newX, newY, newZ, ghostMat, selectedBlockType, true);
+            const ghostVoxel = spawnVoxelBlock(newX, newY, newZ, ghostMat, blockTypeToPlace, true);
 
             // 2. Simulate L2 Distributed Settlement / Verification Delay (~0.8s)
-            const blockTypeToPlace = selectedBlockType;
             setTimeout(() => {
                 if (collidableVoxels.includes(ghostVoxel)) {
                     // Replace ghost material with synthesized Psi procedural texture
@@ -1347,8 +1370,9 @@
             const targetSlot = document.querySelector(`.inv-slot[data-index="${idx}"]`);
             if (targetSlot) {
                 targetSlot.classList.add('selected');
-                selectedBlockType = targetSlot.dataset.type || null;
             }
+            const currentSlot = inventorySlots[selectedHotbarIndex - 1];
+            selectedBlockType = (currentSlot && currentSlot.count > 0) ? currentSlot.type : null;
         }
 
         // Mouse wheel hotbar scrolling
@@ -2011,8 +2035,7 @@
                     spawnMiningDebris(targetPos, targetType);
                     spawnMiningDebris(targetPos, targetType);
 
-                    playerInventory[targetType] = (playerInventory[targetType] || 0) + 1;
-                    updateInventoryUI();
+                    addItemToInventory(targetType);
 
                     // Convert into non-solid translucent red ghost block (players fall through)
                     const breakGhostMat = new THREE.MeshStandardMaterial({
