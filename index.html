@@ -380,10 +380,23 @@
             <div><span>Shift + WASD</span> - Gravity Leap</div>
             <div><span>Swipe (In Air)</span> - Leap Direction</div>
         </div>
-        <div style="margin-top: 20px;">
+        <!-- Sovereign DID Onboarding -->
+        <div style="margin-top: 15px; background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); text-align: left;">
+            <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span>🆔 Sovereign DID Onboarding</span>
+                <span id="did-status-badge-menu" style="background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; padding: 2px 6px; border-radius: 4px; font-size: 0.75em;">Unattested (0/2)</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 6px 10px; border-radius: 4px; font-size: 0.8em;">
+                <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 6px 10px; border-radius: 4px; font-size: 0.8em;">
+            </div>
+            <div style="font-size: 0.75em; color: #aaa; word-break: break-all;" id="did-preview-string">DID: did:gemverse:8a9f4c3b7e...</div>
+        </div>
+
+        <div style="margin-top: 15px;">
             <button id="btn-connect-mesh" style="background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 12px 28px; font-weight: bold; font-size: 1.05em; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); transition: transform 0.2s, box-shadow 0.2s;">⚡ CONNECT TO P2P MESH</button>
         </div>
-        <p style="font-size: 0.8em; color: #aaa; margin-top: 12px;">Sync state deltas & step out into the Nexus Hub</p>
+        <p style="font-size: 0.8em; color: #aaa; margin-top: 10px;">Sync state deltas & step out into the Nexus Hub</p>
     </div>
 
     <style>
@@ -667,9 +680,10 @@
             <h2>⚙ Gemverse Nexus Menu</h2>
 
             <!-- Gyro Menu Navigation Tabs -->
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
-                <button id="tab-btn-inventory" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
-                <button id="tab-btn-settings" style="flex: 1; padding: 10px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
+                <button id="tab-btn-inventory" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-settings" style="flex: 1; padding: 8px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
+                <button id="tab-btn-identity" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🆔 IDENTITY</button>
             </div>
 
             <!-- Tab 1: Dedicated Expandable Inventory Sub-Menu (Hidden by default) -->
@@ -701,6 +715,37 @@
                         <option value="on">Always On</option>
                         <option value="off">Off</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Tab 3: Identity & Web of Trust Sub-Menu -->
+            <div id="tab-content-identity" style="display: none;">
+                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px; display: flex; justify-content: space-between; align-align: center;">
+                        <span>🆔 DECENTRALIZED IDENTITY (DID)</span>
+                        <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
+                    </h3>
+                    <div style="font-size: 0.8em; color: #ddd; margin-bottom: 6px;">
+                        <strong>Sovereign Handle:</strong> <span id="did-handle-display" style="color: #00f0ff;">Explorer-01</span>
+                    </div>
+                    <div style="font-size: 0.75em; color: #aaa; margin-bottom: 12px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
+                        <strong>W3C Identifier:</strong><br><span id="did-full-string" style="color: #88d;">did:gemverse:8a9f4c3b7e12d4a5...</span>
+                    </div>
+
+                    <div style="margin-top: 15px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 12px;">
+                        <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.9em;">🛡 Web of Trust (The Vouching Rule)</h4>
+                        <p style="font-size: 0.75em; color: #aaa; margin-bottom: 10px; line-height: 1.3;">
+                            Newly initialized accounts require endorsements (vouches) from existing active mesh peers to prevent Sybil spam and unlock network transmission & build rights.
+                        </p>
+                        <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 12px;">
+                            <em>No peer endorsements received yet.</em>
+                        </div>
+
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-request-vouch" style="flex: 1; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ REQUEST PEER VOUCH</button>
+                            <button id="btn-vouch-peer" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #00f0ff; border: 1px solid #00f0ff; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">🤝 VOUCH FOR PEER</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -864,6 +909,10 @@
 
         const roomBoxMat = createPsiVoxelMaterial(0, 0, 0, 'wall', 0x050811);
         roomBoxMat.side = THREE.BackSide;
+        roomBoxMat.transparent = true;
+        roomBoxMat.opacity = 0.65;
+        roomBoxMat.roughness = 0.1;
+        roomBoxMat.metalness = 0.8;
 
         const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
         const roomMesh = new THREE.Mesh(roomBox, roomBoxMat);
@@ -882,6 +931,98 @@
         const roomGrid = new THREE.GridHelper(ROOM_SIZE, ROOM_SIZE, 0x00f0ff, 0x223344);
         roomGrid.position.y = -ROOM_SIZE / 2 + 0.01;
         scene.add(roomGrid);
+
+        // --- Skybox Celestial World Projections & Sector Mapping ---
+        const skyboxCelestialGroup = new THREE.Group();
+        scene.add(skyboxCelestialGroup);
+
+        const skyboxWorlds = [];
+
+        function createCelestialWorldSprite(worldName, x, y, z, hexColor = 0x00f0ff) {
+            const containerGroup = new THREE.Group();
+
+            // Calculate directional vector and scale to skybox distance (R = 120)
+            const sectorVector = new THREE.Vector3(x, y, z);
+            const skyPos = sectorVector.clone().normalize().multiplyScalar(120);
+            containerGroup.position.copy(skyPos);
+
+            // Glowing planet core
+            const planetGeo = new THREE.IcosahedronGeometry(2.2, 2);
+            const planetMat = new THREE.MeshStandardMaterial({
+                color: hexColor,
+                emissive: hexColor,
+                emissiveIntensity: 0.8,
+                roughness: 0.2,
+                wireframe: false
+            });
+            const planetMesh = new THREE.Mesh(planetGeo, planetMat);
+            containerGroup.add(planetMesh);
+
+            // Outer nebula aura
+            const auraGeo = new THREE.IcosahedronGeometry(3.5, 1);
+            const auraMat = new THREE.MeshBasicMaterial({
+                color: hexColor,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.35
+            });
+            const auraMesh = new THREE.Mesh(auraGeo, auraMat);
+            containerGroup.add(auraMesh);
+
+            // Canvas Text Sprite for Celestial Name & Sector Coordinates
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(10, 12, 20, 0.75)';
+            ctx.fillRect(0, 0, 256, 64);
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(2, 2, 252, 60);
+
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillStyle = '#00f0ff';
+            ctx.textAlign = 'center';
+            ctx.fillText(worldName, 128, 26);
+
+            ctx.font = '12px monospace';
+            ctx.fillStyle = '#aaa';
+            ctx.fillText(`Sector: (${x}, ${y}, ${z})`, 128, 48);
+
+            const spriteMap = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: spriteMap, transparent: true, depthWrite: false });
+            const labelSprite = new THREE.Sprite(spriteMat);
+            labelSprite.position.set(0, 5.0, 0);
+            labelSprite.scale.set(12, 3, 1);
+            containerGroup.add(labelSprite);
+
+            skyboxCelestialGroup.add(containerGroup);
+
+            const worldData = { name: worldName, seedCoords: { x, y, z }, meshGroup: containerGroup };
+            skyboxWorlds.push(worldData);
+            return worldData;
+        }
+
+        function mapSeedToSectorCoordinates(seedHash) {
+            const posX = ((seedHash * 31) % 800) + (seedHash > 0 ? 150 : -150);
+            const posY = (((seedHash >> 4) * 37) % 600) + (seedHash % 2 === 0 ? 100 : -100);
+            const posZ = (((seedHash >> 8) * 41) % 800) + (seedHash > 2 ? 150 : -150);
+            return { x: posX, y: posY, z: posZ };
+        }
+
+        function projectWorldToSkybox(worldName, seedHash) {
+            const coords = mapSeedToSectorCoordinates(seedHash);
+            const colors = [0x00f0ff, 0xff00bb, 0xffaa00, 0x00ff88, 0x9900ff];
+            const chosenColor = colors[Math.abs(seedHash) % colors.length];
+            return createCelestialWorldSprite(worldName, coords.x, coords.y, coords.z, chosenColor);
+        }
+
+        window.projectWorldToSkybox = projectWorldToSkybox;
+
+        // Initialize default cosmic worlds on skybox
+        createCelestialWorldSprite('Solaria-Nexus', 320, 180, -420, 0x00f0ff);
+        createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
+        createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
 
         const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
 
@@ -1207,6 +1348,12 @@
                 itemNameToast.style.display = 'none';
             }, 2000);
         }
+
+        function showToastNotification(msg) {
+            showItemToast(msg);
+        }
+        window.showToastNotification = showToastNotification;
+        window.showItemToast = showItemToast;
 
         function openItemDetailsModal(slotIndex) {
             const slotData = inventorySlots[slotIndex];
@@ -1753,8 +1900,12 @@
                 const seedHex = Math.abs(seedHash).toString(16).padStart(8, '0');
                 const cid = `bafybeig${seedHex}gemverse0001`;
 
+                // Project world onto skybox celestial coordinates
+                const worldData = projectWorldToSkybox(worldName, seedHash);
+                const coords = worldData.seedCoords;
+
                 closeGenesisBeaconModal();
-                showItemToast(`✨ World Genesis Claimed: "${worldName}" (CID: ${cid.substring(0, 16)}...)`);
+                showItemToast(`✨ Genesis Claimed: "${worldName}" Sector (${coords.x}, ${coords.y}, ${coords.z})`);
             });
         }
 
@@ -2152,43 +2303,176 @@
             gyroMode = e.target.value;
         });
 
+        // --- Sovereign DID & Web of Trust Identity State ---
+        let userDIDState = {
+            username: 'Explorer-01',
+            passphraseHash: '',
+            did: 'did:gemverse:8a9f4c3b7e12d4a5c6e8f0123456789a',
+            vouchesCount: 0,
+            vouchedBy: [],
+            isFullyAttested: false
+        };
+        window.userDIDState = userDIDState;
+        window.generateUserDID = generateUserDID;
+        window.addPeerVouch = addPeerVouch;
+
+        async function generateUserDID(usernameInput, passphraseInput) {
+            const handle = usernameInput.trim() || 'Explorer-01';
+            const pass = passphraseInput.trim() || 'nexus-sovereign-pass';
+
+            const msgBuffer = new TextEncoder().encode(`${handle}:${pass}`);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            userDIDState.username = handle;
+            userDIDState.passphraseHash = hashHex.substring(0, 16);
+            userDIDState.did = `did:gemverse:${hashHex.substring(0, 32)}`;
+
+            updateDIDIdentityUI();
+            return userDIDState.did;
+        }
+
+        function updateDIDIdentityUI() {
+            const didPreviewString = document.getElementById('did-preview-string');
+            const didStatusBadgeMenu = document.getElementById('did-status-badge-menu');
+            const didHandleDisplay = document.getElementById('did-handle-display');
+            const didFullString = document.getElementById('did-full-string');
+            const didAttestedStatusTag = document.getElementById('did-attested-status-tag');
+            const vouchEndorsersList = document.getElementById('vouch-endorsers-list');
+
+            if (didPreviewString) didPreviewString.textContent = `DID: ${userDIDState.did}`;
+            if (didHandleDisplay) didHandleDisplay.textContent = userDIDState.username;
+            if (didFullString) didFullString.textContent = userDIDState.did;
+
+            const count = userDIDState.vouchedBy.length;
+            const badgeText = userDIDState.isFullyAttested ? 'Fully Attested (2/2)' : `Unattested (${count}/2)`;
+            const badgeBg = userDIDState.isFullyAttested ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 170, 0, 0.2)';
+            const badgeColor = userDIDState.isFullyAttested ? '#00f0ff' : '#ffaa00';
+            const badgeBorder = userDIDState.isFullyAttested ? '#00f0ff' : '#ffaa00';
+
+            if (didStatusBadgeMenu) {
+                didStatusBadgeMenu.textContent = badgeText;
+                didStatusBadgeMenu.style.background = badgeBg;
+                didStatusBadgeMenu.style.color = badgeColor;
+                didStatusBadgeMenu.style.borderColor = badgeBorder;
+            }
+
+            if (didAttestedStatusTag) {
+                didAttestedStatusTag.textContent = badgeText.toUpperCase();
+                didAttestedStatusTag.style.background = badgeBg;
+                didAttestedStatusTag.style.color = badgeColor;
+                didAttestedStatusTag.style.borderColor = badgeBorder;
+            }
+
+            if (vouchEndorsersList) {
+                if (userDIDState.vouchedBy.length === 0) {
+                    vouchEndorsersList.innerHTML = '<em>No peer endorsements received yet.</em>';
+                } else {
+                    vouchEndorsersList.innerHTML = userDIDState.vouchedBy.map(v => `<div style="margin-top: 2px;">✔ Endorsed by <strong>${v}</strong></div>`).join('');
+                }
+            }
+        }
+
+        function addPeerVouch(voucherName = 'Clan Leader Valerius') {
+            if (userDIDState.vouchedBy.includes(voucherName)) {
+                showToastNotification(`Already vouched by ${voucherName}`);
+                return;
+            }
+            userDIDState.vouchedBy.push(voucherName);
+            userDIDState.vouchesCount = userDIDState.vouchedBy.length;
+
+            if (userDIDState.vouchesCount >= 2) {
+                userDIDState.isFullyAttested = true;
+                showToastNotification(`⚡ Web of Trust Verified! Received Vouch from ${voucherName} (${userDIDState.vouchesCount}/2 Vouches). Full Transmit & Build Rights Granted!`);
+            } else {
+                showToastNotification(`🤝 Received Peer Vouch from ${voucherName} (${userDIDState.vouchesCount}/2 Vouches)`);
+            }
+
+            updateDIDIdentityUI();
+        }
+
         const tabBtnInventory = document.getElementById('tab-btn-inventory');
         const tabBtnSettings = document.getElementById('tab-btn-settings');
+        const tabBtnIdentity = document.getElementById('tab-btn-identity');
         const tabContentInventory = document.getElementById('tab-content-inventory');
         const tabContentSettings = document.getElementById('tab-content-settings');
+        const tabContentIdentity = document.getElementById('tab-content-identity');
+
+        function setActiveTab(activeBtn, activeContent) {
+            [tabContentInventory, tabContentSettings, tabContentIdentity].forEach(c => c.style.display = 'none');
+            [tabBtnInventory, tabBtnSettings, tabBtnIdentity].forEach(b => {
+                b.style.background = 'rgba(255, 255, 255, 0.05)';
+                b.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                b.style.color = '#aaa';
+            });
+
+            activeContent.style.display = 'block';
+            activeBtn.style.background = 'rgba(0, 240, 255, 0.2)';
+            activeBtn.style.borderColor = '#00f0ff';
+            activeBtn.style.color = '#00f0ff';
+        }
 
         tabBtnInventory.addEventListener('click', (e) => {
             e.preventDefault();
-            tabContentInventory.style.display = 'block';
-            tabContentSettings.style.display = 'none';
-
-            tabBtnInventory.style.background = 'rgba(0, 240, 255, 0.2)';
-            tabBtnInventory.style.borderColor = '#00f0ff';
-            tabBtnInventory.style.color = '#00f0ff';
-
-            tabBtnSettings.style.background = 'rgba(255, 255, 255, 0.05)';
-            tabBtnSettings.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            tabBtnSettings.style.color = '#aaa';
+            setActiveTab(tabBtnInventory, tabContentInventory);
         });
 
         tabBtnSettings.addEventListener('click', (e) => {
             e.preventDefault();
-            tabContentInventory.style.display = 'none';
-            tabContentSettings.style.display = 'block';
-
-            tabBtnSettings.style.background = 'rgba(0, 240, 255, 0.2)';
-            tabBtnSettings.style.borderColor = '#00f0ff';
-            tabBtnSettings.style.color = '#00f0ff';
-
-            tabBtnInventory.style.background = 'rgba(255, 255, 255, 0.05)';
-            tabBtnInventory.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            tabBtnInventory.style.color = '#aaa';
+            setActiveTab(tabBtnSettings, tabContentSettings);
         });
+
+        tabBtnIdentity.addEventListener('click', (e) => {
+            e.preventDefault();
+            setActiveTab(tabBtnIdentity, tabContentIdentity);
+            updateDIDIdentityUI();
+        });
+
+        // Initialize DID credentials event listeners
+        const didUsernameInput = document.getElementById('did-username-input');
+        const didPassphraseInput = document.getElementById('did-passphrase-input');
+
+        if (didUsernameInput && didPassphraseInput) {
+            const handleInputChange = () => {
+                generateUserDID(didUsernameInput.value, didPassphraseInput.value);
+            };
+            didUsernameInput.addEventListener('input', handleInputChange);
+            didPassphraseInput.addEventListener('input', handleInputChange);
+            // Initial call
+            generateUserDID(didUsernameInput.value, didPassphraseInput.value);
+        }
+
+        const btnRequestVouch = document.getElementById('btn-request-vouch');
+        const btnVouchPeer = document.getElementById('btn-vouch-peer');
+
+        let peerVouchList = ['Clan Leader Valerius', 'Explorer Astra', 'P2P Mesh Peer 03'];
+        let peerVouchIndex = 0;
+
+        if (btnRequestVouch) {
+            btnRequestVouch.addEventListener('click', (e) => {
+                e.preventDefault();
+                const voucher = peerVouchList[peerVouchIndex % peerVouchList.length];
+                peerVouchIndex++;
+                addPeerVouch(voucher);
+            });
+        }
+
+        if (btnVouchPeer) {
+            btnVouchPeer.addEventListener('click', (e) => {
+                e.preventDefault();
+                const peerHandle = prompt('Enter Peer DID or Sovereign Handle to issue cryptographic endorsement:');
+                if (peerHandle && peerHandle.trim()) {
+                    showToastNotification(`🤝 Issued Cryptographic Peer Attestation Vouch to ${peerHandle.trim()}`);
+                }
+            });
+        }
 
 
         btnCloseSettings.addEventListener('click', () => {
             toggleSettingsModal();
         });
+        window.toggleSettingsModal = toggleSettingsModal;
 
         function toggleSettingsModal() {
             if (settingsModal.style.display === 'flex') {
