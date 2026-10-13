@@ -1074,7 +1074,9 @@
 
                 if (e.code === 'Space') {
                     const now = performance.now();
-                    if (now - lastSpaceTime < 300) {
+                    const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
+
+                    if (isShiftHeld && (now - lastSpaceTime < 300)) {
                         handleCeilingLeap();
                     } else {
                         handleJumpStart();
@@ -1160,6 +1162,10 @@
         }
 
         function handleCeilingLeap() {
+            // Inverted Ceiling Flip strictly requires Shift key held (or G-SHIFT toggled on mobile)
+            const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
+            if (!isShiftHeld) return;
+
             if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
             const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
@@ -1167,6 +1173,11 @@
 
             initiateGravityShift(camUp.clone().negate(), 10);
             player.energy -= LEAP_ENERGY_COST;
+
+            if (isGshiftActive) {
+                isGshiftActive = false;
+                touchGshiftBtn.classList.remove('active');
+            }
         }
 
         function triggerSpatialLeap(code) {
@@ -1435,7 +1446,7 @@
         touchJumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const now = performance.now();
-            if (now - lastJumpTouchTime < 300) {
+            if (isGshiftActive && (now - lastJumpTouchTime < 300)) {
                 handleCeilingLeap();
             } else {
                 handleJumpStart();
