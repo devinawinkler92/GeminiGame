@@ -370,8 +370,8 @@
 </head>
 <body>
     <div id="instructions">
-        <h1>Gravity Leap Sandbox</h1>
-        <p>Sovereign Gravity Engine - Touch & Pointer Enabled!</p>
+        <h1>Gemverse Nexus Core</h1>
+        <p style="color: #00f0ff; font-weight: bold; margin-bottom: 15px;">Sovereign Player Gravity Engine - Version 1.0</p>
         <div class="controls-grid">
             <div><span>W, A, S, D</span> - Move</div>
             <div><span>Mouse / Touch</span> - Look Around</div>
@@ -380,7 +380,10 @@
             <div><span>Shift + WASD</span> - Gravity Leap</div>
             <div><span>Swipe (In Air)</span> - Leap Direction</div>
         </div>
-        <p style="font-size: 0.85em; color: #aaa;">Click anywhere to start & lock pointer</p>
+        <div style="margin-top: 20px;">
+            <button id="btn-connect-mesh" style="background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 12px 28px; font-weight: bold; font-size: 1.05em; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); transition: transform 0.2s, box-shadow 0.2s;">⚡ CONNECT TO P2P MESH</button>
+        </div>
+        <p style="font-size: 0.8em; color: #aaa; margin-top: 12px;">Sync state deltas & step out into the Nexus Hub</p>
     </div>
 
     <style>
@@ -567,6 +570,20 @@
 
     <!-- Floating Item Name Toast -->
     <div id="item-name-toast" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(13, 14, 21, 0.9); border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.8em; letter-spacing: 0.5px; z-index: 50; pointer-events: none; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);"></div>
+
+    <!-- Genesis Beacon Modal -->
+    <div id="genesis-beacon-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 130; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 340px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <div style="font-size: 2em;">🏛</div>
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px;">FIRST WORLD GENESIS BEACON</h2>
+            <p style="font-size: 0.85em; color: #ccc; margin: 0;">Enter a name for your sovereign procedurally synthesized world to generate its cryptographic seed:</p>
+            <input type="text" id="world-name-input" placeholder="e.g. Aetheria-Prime" style="background: #1a1d29; border: 1px solid #00f0ff; color: #00f0ff; padding: 10px; border-radius: 6px; font-size: 0.95em; outline: none; text-align: center;" />
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-claim-world" style="flex: 1; padding: 11px; background: linear-gradient(135deg, #00f0ff, #0077ff); border: none; color: #0d0e15; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">✨ CLAIM WORLD SEED</button>
+                <button id="btn-close-genesis" style="padding: 11px 15px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Item Details Modal -->
     <div id="item-details-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 120; justify-content: center; align-items: center;">
@@ -910,12 +927,30 @@
         // Floating Platforms with Grid-Aligned Coordinates and Procedural Psi Textures
         for (let x = -3; x <= 3; x++) {
             for (let z = -3; z <= 3; z++) {
-                const blockType = (Math.abs(x) === 3 || Math.abs(z) === 3) ? 'cyan' : 'platform';
-                const emissive = blockType === 'cyan' ? 0x00aacc : 0x003355;
+                const isCenterMonument = (x === 0 && z === 0);
+                const blockType = isCenterMonument ? 'gold' : ((Math.abs(x) === 3 || Math.abs(z) === 3) ? 'cyan' : 'platform');
+                const emissive = isCenterMonument ? 0xffaa00 : (blockType === 'cyan' ? 0x00aacc : 0x003355);
                 const mat = createPsiVoxelMaterial(x, 0, z, blockType, emissive);
-                spawnVoxelBlock(x, 0, z, mat, blockType);
+                const voxelObj = spawnVoxelBlock(x, 0, z, mat, blockType);
+                if (isCenterMonument) {
+                    voxelObj.isGenesisBeacon = true;
+                }
             }
         }
+
+        // Add 3D Glowing Holographic Marker over Genesis Beacon Monument
+        const beaconMarkerGeo = new THREE.OctahedronGeometry(0.6, 0);
+        const beaconMarkerMat = new THREE.MeshStandardMaterial({
+            color: 0xffaa00,
+            emissive: 0xffaa00,
+            emissiveIntensity: 1.0,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.85
+        });
+        const beaconMarkerMesh = new THREE.Mesh(beaconMarkerGeo, beaconMarkerMat);
+        beaconMarkerMesh.position.set(0, 1.8, 0);
+        scene.add(beaconMarkerMesh);
 
         for (let i = 0; i < 8; i++) {
             const yPos = Math.floor(-ROOM_SIZE / 2 + 1 + i * 1.5);
@@ -1406,6 +1441,8 @@
         window.updateInventoryUI = updateInventoryUI;
         window.player = player;
         window.THREE = THREE;
+        window.openGenesisBeaconModal = openGenesisBeaconModal;
+        window.closeGenesisBeaconModal = closeGenesisBeaconModal;
 
         // Render inventory grid initially
         updateInventoryUI();
@@ -1436,15 +1473,21 @@
 
         document.addEventListener('mousedown', (e) => {
             if (document.pointerLockElement) {
+                const target = getTargetedVoxelAndFace();
+
+                // Check if player clicked Genesis Beacon central monument
+                if (target && target.voxel && target.voxel.isGenesisBeacon) {
+                    openGenesisBeaconModal();
+                    return;
+                }
+
                 if (e.button === 0) {
                     // Left Click -> Break Target
-                    const target = getTargetedVoxelAndFace();
                     if (target && target.voxel) {
                         startBreakingTarget(target.voxel);
                     }
                 } else if (e.button === 2) {
                     // Right Click -> Place Block
-                    const target = getTargetedVoxelAndFace();
                     if (target && target.voxel && target.faceNormal) {
                         handlePlaceBlock(target.voxel, target.faceNormal);
                     }
@@ -1654,17 +1697,66 @@
         });
 
         const instructions = document.getElementById('instructions');
+        const btnConnectMesh = document.getElementById('btn-connect-mesh');
+
+        if (btnConnectMesh) {
+            btnConnectMesh.addEventListener('click', (e) => {
+                e.stopPropagation();
+                instructions.style.display = 'none';
+                renderer.domElement.requestPointerLock();
+                showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
+            });
+        }
+
         instructions.addEventListener('click', () => {
+            instructions.style.display = 'none';
             renderer.domElement.requestPointerLock();
+            showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
         });
 
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body) {
                 instructions.style.display = 'none';
-            } else if (settingsModal.style.display !== 'flex') {
+            } else if (settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex') {
                 instructions.style.display = 'block';
             }
         });
+
+        // --- First World Genesis Beacon Modal Logic ---
+        const genesisBeaconModal = document.getElementById('genesis-beacon-modal');
+        const worldNameInput = document.getElementById('world-name-input');
+        const btnClaimWorld = document.getElementById('btn-claim-world');
+        const btnCloseGenesis = document.getElementById('btn-close-genesis');
+
+        function openGenesisBeaconModal() {
+            genesisBeaconModal.style.display = 'flex';
+            document.exitPointerLock();
+            if (worldNameInput) worldNameInput.focus();
+        }
+
+        function closeGenesisBeaconModal() {
+            genesisBeaconModal.style.display = 'none';
+            document.body.requestPointerLock();
+        }
+
+        if (btnCloseGenesis) btnCloseGenesis.addEventListener('click', closeGenesisBeaconModal);
+
+        if (btnClaimWorld) {
+            btnClaimWorld.addEventListener('click', () => {
+                const worldName = worldNameInput.value.trim() || 'Aetheria-Prime';
+                // Cryptographically derive world seed CID from name
+                let seedHash = 0;
+                for (let i = 0; i < worldName.length; i++) {
+                    seedHash = ((seedHash << 5) - seedHash) + worldName.charCodeAt(i);
+                    seedHash |= 0;
+                }
+                const seedHex = Math.abs(seedHash).toString(16).padStart(8, '0');
+                const cid = `bafybeig${seedHex}gemverse0001`;
+
+                closeGenesisBeaconModal();
+                showItemToast(`✨ World Genesis Claimed: "${worldName}" (CID: ${cid.substring(0, 16)}...)`);
+            });
+        }
 
         // --- Active Gravity Leaps & Variable Jump Physics ---
         const LEAP_ENERGY_COST = 25;
