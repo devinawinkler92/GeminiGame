@@ -565,6 +565,26 @@
         </div>
     </div>
 
+    <!-- Floating Item Name Toast -->
+    <div id="item-name-toast" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(13, 14, 21, 0.9); border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.8em; letter-spacing: 0.5px; z-index: 50; pointer-events: none; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);"></div>
+
+    <!-- Item Details Modal -->
+    <div id="item-details-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: rgba(13, 14, 21, 0.95); border: 2px solid #00f0ff; border-radius: 12px; padding: 20px; width: 280px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 20px rgba(0,240,255,0.4); display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <div id="item-details-color-preview" style="width: 48px; height: 48px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); margin-bottom: 4px;"></div>
+            <h3 id="item-details-title" style="margin: 0; color: #00f0ff; font-size: 1.1em; letter-spacing: 1px;">Item Name</h3>
+            <div style="font-size: 0.8em; color: #ccc; width: 100%; display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
+                <div>Type: <span id="item-details-type" style="color: #00f0ff;">-</span></div>
+                <div>Hardness: <span id="item-details-hardness" style="color: #00f0ff;">-</span></div>
+                <div>Stack Quantity: <span id="item-details-count" style="color: #00f0ff;">-</span></div>
+            </div>
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 8px;">
+                <button id="btn-delete-item" style="flex: 1; padding: 10px; background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055; color: #ff0055; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑 Trash Item</button>
+                <button id="btn-close-item-details" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 9-Slot Hotbar HUD -->
     <div id="inventory-hud">
         <div class="inv-slot selected" data-index="1">
@@ -1027,6 +1047,15 @@
             return null;
         }
 
+        const BLOCK_NAMES = {
+            platform: 'Platform Core Voxel',
+            gold: 'Aureum Psi-Grid Voxel',
+            green: 'Verdant Crystal Voxel',
+            cyan: 'Cyan Quantum Voxel',
+            magenta: 'Hyper-Phase Voxel',
+            wall: 'Citadel Alloy Voxel'
+        };
+
         const BLOCK_HARDNESS = {
             platform: 1.0,
             gold: 0.5,
@@ -1112,15 +1141,156 @@
         }
 
         let selectedHotbarIndex = 1;
+        let selectedSwapSlotIndex = null;
+        let toastTimeoutId = null;
+        let holdTimer = null;
+        let isLongPressTriggered = false;
+        let activeDetailSlotIndex = null;
+
+        const itemNameToast = document.getElementById('item-name-toast');
+        const itemDetailsModal = document.getElementById('item-details-modal');
+        const itemDetailsTitle = document.getElementById('item-details-title');
+        const itemDetailsColorPreview = document.getElementById('item-details-color-preview');
+        const itemDetailsType = document.getElementById('item-details-type');
+        const itemDetailsHardness = document.getElementById('item-details-hardness');
+        const itemDetailsCount = document.getElementById('item-details-count');
+        const btnDeleteItem = document.getElementById('btn-delete-item');
+        const btnCloseItemDetails = document.getElementById('btn-close-item-details');
+
+        function showItemToast(textOrType) {
+            if (!itemNameToast) return;
+            const name = BLOCK_NAMES[textOrType] || textOrType || 'Empty Slot';
+            itemNameToast.textContent = name;
+            itemNameToast.style.display = 'block';
+
+            if (toastTimeoutId) clearTimeout(toastTimeoutId);
+            toastTimeoutId = setTimeout(() => {
+                itemNameToast.style.display = 'none';
+            }, 2000);
+        }
+
+        function openItemDetailsModal(slotIndex) {
+            const slotData = inventorySlots[slotIndex];
+            if (!slotData || !slotData.type || slotData.count <= 0) return;
+
+            activeDetailSlotIndex = slotIndex;
+            const type = slotData.type;
+
+            itemDetailsTitle.textContent = BLOCK_NAMES[type] || type;
+            itemDetailsColorPreview.style.background = BLOCK_COLORS[type] || '#fff';
+            itemDetailsType.textContent = type.toUpperCase();
+            itemDetailsHardness.textContent = BLOCK_HARDNESS[type] !== undefined ? `${BLOCK_HARDNESS[type]}s` : '1.0s';
+            itemDetailsCount.textContent = slotData.count;
+
+            itemDetailsModal.style.display = 'flex';
+        }
+
+        if (btnCloseItemDetails) {
+            btnCloseItemDetails.addEventListener('click', () => {
+                itemDetailsModal.style.display = 'none';
+                activeDetailSlotIndex = null;
+            });
+        }
+
+        if (btnDeleteItem) {
+            btnDeleteItem.addEventListener('click', () => {
+                if (activeDetailSlotIndex !== null) {
+                    const deletedType = inventorySlots[activeDetailSlotIndex].type;
+                    inventorySlots[activeDetailSlotIndex] = { type: null, count: 0 };
+                    itemDetailsModal.style.display = 'none';
+                    activeDetailSlotIndex = null;
+                    updateInventoryUI();
+                    showItemToast(`Trashed ${BLOCK_NAMES[deletedType] || 'Item'}`);
+                }
+            });
+        }
+
+        function handleSlotInteraction(slotIndex) {
+            const slotData = inventorySlots[slotIndex];
+
+            if (selectedSwapSlotIndex === null) {
+                // First click: select for swap if slot has item, or select hotbar slot
+                if (slotData && slotData.type && slotData.count > 0) {
+                    selectedSwapSlotIndex = slotIndex;
+                    showItemToast(slotData.type);
+                } else {
+                    showItemToast('Empty Slot');
+                }
+
+                if (slotIndex < 9) {
+                    selectHotbarSlotByIndex(slotIndex + 1);
+                } else {
+                    updateInventoryUI();
+                }
+            } else {
+                // Second click: swap with target slot
+                if (selectedSwapSlotIndex === slotIndex) {
+                    // Clicking same slot deselects swap
+                    selectedSwapSlotIndex = null;
+                    if (slotData && slotData.type && slotData.count > 0) {
+                        showItemToast(slotData.type);
+                    }
+                    updateInventoryUI();
+                } else {
+                    // Swap items between selectedSwapSlotIndex and slotIndex
+                    const temp = inventorySlots[selectedSwapSlotIndex];
+                    inventorySlots[selectedSwapSlotIndex] = inventorySlots[slotIndex];
+                    inventorySlots[slotIndex] = temp;
+
+                    const newSlotData = inventorySlots[slotIndex];
+                    if (newSlotData && newSlotData.type && newSlotData.count > 0) {
+                        showItemToast(newSlotData.type);
+                    } else {
+                        showItemToast('Item Moved');
+                    }
+
+                    selectedSwapSlotIndex = null;
+                    updateInventoryUI();
+                }
+            }
+        }
+
+        function attachHoldAndClickListeners(element, slotIndex) {
+            const startPress = (e) => {
+                isLongPressTriggered = false;
+                if (holdTimer) clearTimeout(holdTimer);
+                holdTimer = setTimeout(() => {
+                    const slotData = inventorySlots[slotIndex];
+                    if (slotData && slotData.type && slotData.count > 0) {
+                        isLongPressTriggered = true;
+                        openItemDetailsModal(slotIndex);
+                    }
+                }, 500);
+            };
+
+            const cancelPress = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+            };
+
+            element.addEventListener('pointerdown', startPress);
+            element.addEventListener('pointerup', cancelPress);
+            element.addEventListener('pointerleave', cancelPress);
+            element.addEventListener('pointercancel', cancelPress);
+
+            element.addEventListener('click', (e) => {
+                cancelPress();
+                if (isLongPressTriggered) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    isLongPressTriggered = false;
+                    return;
+                }
+                handleSlotInteraction(slotIndex);
+            });
+        }
 
         const invSlots = document.querySelectorAll('.inv-slot[data-index]');
         invSlots.forEach(slot => {
-            slot.addEventListener('click', (e) => {
-                const idx = parseInt(slot.dataset.index, 10);
-                if (idx) {
-                    selectHotbarSlotByIndex(idx);
-                }
-            });
+            const idx = parseInt(slot.dataset.index, 10) - 1;
+            attachHoldAndClickListeners(slot, idx);
         });
 
         let unlockedInventorySlots = 12;
@@ -1142,9 +1312,16 @@
                 slotDiv.style.padding = '4px';
                 slotDiv.style.fontSize = '0.65em';
                 slotDiv.style.fontWeight = 'bold';
+                slotDiv.style.cursor = 'pointer';
 
-                slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
-                slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
+                if (i === selectedSwapSlotIndex) {
+                    slotDiv.style.background = 'rgba(0, 240, 255, 0.3)';
+                    slotDiv.style.border = '2px solid #00f0ff';
+                    slotDiv.style.boxShadow = '0 0 8px #00f0ff';
+                } else {
+                    slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
+                    slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
+                }
 
                 const slotData = inventorySlots[i];
                 if (slotData && slotData.type && slotData.count > 0) {
@@ -1163,6 +1340,7 @@
                     slotDiv.appendChild(countSpan);
                 }
 
+                attachHoldAndClickListeners(slotDiv, i);
                 gridContainer.appendChild(slotDiv);
             }
 
@@ -1178,6 +1356,14 @@
 
                 const colorPrev = slot.querySelector('.inv-color-preview');
                 const countSpan = slot.querySelector('.inv-count');
+
+                if (idx === selectedSwapSlotIndex) {
+                    slot.style.borderColor = '#00f0ff';
+                    slot.style.boxShadow = '0 0 10px #00f0ff';
+                } else {
+                    slot.style.borderColor = (idx + 1 === selectedHotbarIndex) ? 'rgba(0, 240, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)';
+                    slot.style.boxShadow = 'none';
+                }
 
                 if (slotData && slotData.type && slotData.count > 0) {
                     slot.dataset.type = slotData.type;
@@ -1373,6 +1559,9 @@
             }
             const currentSlot = inventorySlots[selectedHotbarIndex - 1];
             selectedBlockType = (currentSlot && currentSlot.count > 0) ? currentSlot.type : null;
+            if (typeof updateInventoryUI === 'function') {
+                updateInventoryUI();
+            }
         }
 
         // Mouse wheel hotbar scrolling
