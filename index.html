@@ -127,7 +127,7 @@
             box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
             transition: transform 0.2s, border-color 0.2s;
             overflow: hidden;
-            z-index: 25;
+            z-index: 50;
         }
 
         #gyro-widget-container:hover {
@@ -503,27 +503,52 @@
         </div>
     </div>
 
-    <!-- Inventory HUD -->
+    <!-- 9-Slot Hotbar HUD -->
     <div id="inventory-hud">
-        <div class="inv-slot selected" data-type="platform">
+        <div class="inv-slot selected" data-type="platform" data-index="1">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">1</span>
             <div class="inv-color-preview" style="background: #2a2f45; border: 1px solid #00f0ff;"></div>
             <span class="inv-count" id="count-platform">0</span>
         </div>
-        <div class="inv-slot" data-type="gold">
+        <div class="inv-slot" data-type="gold" data-index="2">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">2</span>
             <div class="inv-color-preview" style="background: #ffaa00;"></div>
             <span class="inv-count" id="count-gold">0</span>
         </div>
-        <div class="inv-slot" data-type="green">
+        <div class="inv-slot" data-type="green" data-index="3">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">3</span>
             <div class="inv-color-preview" style="background: #00ff88;"></div>
             <span class="inv-count" id="count-green">0</span>
         </div>
-        <div class="inv-slot" data-type="cyan">
+        <div class="inv-slot" data-type="cyan" data-index="4">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">4</span>
             <div class="inv-color-preview" style="background: #00f0ff;"></div>
             <span class="inv-count" id="count-cyan">0</span>
         </div>
-        <div class="inv-slot" data-type="magenta">
+        <div class="inv-slot" data-type="magenta" data-index="5">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">5</span>
             <div class="inv-color-preview" style="background: #ff0077;"></div>
             <span class="inv-count" id="count-magenta">0</span>
+        </div>
+        <div class="inv-slot" data-type="platform" data-index="6">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">6</span>
+            <div class="inv-color-preview" style="background: #2a2f45;"></div>
+            <span class="inv-count">-</span>
+        </div>
+        <div class="inv-slot" data-type="gold" data-index="7">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">7</span>
+            <div class="inv-color-preview" style="background: #ffaa00;"></div>
+            <span class="inv-count">-</span>
+        </div>
+        <div class="inv-slot" data-type="green" data-index="8">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">8</span>
+            <div class="inv-color-preview" style="background: #00ff88;"></div>
+            <span class="inv-count">-</span>
+        </div>
+        <div class="inv-slot" data-type="cyan" data-index="9">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">9</span>
+            <div class="inv-color-preview" style="background: #00f0ff;"></div>
+            <span class="inv-count">-</span>
         </div>
     </div>
 
@@ -542,15 +567,14 @@
         <div class="settings-content">
             <h2>⚙ Gemverse Nexus Menu</h2>
 
-            <!-- Inventory Section in Gyro Menu -->
+            <!-- Dedicated Progression Inventory Modal Grid -->
             <div style="margin-bottom: 20px; background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
-                <h3 style="margin-top: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
-                <div id="menu-inventory-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
-                    <div>• Platform Blocks: <span id="menu-inv-platform" style="color: #00f0ff; font-weight: bold;">0</span></div>
-                    <div>• Gold Ore: <span id="menu-inv-gold" style="color: #ffaa00; font-weight: bold;">0</span></div>
-                    <div>• Crystal Veins: <span id="menu-inv-green" style="color: #00ff88; font-weight: bold;">0</span></div>
-                    <div>• Cyan Matrix: <span id="menu-inv-cyan" style="color: #00f0ff; font-weight: bold;">0</span></div>
-                    <div>• Magenta Core: <span id="menu-inv-magenta" style="color: #ff0077; font-weight: bold;">0</span></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 EXPANDABLE INVENTORY</h3>
+                    <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 / 24 SLOTS UNLOCKED</span>
+                </div>
+                <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+                    <!-- 12 Starting Unlocked + 12 Locked Progression Slots generated via JS -->
                 </div>
             </div>
 
@@ -957,14 +981,77 @@
             });
         });
 
+        const MAX_TOTAL_SLOTS = 24;
+        let unlockedInventorySlots = 12;
+
+        const BLOCK_COLORS = {
+            platform: '#2a2f45',
+            gold: '#ffaa00',
+            green: '#00ff88',
+            cyan: '#00f0ff',
+            magenta: '#ff0077'
+        };
+
+        function renderProgressionInventoryMenu() {
+            const gridContainer = document.getElementById('progression-inventory-grid');
+            if (!gridContainer) return;
+            gridContainer.innerHTML = '';
+
+            const types = Object.keys(playerInventory);
+            for (let i = 0; i < MAX_TOTAL_SLOTS; i++) {
+                const slotDiv = document.createElement('div');
+                slotDiv.style.width = '100%';
+                slotDiv.style.aspectRatio = '1';
+                slotDiv.style.borderRadius = '6px';
+                slotDiv.style.display = 'flex';
+                slotDiv.style.flexDirection = 'column';
+                slotDiv.style.justifyContent = 'space-between';
+                slotDiv.style.alignItems = 'center';
+                slotDiv.style.padding = '4px';
+                slotDiv.style.fontSize = '0.65em';
+                slotDiv.style.fontWeight = 'bold';
+
+                if (i < unlockedInventorySlots) {
+                    slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
+                    slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
+
+                    if (i < types.length) {
+                        const type = types[i];
+                        const colorPrev = document.createElement('div');
+                        colorPrev.style.width = '16px';
+                        colorPrev.style.height = '16px';
+                        colorPrev.style.borderRadius = '3px';
+                        colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
+                        colorPrev.style.marginTop = '2px';
+
+                        const countSpan = document.createElement('span');
+                        countSpan.style.color = '#00f0ff';
+                        countSpan.textContent = playerInventory[type] || 0;
+
+                        slotDiv.appendChild(colorPrev);
+                        slotDiv.appendChild(countSpan);
+                    }
+                } else {
+                    slotDiv.style.background = 'rgba(0, 0, 0, 0.4)';
+                    slotDiv.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
+                    slotDiv.style.color = '#555';
+                    slotDiv.style.justifyContent = 'center';
+                    slotDiv.textContent = '🔒';
+                }
+
+                gridContainer.appendChild(slotDiv);
+            }
+
+            const labelEl = document.getElementById('unlocked-slots-label');
+            if (labelEl) labelEl.textContent = `${unlockedInventorySlots} / ${MAX_TOTAL_SLOTS} SLOTS UNLOCKED`;
+        }
+
         function updateInventoryUI() {
             for (const type in playerInventory) {
                 const countEl = document.getElementById(`count-${type}`);
                 if (countEl) countEl.textContent = playerInventory[type];
-
-                const menuCountEl = document.getElementById(`menu-inv-${type}`);
-                if (menuCountEl) menuCountEl.textContent = playerInventory[type];
             }
+            renderProgressionInventoryMenu();
         }
 
         // Raycasting & Break Progress Overlay
@@ -1113,6 +1200,15 @@
         const keys = {};
         let lastSpaceTime = 0;
 
+        function selectHotbarSlotByIndex(idx) {
+            const slot = document.querySelector(`.inv-slot[data-index="${idx}"]`);
+            if (slot) {
+                invSlots.forEach(s => s.classList.remove('selected'));
+                slot.classList.add('selected');
+                selectedBlockType = slot.dataset.type;
+            }
+        }
+
         document.addEventListener('keydown', (e) => {
             if (!keys[e.code]) {
                 keys[e.code] = true;
@@ -1134,6 +1230,29 @@
                 if (e.code === 'Escape') {
                     toggleSettingsModal();
                 }
+
+                // Number keys 1-9 select hotbar slot
+                if (e.code.startsWith('Digit')) {
+                    const num = parseInt(e.code.replace('Digit', ''), 10);
+                    if (num >= 1 && num <= 9) {
+                        selectHotbarSlotByIndex(num);
+                    }
+                }
+
+                // Full Keyboard Gameplay Controls: Right Control = Mine/Break Block, Right Shift = Place Block
+                if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel) {
+                        startBreakingTarget(target.voxel);
+                    }
+                }
+
+                if (e.code === 'ShiftRight') {
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel && target.faceNormal) {
+                        handlePlaceBlock(target.voxel, target.faceNormal);
+                    }
+                }
             }
         });
 
@@ -1141,6 +1260,9 @@
             keys[e.code] = false;
             if (e.code === 'Space') {
                 handleJumpEnd();
+            }
+            if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                stopBreakingTarget();
             }
         });
 
@@ -1528,11 +1650,21 @@
 
         let gyroMode = 'axes';
 
-        gyroContainer.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleSettingsModal();
-        });
+        let lastMenuToggleTime = 0;
+        function handleMenuToggle(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const now = performance.now();
+            if (now - lastMenuToggleTime > 300) {
+                toggleSettingsModal();
+                lastMenuToggleTime = now;
+            }
+        }
+
+        gyroContainer.addEventListener('touchstart', handleMenuToggle);
+        gyroContainer.addEventListener('click', handleMenuToggle);
 
         gyroModeSelect.addEventListener('change', (e) => {
             gyroMode = e.target.value;
