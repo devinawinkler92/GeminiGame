@@ -91,46 +91,50 @@
             top: 0; left: 4px; width: 2px; height: 10px;
         }
 
-        /* Energy Bar */
+        /* Vertical Energy Bar under Gyro Compass */
         #energy-bar-wrapper {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 320px;
-            background: rgba(13, 14, 21, 0.75);
-            border: 1px solid rgba(0, 240, 255, 0.5);
+            top: 165px;
+            right: 60px; /* Centered under 130px Gyro at right:20px */
+            width: 50px;
+            background: rgba(13, 14, 21, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.4);
             border-radius: 20px;
-            padding: 8px 14px;
+            padding: 12px 8px;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             backdrop-filter: blur(5px);
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
         }
 
         #energy-label {
-            font-size: 0.75em;
+            font-size: 0.6em;
             font-weight: bold;
             color: #00f0ff;
             letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         #energy-bar-outer {
-            flex-grow: 1;
-            height: 12px;
+            width: 14px;
+            height: 160px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
+            border-radius: 7px;
             overflow: hidden;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Charges top-down, drains bottom-up */
         }
 
         #energy-bar-fill {
-            height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, #0077ff, #00f0ff);
-            border-radius: 6px;
-            transition: width 0.05s linear;
+            height: 100%;
+            background: linear-gradient(180deg, #00f0ff, #0077ff);
+            border-radius: 7px;
+            transition: height 0.05s linear;
             box-shadow: 0 0 8px #00f0ff;
         }
 
@@ -273,15 +277,15 @@
 
     <div id="hud">
         <div id="crosshair"></div>
+        <div id="gyro-widget-container" title="Click or Press ESC for Settings">
+            <canvas id="gyro-canvas"></canvas>
+            <div id="gyro-label">Compass</div>
+        </div>
         <div id="energy-bar-wrapper">
             <span id="energy-label">ENERGY</span>
             <div id="energy-bar-outer">
                 <div id="energy-bar-fill"></div>
             </div>
-        </div>
-        <div id="gyro-widget-container" title="Click or Press ESC for Settings">
-            <canvas id="gyro-canvas"></canvas>
-            <div id="gyro-label">Compass</div>
         </div>
     </div>
 
@@ -921,7 +925,8 @@
             if (player.energy < player.maxEnergy) {
                 player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta);
             }
-            energyBarFill.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+            // Vertical bar fill height (Terraria style: charges top-down, drains bottom-up)
+            energyBarFill.style.height = `${(player.energy / player.maxEnergy) * 100}%`;
 
             // --- Render Gyro Compass & Main Scene ---
             renderGyroWidget();
