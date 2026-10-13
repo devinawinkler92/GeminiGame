@@ -861,6 +861,27 @@
 
         const visualBodyQuaternion = new THREE.Quaternion();
 
+        // --- Glowing Energy Cube Avatar (Sovereign Initial Form) ---
+        const avatarGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const avatarMat = new THREE.MeshStandardMaterial({
+            color: 0x00f0ff,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 0.8,
+            roughness: 0.1,
+            metalness: 0.9,
+            transparent: true,
+            opacity: 0.85
+        });
+        const avatarWireMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            wireframe: true
+        });
+
+        const avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
+        const avatarWireMesh = new THREE.Mesh(avatarGeo, avatarWireMat);
+        avatarMesh.add(avatarWireMesh);
+        scene.add(avatarMesh);
+
         // --- Inventory & Block Breaking / Placing Engine ---
         const playerInventory = {
             platform: 0,
@@ -1004,29 +1025,26 @@
             if (intersects.length > 0) {
                 const hit = intersects[0];
                 if (hit.object === roomMesh) {
-                    // Raycast hit outer room wall boundary!
-                    const normal = hit.face.normal.clone();
+                    // Raycast hit outer room boundary mesh!
+                    // Invert normal because roomMesh material uses BackSide
+                    const normal = hit.face.normal.clone().negate();
 
-                    // Snap wall contact point to nearest grid voxel center on wall interior face
-                    const rawX = hit.point.x - normal.x * (VOXEL_SIZE / 2);
-                    const rawY = hit.point.y - normal.y * (VOXEL_SIZE / 2);
-                    const rawZ = hit.point.z - normal.z * (VOXEL_SIZE / 2);
-
-                    const gridX = Math.round(rawX);
-                    const gridY = Math.round(rawY);
-                    const gridZ = Math.round(rawZ);
+                    // Calculate the grid coordinates of the outer wall voxel itself
+                    const wallGridX = Math.max(-18, Math.min(18, Math.round(hit.point.x + normal.x * 0.5)));
+                    const wallGridY = Math.max(-18, Math.min(18, Math.round(hit.point.y + normal.y * 0.5)));
+                    const wallGridZ = Math.max(-18, Math.min(18, Math.round(hit.point.z + normal.z * 0.5)));
 
                     const wallVoxel = {
-                        x: gridX,
-                        y: gridY,
-                        z: gridZ,
+                        x: wallGridX,
+                        y: wallGridY,
+                        z: wallGridZ,
                         baseType: 'wall'
                     };
 
                     return {
                         voxel: wallVoxel,
                         point: hit.point,
-                        faceNormal: normal.negate() // Invert BackSide normal to point inward
+                        faceNormal: normal
                     };
                 } else {
                     const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
@@ -1785,11 +1803,11 @@
                 player.lastGroundedTime = performance.now();
             }
 
-            // 2. Voxel Platform Collision (AABB)
-            const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
-            const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
-
+            // 2. Voxel Platform Collision (Smooth AABB & Ground Snap to Eliminate Jitter)
             for (const vox of collidableVoxels) {
+                const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
                 if (pMax.x > vox.min.x && pMin.x < vox.max.x &&
                     pMax.y > vox.min.y && pMin.y < vox.max.y &&
                     pMax.z > vox.min.z && pMin.z < vox.max.z) {
@@ -1810,10 +1828,10 @@
                     const absZ = Math.abs(minZ);
 
                     let hitNormal = new THREE.Vector3();
-                    if (absX < absY && absX < absZ) {
+                    if (absX <= absY && absX <= absZ) {
                         player.position.x += minX;
                         hitNormal.set(Math.sign(minX), 0, 0);
-                    } else if (absY < absX && absY < absZ) {
+                    } else if (absY <= absX && absY <= absZ) {
                         player.position.y += minY;
                         hitNormal.set(0, Math.sign(minY), 0);
                     } else {
@@ -1824,9 +1842,21 @@
                     const dotUp = localUpWorld.dot(hitNormal);
                     if (dotUp > 0.8) {
                         player.isGrounded = true;
+                        // Zero out downward velocity when grounded on voxel surface
+                        const vDownProj = player.velocity.dot(currentLocalDown);
+                        if (vDownProj > 0) {
+                            player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                        }
                     }
                 }
             }
+
+            // Update Glowing Energy Cube Avatar Position & Pulse Animation
+            avatarMesh.position.copy(player.position);
+            avatarMesh.quaternion.copy(visualBodyQuaternion);
+
+            const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
+            avatarMat.emissiveIntensity = pulse;
 
             // --- Camera Position & Orientation Update ---
             const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
