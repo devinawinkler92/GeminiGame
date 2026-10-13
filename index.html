@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity Leap Sandbox</title>
+    <title>WebGL Voxel Physics - Gravity Leap Sandbox</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             margin: 0;
             overflow: hidden;
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d0e15;
+            color: #ffffff;
+            user-select: none;
         }
 
         #instructions {
@@ -18,123 +24,227 @@
             transform: translate(-50%, -50%);
             color: white;
             text-align: center;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(13, 14, 21, 0.85);
+            padding: 30px;
+            border-radius: 12px;
             cursor: pointer;
-            user-select: none;
-            z-index: 10;
+            z-index: 20;
+            border: 2px solid #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        #instructions h1 {
+            margin-top: 0;
+            color: #00f0ff;
+            font-size: 1.8em;
+            letter-spacing: 1px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: left;
+            margin: 20px 0;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .controls-grid div span {
+            color: #00f0ff;
+            font-weight: bold;
         }
 
         #hud {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
             z-index: 10;
         }
 
-        #ledger-hud {
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px 20px;
-            border-radius: 5px;
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 0.8em;
-            border: 1px solid #00ff00;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            min-width: 300px;
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 240, 255, 0.8);
+        }
+        #crosshair::before {
+            top: 4px; left: 0; width: 10px; height: 2px;
+        }
+        #crosshair::after {
+            top: 0; left: 4px; width: 2px; height: 10px;
         }
 
-        .ledger-line {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .hash-text {
-            color: #888;
-            font-size: 0.9em;
-        }
-
-        #energy-container {
-            display: flex;
-            gap: 10px;
-        }
-
-        .energy-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--player-color, #00ffff);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--player-color, #00ffff), 0 0 20px var(--player-color, #00ffff);
-            transition: opacity 0.2s, transform 0.2s;
-        }
-
-        .energy-dot.depleted {
-            opacity: 0.2;
-            box-shadow: none;
-            transform: scale(0.8);
-        }
-
-        #trial-hud {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 8px 15px;
+        /* Energy Bar */
+        #energy-bar-wrapper {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 320px;
+            background: rgba(13, 14, 21, 0.75);
+            border: 1px solid rgba(0, 240, 255, 0.5);
             border-radius: 20px;
-            color: white;
-            font-size: 0.9em;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            border: 1px solid rgba(0, 255, 255, 0.3);
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
         }
 
-        .trial-count {
-            color: #00ffff;
+        #energy-label {
+            font-size: 0.75em;
             font-weight: bold;
-            text-shadow: 0 0 5px #00ffff;
+            color: #00f0ff;
+            letter-spacing: 1px;
         }
 
-        #teleporter-modal {
+        #energy-bar-outer {
+            flex-grow: 1;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #energy-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #0077ff, #00f0ff);
+            border-radius: 6px;
+            transition: width 0.05s linear;
+            box-shadow: 0 0 8px #00f0ff;
+        }
+
+        /* Gyro Compass Widget Corner */
+        #gyro-widget-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 130px;
+            height: 130px;
+            background: rgba(13, 14, 21, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            transition: transform 0.2s, border-color 0.2s;
+            overflow: hidden;
+        }
+
+        #gyro-widget-container:hover {
+            transform: scale(1.05);
+            border-color: #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+
+        #gyro-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #gyro-label {
+            position: absolute;
+            bottom: 6px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 0.65em;
+            color: #00f0ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            pointer-events: none;
+        }
+
+        /* Settings Modal */
+        #settings-modal {
             display: none;
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(8px);
             z-index: 100;
             justify-content: center;
             align-items: center;
-            color: white;
-            font-family: 'Courier New', Courier, monospace;
         }
 
-        .modal-content {
-            background: #111;
+        .settings-content {
+            background: #12141d;
             padding: 30px;
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
-            max-width: 400px;
+            border-radius: 12px;
+            border: 2px solid #00f0ff;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            max-width: 450px;
             width: 90%;
-            text-align: center;
+            color: white;
         }
 
-        .modal-content h2 { color: #00ffff; margin-bottom: 20px; }
-        .room-list { list-style: none; padding: 0; margin: 20px 0; text-align: left; }
-        .room-item {
-            display: flex; justify-content: space-between;
-            padding: 10px; border-bottom: 1px solid #333;
+        .settings-content h2 {
+            margin-top: 0;
+            color: #00f0ff;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            padding-bottom: 10px;
         }
-        .btn {
-            background: #00ffff; color: #000; border: none;
-            padding: 10px 20px; cursor: pointer; font-weight: bold;
-            margin-top: 10px; transition: 0.2s;
+
+        .setting-group {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .btn:hover { background: #fff; box-shadow: 0 0 15px #00ffff; }
-        .btn-cancel { background: transparent; color: #888; border: 1px solid #444; }
+
+        .setting-group label {
+            font-size: 0.95em;
+        }
+
+        .setting-group select {
+            background: #1a1d29;
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-close {
+            background: #00f0ff;
+            color: #0d0e15;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-close:hover {
+            background: #ffffff;
+            box-shadow: 0 0 15px #00f0ff;
+        }
     </style>
     <script type="importmap">
         {
@@ -146,292 +256,286 @@
 </head>
 <body>
     <div id="instructions">
-        <h1>Gemverse Nexus Hub</h1>
-        <p>W, A, S, D - Move</p>
-        <p>Mouse / Arrows - Look</p>
-        <p>Shift + Space + W/A/S/D - Force Jump (Costs Life Force)</p>
-        <p>Space (Grounded) - Jump</p>
-        <p>Click to start</p>
+        <h1>Gravity Leap Sandbox</h1>
+        <p>Explore Box Gravity & Intuitive Spatial Gravity Leaps!</p>
+        <div class="controls-grid">
+            <div><span>W, A, S, D</span> - Move</div>
+            <div><span>Mouse</span> - Look Around</div>
+            <div><span>Space</span> - Jump</div>
+            <div><span>Double-Tap Space</span> - Ceiling Leap</div>
+            <div><span>Shift + Space + W</span> - Leap Forward</div>
+            <div><span>Shift + Space + S</span> - Leap Backward</div>
+            <div><span>Shift + Space + A</span> - Leap Left</div>
+            <div><span>Shift + Space + D</span> - Leap Right</div>
+        </div>
+        <p style="font-size: 0.85em; color: #aaa;">Click anywhere to start & lock pointer</p>
     </div>
 
     <div id="hud">
-        <div id="ledger-hud">
-            <div class="ledger-line"><span>SEQUENCE_ID:</span> <span id="ledger-seq">0</span></div>
-            <div class="ledger-line"><span>VERIFIED_BLOCKS:</span> <span id="ledger-blocks">0</span></div>
-            <div class="ledger-line"><span>STATE_ROOT:</span> <span id="ledger-hash" class="hash-text">awaiting...</span></div>
+        <div id="crosshair"></div>
+        <div id="energy-bar-wrapper">
+            <span id="energy-label">ENERGY</span>
+            <div id="energy-bar-outer">
+                <div id="energy-bar-fill"></div>
+            </div>
         </div>
-        <div id="trial-hud">Genesis Trial: <span id="trial-count" class="trial-count">0/6</span> Surfaces</div>
-        <div id="energy-container">
-            <!-- Energy dots will be generated here -->
+        <div id="gyro-widget-container" title="Click or Press ESC for Settings">
+            <canvas id="gyro-canvas"></canvas>
+            <div id="gyro-label">Compass</div>
         </div>
     </div>
 
-    <div id="teleporter-modal">
-        <div class="modal-content" id="modal-content">
-            <!-- Content dynamic -->
+    <div id="settings-modal">
+        <div class="settings-content">
+            <h2>⚙ Sandbox Settings</h2>
+            <div class="setting-group">
+                <label for="gyro-mode-select">Gyro Compass Mode:</label>
+                <select id="gyro-mode-select">
+                    <option value="axes">X / Y / Z Axes</option>
+                    <option value="horizon">Artificial Horizon</option>
+                </select>
+            </div>
+            <button class="btn-close" id="btn-close-settings">Resume Sandbox</button>
         </div>
     </div>
+
     <script type="module">
         import * as THREE from 'three';
 
-        // --- Background Cryptography Worker (Inline) ---
-        const workerCode = `
-            self.onmessage = async (e) => {
-                const { state, sequence_id } = e.data;
-                const encoder = new TextEncoder();
-                const data = encoder.encode(JSON.stringify(state) + sequence_id);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                self.postMessage({ hash: hashHex, sequence_id });
-            };
-        `;
-        const blob = new Blob([workerCode], { type: 'application/javascript' });
-        const accountWorker = new Worker(URL.createObjectURL(blob));
-
-        accountWorker.onmessage = (e) => {
-            const { hash, sequence_id } = e.data;
-            if (sequence_id >= player.sequence_id) {
-                player.state_root_hash = hash;
-                updateLedgerHUD();
-            }
-        };
-
-        function requestStateHash() {
-            const ledgerState = {
-                profile: player.profile,
-                stats: player.stats,
-                active_matrix_slots: player.active_matrix_slots
-            };
-            accountWorker.postMessage({ state: ledgerState, sequence_id: player.sequence_id });
-        }
-
-        // --- Networking Compression ---
-        function serializeKinematics(posX, posY, posZ, qx, qy, qz, qw) {
-            const buffer = new ArrayBuffer(29);
-            const view = new DataView(buffer);
-            view.setUint8(0, 1); // Type 1: Kinematics
-            view.setFloat32(1, posX);
-            view.setFloat32(5, posY);
-            view.setFloat32(9, posZ);
-            view.setFloat32(13, qx);
-            view.setFloat32(17, qy);
-            view.setFloat32(21, qz);
-            view.setFloat32(25, qw);
-            return buffer;
-        }
-
-        function compressVoxelRow(rawBlocksArray) {
-            const compressed = [];
-            let currentBlockId = rawBlocksArray[0];
-            let runLength = 1;
-            for (let i = 1; i < rawBlocksArray.length; i++) {
-                if (rawBlocksArray[i] === currentBlockId) {
-                    runLength++;
-                } else {
-                    compressed.push(runLength, currentBlockId);
-                    currentBlockId = rawBlocksArray[i];
-                    runLength = 1;
-                }
-            }
-            compressed.push(runLength, currentBlockId);
-            return compressed;
-        }
-
-        // --- State Delta Attestation Loop ---
-        function broadcastActionDelta(action, targetCoords = null) {
-            player.sequence_id++;
-
-            const delta = {
-                type: "ACTION_DELTA",
-                player: player.profile.chroma_id,
-                sequence_id: player.sequence_id,
-                action: action,
-                target_coords: targetCoords,
-                timestamp: Math.floor(Date.now() / 1000)
-            };
-
-            // In a real P2P mesh, we would send this over WebRTC.
-            // For the sandbox, we log it and update our local ledger.
-            console.log("Broadcasting Delta:", delta);
-
-            // Request the background worker to update our state root hash
-            requestStateHash();
-        }
-
-        // --- Scene Setup ---
+        // --- Main Scene Setup ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x202020);
+        scene.background = new THREE.Color(0x0a0c14);
+        scene.fog = new THREE.FogExp2(0x0a0c14, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // --- Lights ---
-        const ambientLight = new THREE.AmbientLight(0x404040);
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(10, 20, 10);
-        scene.add(directionalLight);
+        const dirLight1 = new THREE.DirectionalLight(0x00f0ff, 0.8);
+        dirLight1.position.set(15, 20, 10);
+        scene.add(dirLight1);
 
-        // --- Environment (Nexus Room) ---
-        const roomSize = 24;
+        const dirLight2 = new THREE.DirectionalLight(0xff0055, 0.5);
+        dirLight2.position.set(-15, -10, -15);
+        scene.add(dirLight2);
 
-        // --- Celestial Skybox Layer (Interactive Lobby) ---
-        const celestialLayer = new THREE.Group();
-        scene.add(celestialLayer);
+        // --- Voxel World & Environment Setup ---
+        const ROOM_SIZE = 36;
+        const VOXEL_SIZE = 1;
+        const collidableVoxels = [];
 
-        function spawnSkyboxPlanet(id, name, color, distance, angle) {
-            const geo = new THREE.SphereGeometry(8, 16, 16);
-            const mat = new THREE.MeshBasicMaterial({
-                color: color,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.8
+        function createVoxelMaterial(colorHex, emissiveHex = 0x000000) {
+            return new THREE.MeshStandardMaterial({
+                color: colorHex,
+                roughness: 0.4,
+                metalness: 0.2,
+                emissive: emissiveHex,
+                emissiveIntensity: 0.2
             });
-            const planetMesh = new THREE.Mesh(geo, mat);
-
-            // Position in the sky (infinitely far away via positioning hack in animate)
-            planetMesh.position.set(
-                Math.cos(angle) * distance,
-                20 + Math.sin(angle * 0.5) * 40,
-                Math.sin(angle) * distance
-            );
-
-            planetMesh.userData = { isPlanet: true, planetId: id, planetName: name };
-            celestialLayer.add(planetMesh);
-
-            // Add a subtle glow/inner core
-            const coreGeo = new THREE.SphereGeometry(2, 8, 8);
-            const coreMat = new THREE.MeshBasicMaterial({ color: color });
-            const core = new THREE.Mesh(coreGeo, coreMat);
-            planetMesh.add(core);
         }
 
-        spawnSkyboxPlanet("emerald_ridge", "Emerald Ridge (Survival)", 0x4ade80, 400, 0);
-        spawnSkyboxPlanet("ruby_core", "The Ruby Core (PvP Arena)", 0xfc4a1a, 400, Math.PI * 0.5);
-        spawnSkyboxPlanet("void_nexus", "Void Nexus (Creative)", 0xa855f7, 400, Math.PI);
-        const boxGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
-
-        // Add a subtle grid/wireframe on top of the dark room for a "Nexus" feel
-        const roomMaterial = new THREE.MeshPhongMaterial({
-            color: 0x111111,
-            side: THREE.BackSide,
-        });
-        const room = new THREE.Mesh(boxGeometry, roomMaterial);
-        scene.add(room);
-
-        const wireframeGeom = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
-        const wireframeMat = new THREE.MeshBasicMaterial({
-            color: 0x00ffff,
+        const roomMat = createVoxelMaterial(0x161a29, 0x050811);
+        const wireframeRoomMat = new THREE.MeshBasicMaterial({
+            color: 0x00f0ff,
             wireframe: true,
             transparent: true,
-            opacity: 0.1,
-            side: THREE.BackSide
+            opacity: 0.08
         });
-        const wireframe = new THREE.Mesh(wireframeGeom, wireframeMat);
-        scene.add(wireframe);
 
-        for (let i = 0; i < 50; i++) {
-            const size = Math.random() * 2 + 0.5;
-            const geom = new THREE.BoxGeometry(size, size, size);
-            const mat = new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff });
-            const voxel = new THREE.Mesh(geom, mat);
-            voxel.position.set(
-                (Math.random() - 0.5) * (roomSize - 2),
-                (Math.random() - 0.5) * (roomSize - 2),
-                (Math.random() - 0.5) * (roomSize - 2)
-            );
-            scene.add(voxel);
+        const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
+        const roomMesh = new THREE.Mesh(roomBox, roomMat);
+        roomMesh.material.side = THREE.BackSide;
+        scene.add(roomMesh);
+
+        const roomWireframe = new THREE.Mesh(roomBox, wireframeRoomMat);
+        roomWireframe.material.side = THREE.BackSide;
+        scene.add(roomWireframe);
+
+        const roomGrid = new THREE.GridHelper(ROOM_SIZE, ROOM_SIZE, 0x00f0ff, 0x223344);
+        roomGrid.position.y = -ROOM_SIZE / 2 + 0.01;
+        scene.add(roomGrid);
+
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
+
+        function spawnVoxelBlock(x, y, z, mat) {
+            const mesh = new THREE.Mesh(voxelGeo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            collidableVoxels.push({
+                mesh: mesh,
+                min: new THREE.Vector3(x - VOXEL_SIZE / 2, y - VOXEL_SIZE / 2, z - VOXEL_SIZE / 2),
+                max: new THREE.Vector3(x + VOXEL_SIZE / 2, y + VOXEL_SIZE / 2, z + VOXEL_SIZE / 2),
+                position: mesh.position
+            });
+            return mesh;
         }
 
-        // --- Chroma-ID Generation ---
-        function getChromaColor(username) {
-            let hash = 0;
-            for (let i = 0; i < username.length; i++) {
-                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        const matPlatformMain = createVoxelMaterial(0x2a2f45, 0x004466);
+        const matAccentCyan = createVoxelMaterial(0x00f0ff, 0x00aacc);
+        const matAccentMagenta = createVoxelMaterial(0xff0077, 0xaa0044);
+        const matAccentGold = createVoxelMaterial(0xffaa00, 0x885500);
+        const matAccentGreen = createVoxelMaterial(0x00ff88, 0x00a855);
+
+        // 1. Central Floating Island
+        for (let x = -3; x <= 3; x++) {
+            for (let z = -3; z <= 3; z++) {
+                const mat = (Math.abs(x) === 3 || Math.abs(z) === 3) ? matAccentCyan : matPlatformMain;
+                spawnVoxelBlock(x * VOXEL_SIZE, 0, z * VOXEL_SIZE, mat);
             }
-            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-            return new THREE.Color("#" + "00000".substring(0, 6 - c.length) + c);
         }
 
-        // --- Player State ---
-        const username = "NexusPlayer_" + Math.floor(Math.random() * 1000);
-        const playerColor = getChromaColor(username);
+        // 2. Multi-directional Staircases
+        for (let i = 0; i < 8; i++) {
+            const yPos = -ROOM_SIZE / 2 + 1 + i * 1.5;
+            const zPos = -12 + i * 1.2;
+            for (let x = -1; x <= 1; x++) {
+                spawnVoxelBlock(x * VOXEL_SIZE, yPos, zPos, matAccentGold);
+            }
+        }
+        for (let i = 0; i < 8; i++) {
+            const yPos = 1 + i * 1.5;
+            const zPos = 4 + i * 1.2;
+            for (let x = -1; x <= 1; x++) {
+                spawnVoxelBlock(x * VOXEL_SIZE, yPos, zPos, matAccentGreen);
+            }
+        }
 
-        document.documentElement.style.setProperty('--player-color', '#' + playerColor.getHexString());
+        // 3. Wall Platforms & High Towers
+        for (let y = -4; y <= 4; y += 2) {
+            for (let z = -4; z <= 4; z += 2) {
+                spawnVoxelBlock(-ROOM_SIZE / 2 + 1.5, y, z, matAccentMagenta);
+            }
+        }
+        for (let y = -4; y <= 4; y += 2) {
+            for (let z = -4; z <= 4; z += 2) {
+                spawnVoxelBlock(ROOM_SIZE / 2 - 1.5, y, z, matAccentCyan);
+            }
+        }
+        for (let y = -10; y <= 10; y += 4) {
+            spawnVoxelBlock(0, y, -ROOM_SIZE / 2 + 1.5, matPlatformMain);
+            spawnVoxelBlock(1, y, -ROOM_SIZE / 2 + 1.5, matAccentGold);
+            spawnVoxelBlock(-1, y, -ROOM_SIZE / 2 + 1.5, matAccentGold);
+        }
+        for (let x = -4; x <= 4; x += 2) {
+            for (let z = -4; z <= 4; z += 2) {
+                spawnVoxelBlock(x, ROOM_SIZE / 2 - 2, z, matAccentGreen);
+            }
+        }
 
+        // Floating Voxel Islands
+        spawnVoxelBlock(-8, 5, -8, matAccentCyan);
+        spawnVoxelBlock(-10, 8, -5, matAccentMagenta);
+        spawnVoxelBlock(8, -5, 8, matAccentGold);
+        spawnVoxelBlock(10, -8, 5, matAccentGreen);
+
+        // --- Player State & Physics ---
         const player = {
-            // --- Character Sheet (Ledger) ---
-            profile: {
-                username: username,
-                chroma_id: '0x' + playerColor.getHexString()
-            },
-            sequence_id: 0,
-            stats: {
-                blocks_broken: 0,
-                gravity_flips: 0,
-                legendary_etched: 0
-            },
-            active_matrix_slots: {
-                slot_alpha: null,
-                slot_beta: null
-            },
-            state_root_hash: "awaiting_genesis...",
-
-            // --- Physics & Live State ---
-            position: new THREE.Vector3(0, -roomSize / 2 + 0.5, 0),
-            velocity: new THREE.Vector3(),
-            bodyQuaternion: new THREE.Quaternion(),
-            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            position: new THREE.Vector3(0, -ROOM_SIZE / 2 + 1.6, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            bodyQuaternion: new THREE.Quaternion(), // Local orientation (UP = +Y in local)
+            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'), // Pitch (X), Yaw (Y)
             height: 1.6,
+            radius: 0.4,
             isGrounded: false,
-            isLeaping: false,
-            leapTargetQuaternion: new THREE.Quaternion(),
-            leapStartQuaternion: new THREE.Quaternion(),
-            leapStartTime: 0,
-            leapDuration: 0.3,
             energy: 100,
             maxEnergy: 100,
-            facesVisited: {
-                top: false, bottom: false,
-                left: false, right: false,
-                front: false, back: false
-            }
+
+            // Slerp transition state
+            isLeaping: false,
+            leapStartTime: 0,
+            leapDuration: 0.3,
+            leapStartQuaternion: new THREE.Quaternion(),
+            leapTargetQuaternion: new THREE.Quaternion()
         };
+
+        const visualBodyQuaternion = new THREE.Quaternion();
 
         // --- Input Handling ---
         const keys = {};
+        let lastSpaceTime = 0;
+
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            if (e.code === 'Space') handleJump();
-            checkGravityLeapTrigger(e.code);
-        });
-        document.addEventListener('keyup', (e) => keys[e.code] = false);
 
-        const jumpForce = 8;
+            if (e.code === 'Space') {
+                const now = performance.now();
+                if (now - lastSpaceTime < 300) {
+                    // Double-Tap Space detected -> Ceiling Leap!
+                    handleCeilingLeap();
+                } else {
+                    handleJump();
+                }
+                lastSpaceTime = now;
+            }
+
+            checkDirectionalLeapTrigger(e.code);
+
+            if (e.code === 'Escape') {
+                toggleSettingsModal();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        const mouseSensitivity = 0.002;
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                player.lookRotation.y -= e.movementX * mouseSensitivity;
+                player.lookRotation.x -= e.movementY * mouseSensitivity;
+                // Clamp pitch between -89 deg and +89 deg
+                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            }
+        });
+
+        const instructions = document.getElementById('instructions');
+        instructions.addEventListener('click', () => {
+            document.body.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === document.body) {
+                instructions.style.display = 'none';
+            } else if (settingsModal.style.display !== 'flex') {
+                instructions.style.display = 'block';
+            }
+        });
+
+        // --- Leap & Gravity Shift Mechanics ---
+        const LEAP_ENERGY_COST = 25;
+        const ENERGY_REGEN_RATE = 18;
+
         function handleJump() {
             if (player.isGrounded && !player.isLeaping) {
-                const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-                player.velocity.addScaledVector(upVector, jumpForce);
+                const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+                player.velocity.addScaledVector(localUp, 8);
                 player.isGrounded = false;
             }
         }
 
-        function checkGravityLeapTrigger(newlyPressedCode) {
+        function checkDirectionalLeapTrigger(newlyPressedCode) {
             if (keys['ShiftLeft'] || keys['ShiftRight']) {
                 if (keys['Space']) {
                     const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
                     if (directionKeys.includes(newlyPressedCode)) {
-                        handleGravityLeap(newlyPressedCode);
+                        triggerSpatialLeap(newlyPressedCode);
                     } else if (newlyPressedCode === 'Space' || newlyPressedCode.startsWith('Shift')) {
                         for (const k of directionKeys) {
                             if (keys[k]) {
-                                handleGravityLeap(k);
+                                triggerSpatialLeap(k);
                                 break;
                             }
                         }
@@ -440,323 +544,393 @@
             }
         }
 
-        const leapEnergyCost = 25;
-        const energyRegenRate = 15;
+        function handleCeilingLeap() {
+            if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
-        function handleGravityLeap(code) {
-            if (player.energy < leapEnergyCost || player.isLeaping) return;
+            // Camera orientation in world space
+            const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
+            const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
 
-            let rotationAxis = null;
-            let angle = 0;
-
-            if (code === 'KeyW') {
-                rotationAxis = new THREE.Vector3(1, 0, 0);
-                angle = Math.PI / 2;
-            } else if (code === 'KeyS') {
-                rotationAxis = new THREE.Vector3(1, 0, 0);
-                angle = Math.PI;
-            } else if (code === 'KeyA') {
-                rotationAxis = new THREE.Vector3(0, 0, 1);
-                angle = -Math.PI / 2;
-            } else if (code === 'KeyD') {
-                rotationAxis = new THREE.Vector3(0, 0, 1);
-                angle = Math.PI / 2;
-            }
-
-            if (rotationAxis) {
-                player.energy -= leapEnergyCost;
-                initiateLeap(rotationAxis, angle);
-            }
+            // Ceiling is in direction of camUp. New floor normal (Local UP) should be -camUp
+            initiateGravityShift(camUp.clone().negate(), 10);
+            player.energy -= LEAP_ENERGY_COST;
         }
 
-        function initiateLeap(axis, angle) {
+        function triggerSpatialLeap(code) {
+            if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
+
+            // Get current camera orientation in world space
+            const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
+
+            let leapDirWorld = new THREE.Vector3();
+            if (code === 'KeyW') {
+                leapDirWorld.set(0, 0, -1).applyQuaternion(camQuat); // Forward
+            } else if (code === 'KeyS') {
+                leapDirWorld.set(0, 0, 1).applyQuaternion(camQuat);  // Backward
+            } else if (code === 'KeyA') {
+                leapDirWorld.set(-1, 0, 0).applyQuaternion(camQuat); // Left
+            } else if (code === 'KeyD') {
+                leapDirWorld.set(1, 0, 0).applyQuaternion(camQuat);  // Right
+            }
+
+            // Target wall/surface is in leapDirWorld direction.
+            // New floor normal (Local UP) should point OUT from that surface, i.e. -leapDirWorld
+            const newFloorNormal = leapDirWorld.clone().negate();
+
+            initiateGravityShift(newFloorNormal, 10, leapDirWorld);
+            player.energy -= LEAP_ENERGY_COST;
+        }
+
+        // Helper to snap a world vector to nearest cardinal axis (+X, -X, +Y, -Y, +Z, -Z)
+        const CARDINALS = [
+            new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+            new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1)
+        ];
+
+        function snapToNearestCardinal(vec) {
+            let maxDot = -Infinity;
+            let bestCardinal = CARDINALS[0];
+            for (const c of CARDINALS) {
+                const dot = vec.dot(c);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    bestCardinal = c;
+                }
+            }
+            return bestCardinal.clone();
+        }
+
+        function initiateGravityShift(desiredUpWorld, pushImpulse = 0, impulseDir = null) {
             player.isLeaping = true;
             player.leapStartTime = performance.now();
+            player.leapStartQuaternion.copy(visualBodyQuaternion);
 
-            // --- Physics & Target Setup ---
-            const snappedYaw = Math.round(player.lookRotation.y / (Math.PI / 2)) * (Math.PI / 2);
-            const snappedYawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), snappedYaw);
+            // Snap target local UP to nearest world cardinal vector
+            const targetUp = snapToNearestCardinal(desiredUpWorld);
 
-            // Current cardinal basis (the one we are leap "from")
-            player.leapStartQuaternion.copy(player.bodyQuaternion).multiply(snappedYawQuaternion);
+            // Current body UP in world space
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
 
-            // Target cardinal basis (the one we are leap "to")
-            const leapRotation = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-            player.leapTargetQuaternion.copy(player.leapStartQuaternion).multiply(leapRotation).normalize();
+            // Calculate rotation quaternion to rotate currentUp to targetUp
+            const shiftQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
 
-            // Force application
-            const upVector = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-            const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(player.leapStartQuaternion);
-            player.velocity.addScaledVector(upVector, 8);
-            player.velocity.addScaledVector(forwardVector, 5);
+            // Raw target body quaternion
+            const targetBodyRaw = shiftQuat.clone().multiply(player.bodyQuaternion);
+
+            // Ensure target body quaternion is perfectly cardinal-aligned
+            const rawZ = new THREE.Vector3(0, 0, 1).applyQuaternion(targetBodyRaw);
+            // Project rawZ onto plane perpendicular to targetUp
+            const projZ = rawZ.clone().addScaledVector(targetUp, -rawZ.dot(targetUp)).normalize();
+            const cardinalZ = snapToNearestCardinal(projZ);
+            const cardinalX = new THREE.Vector3().crossVectors(targetUp, cardinalZ).normalize();
+
+            // Construct 3x3 orientation matrix
+            const rotMatrix = new THREE.Matrix4().makeBasis(cardinalX, targetUp, cardinalZ);
+            player.leapTargetQuaternion.setFromRotationMatrix(rotMatrix).normalize();
+
+            // Apply push impulse if specified
+            if (pushImpulse > 0 && impulseDir) {
+                player.velocity.addScaledVector(impulseDir.clone().normalize(), pushImpulse);
+            }
+
             player.isGrounded = false;
-
-            player.bodyQuaternion.copy(player.leapTargetQuaternion);
-            player.lookRotation.y = player.lookRotation.y - snappedYaw;
-
-            // --- Character Ledger Update ---
-            player.stats.gravity_flips++;
-            broadcastActionDelta("FORCE_JUMP");
         }
 
-        let visualBodyQuaternion = new THREE.Quaternion();
+        // --- Gyro Compass Widget & Settings Menu ---
+        const gyroCanvas = document.getElementById('gyro-canvas');
+        const gyroContext = gyroCanvas.getContext('2d');
+        gyroCanvas.width = 130;
+        gyroCanvas.height = 130;
 
-        const instructions = document.getElementById('instructions');
-        const mouseSensitivity = 0.002;
+        const gyroContainer = document.getElementById('gyro-widget-container');
+        const settingsModal = document.getElementById('settings-modal');
+        const gyroModeSelect = document.getElementById('gyro-mode-select');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
 
-        document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === document.body) {
-                player.lookRotation.y -= e.movementX * mouseSensitivity;
-                player.lookRotation.x += e.movementY * mouseSensitivity;
-                player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
-            }
+        let gyroMode = 'axes'; // 'axes' or 'horizon'
+
+        gyroContainer.addEventListener('click', () => {
+            toggleSettingsModal();
         });
 
-        const raycaster = new THREE.Raycaster();
-        const centerMouse = new THREE.Vector2(0, 0);
-        let hoveredPlanet = null;
+        gyroModeSelect.addEventListener('change', (e) => {
+            gyroMode = e.target.value;
+        });
 
-        function checkSkyboxTargeting() {
-            raycaster.setFromCamera(centerMouse, camera);
-            const intersects = raycaster.intersectObjects(celestialLayer.children, true);
+        btnCloseSettings.addEventListener('click', () => {
+            toggleSettingsModal();
+        });
 
-            if (intersects.length > 0) {
-                // Intersects could hit the planet mesh OR its core
-                let target = intersects[0].object;
-                while (target && !target.userData.isPlanet) target = target.parent;
-
-                if (target && target.userData.isPlanet) {
-                    hoveredPlanet = target.userData;
-                    trialCountEl.textContent = `LOCKED ONTO: ${hoveredPlanet.planetName}`;
-                    trialCountEl.style.color = '#ffd166';
-                    return;
-                }
-            }
-
-            hoveredPlanet = null;
-            updateTrialHUD(); // Restore standard trial HUD
-        }
-
-        instructions.addEventListener('click', () => { document.body.requestPointerLock(); });
-
-        document.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body) return;
-
-            // 1. Interstellar Teleport Check
-            if (hoveredPlanet) {
-                openPlanetTeleporterMenu(hoveredPlanet.planetId, hoveredPlanet.planetName);
+        function toggleSettingsModal() {
+            if (settingsModal.style.display === 'flex') {
+                settingsModal.style.display = 'none';
+                document.body.requestPointerLock();
+            } else {
+                settingsModal.style.display = 'flex';
                 document.exitPointerLock();
-                return;
-            }
-
-            // 2. Standard Voxel Breaking
-            raycaster.setFromCamera(centerMouse, camera);
-            const voxels = scene.children.filter(obj => obj.type === 'Mesh' && obj !== room && obj !== wireframe);
-            const intersects = raycaster.intersectObjects(voxels);
-
-            if (intersects.length > 0) {
-                const target = intersects[0].object;
-                const dist = intersects[0].distance;
-
-                // Anti-cheat Mesh Audit: Must be close enough (e.g., 5 units)
-                if (dist < 5) {
-                    scene.remove(target);
-                    player.stats.blocks_broken++;
-                    broadcastActionDelta("BLOCK_BREAK", [target.position.x, target.position.y, target.position.z]);
-                }
-            }
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            instructions.style.display = document.pointerLockElement === document.body ? 'none' : 'block';
-        });
-
-        const moveSpeed = 5;
-        const gravityForce = 20;
-        const arrowLookSpeed = 2.0;
-
-        // --- HUD ---
-        const energyContainer = document.getElementById('energy-container');
-        const trialCountEl = document.getElementById('trial-count');
-        const ledgerSeqEl = document.getElementById('ledger-seq');
-        const ledgerBlocksEl = document.getElementById('ledger-blocks');
-        const ledgerHashEl = document.getElementById('ledger-hash');
-
-        const dotCount = 10;
-        const dots = [];
-        for (let i = 0; i < dotCount; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'energy-dot';
-            energyContainer.appendChild(dot);
-            dots.push(dot);
-        }
-
-        function updateHUD() {
-            const energyPerDot = player.maxEnergy / dotCount;
-            dots.forEach((dot, i) => {
-                if (player.energy > i * energyPerDot) {
-                    dot.classList.remove('depleted');
-                } else {
-                    dot.classList.add('depleted');
-                }
-            });
-        }
-
-        function updateTrialHUD() {
-            const visitedCount = Object.values(player.facesVisited).filter(v => v).length;
-            trialCountEl.textContent = `${visitedCount}/6`;
-            if (visitedCount === 6) {
-                trialCountEl.style.color = '#00ff00';
-                trialCountEl.style.textShadow = '0 0 10px #00ff00';
             }
         }
 
-        function updateLedgerHUD() {
-            ledgerSeqEl.textContent = player.sequence_id;
-            ledgerBlocksEl.textContent = player.stats.blocks_broken;
-            ledgerHashEl.textContent = player.state_root_hash.substring(0, 16) + "...";
+        function renderGyroWidget() {
+            const w = gyroCanvas.width;
+            const h = gyroCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = w / 2 - 10;
+
+            gyroContext.clearRect(0, 0, w, h);
+
+            // Current camera world quaternion
+            const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
+
+            if (gyroMode === 'axes') {
+                // Render 3D World X, Y, Z Axes projected onto 2D HUD widget
+                gyroContext.save();
+                gyroContext.translate(cx, cy);
+
+                // World axes vectors transformed into camera space
+                const invCamQuat = camQuat.clone().invert();
+                const xAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(invCamQuat);
+                const yAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(invCamQuat);
+                const zAxis = new THREE.Vector3(0, 0, 1).applyQuaternion(invCamQuat);
+
+                const axes = [
+                    { vec: xAxis, color: '#ff4444', label: 'X' },
+                    { vec: yAxis, color: '#44ff44', label: 'Y' },
+                    { vec: zAxis, color: '#4488ff', label: 'Z' }
+                ];
+
+                // Sort by Z for proper depth rendering
+                axes.sort((a, b) => a.vec.z - b.vec.z);
+
+                axes.forEach(axis => {
+                    const px = axis.vec.x * r;
+                    const py = -axis.vec.y * r; // Invert Y for canvas
+
+                    gyroContext.beginPath();
+                    gyroContext.moveTo(0, 0);
+                    gyroContext.lineTo(px, py);
+                    gyroContext.strokeStyle = axis.color;
+                    gyroContext.lineWidth = axis.vec.z > 0 ? 3 : 1.5;
+                    gyroContext.stroke();
+
+                    // Axis dot / label
+                    gyroContext.beginPath();
+                    gyroContext.arc(px, py, 4, 0, Math.PI * 2);
+                    gyroContext.fillStyle = axis.color;
+                    gyroContext.fill();
+
+                    gyroContext.font = 'bold 10px sans-serif';
+                    gyroContext.fillStyle = '#ffffff';
+                    gyroContext.fillText(axis.label, px + 6, py + 3);
+                });
+
+                gyroContext.restore();
+            } else {
+                // Render Artificial Horizon
+                gyroContext.save();
+                gyroContext.translate(cx, cy);
+
+                // World Up vector in camera space
+                const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat.clone().invert());
+
+                // Pitch angle relative to horizon
+                const pitchAngle = Math.asin(Math.max(-1, Math.min(1, worldUp.y)));
+                // Roll angle relative to view
+                const rollAngle = Math.atan2(worldUp.x, worldUp.y);
+
+                gyroContext.rotate(-rollAngle);
+
+                const pitchOffset = pitchAngle * (r / (Math.PI / 2));
+
+                // Sky & Ground clipping
+                gyroContext.beginPath();
+                gyroContext.arc(0, 0, r, 0, Math.PI * 2);
+                gyroContext.clip();
+
+                // Sky fill
+                gyroContext.fillStyle = '#115588';
+                gyroContext.fillRect(-r, -r * 2 + pitchOffset, r * 2, r * 2);
+
+                // Ground fill
+                gyroContext.fillStyle = '#664422';
+                gyroContext.fillRect(-r, pitchOffset, r * 2, r * 2);
+
+                // Horizon Line
+                gyroContext.beginPath();
+                gyroContext.moveTo(-r, pitchOffset);
+                gyroContext.lineTo(r, pitchOffset);
+                gyroContext.strokeStyle = '#00f0ff';
+                gyroContext.lineWidth = 2;
+                gyroContext.stroke();
+
+                gyroContext.restore();
+            }
         }
 
-        // --- Teleporter Handshake UI ---
-        const teleporterModal = document.getElementById('teleporter-modal');
-        const modalContent = document.getElementById('modal-content');
+        // --- Main Physics Loop & Collision Resolution ---
+        const energyBarFill = document.getElementById('energy-bar-fill');
 
-        window.openPlanetTeleporterMenu = (planetId, planetName) => {
-            teleporterModal.style.display = 'flex';
-            modalContent.innerHTML = `
-                <h2>🌌 Quantum Link: ${planetName}</h2>
-                <p>Scanning peer mesh network for active rooms...</p>
-                <div class="room-list">
-                    <div class="room-item">
-                        <span>Room #1 (3/5 Peers)</span>
-                        <button class="btn" onclick="window.connectToMesh('${planetId}', 1)">JOIN</button>
-                    </div>
-                    <div class="room-item">
-                        <span>Room #2 (1/5 Peers)</span>
-                        <button class="btn" onclick="window.connectToMesh('${planetId}', 2)">JOIN</button>
-                    </div>
-                </div>
-                <button class="btn" onclick="window.createNewMeshRoom('${planetId}')">INITIALIZE NEW ORBIT</button>
-                <button class="btn btn-cancel" onclick="window.closePlanetMenu()">CANCEL</button>
-            `;
-        }
-
-        window.closePlanetMenu = () => { teleporterModal.style.display = 'none'; };
-        window.connectToMesh = (id, room) => { alert(`Connecting to ${id} Room ${room}...`); window.closePlanetMenu(); };
-        window.createNewMeshRoom = (id) => { alert(`Creating new room in ${id} orbit...`); window.closePlanetMenu(); };
-
-        // --- Main Loop ---
         let lastTime = performance.now();
+        const gravityAccel = 22;
+        const moveSpeed = 6.5;
+
         function animate() {
             requestAnimationFrame(animate);
+
             const time = performance.now();
             let delta = (time - lastTime) / 1000;
             lastTime = time;
 
-            if (delta > 0.1) delta = 0.1;
+            if (delta > 0.1) delta = 0.1; // Cap large delta frame spikes
 
-            // --- Controls ---
-            if (keys['ArrowLeft']) player.lookRotation.y += arrowLookSpeed * delta;
-            if (keys['ArrowRight']) player.lookRotation.y -= arrowLookSpeed * delta;
-            if (keys['ArrowUp']) player.lookRotation.x -= arrowLookSpeed * delta;
-            if (keys['ArrowDown']) player.lookRotation.x += arrowLookSpeed * delta;
-            player.lookRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.lookRotation.x));
-
-            const moveDir = new THREE.Vector3(0, 0, 0);
-            if (keys['KeyW']) moveDir.z -= 1;
-            if (keys['KeyS']) moveDir.z += 1;
-            if (keys['KeyA']) moveDir.x -= 1;
-            if (keys['KeyD']) moveDir.x += 1;
-            moveDir.normalize();
-
-            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
-            const combinedMoveQuaternion = new THREE.Quaternion().copy(player.bodyQuaternion).multiply(yawQuaternion);
-            moveDir.applyQuaternion(combinedMoveQuaternion);
-
-            player.position.addScaledVector(moveDir, moveSpeed * delta);
-
-            const downVector = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
-            if (!player.isGrounded) {
-                player.velocity.addScaledVector(downVector, gravityForce * delta);
-            } else {
-                player.velocity.set(0, 0, 0);
-            }
-            player.position.addScaledVector(player.velocity, delta);
-
-            // --- Collision ---
-            const halfRoom = roomSize / 2;
-            const margin = 0.5;
-            player.isGrounded = false;
-            const localPos = player.position.clone().applyQuaternion(player.bodyQuaternion.clone().invert());
-            if (localPos.y <= -halfRoom + margin) {
-                localPos.y = -halfRoom + margin;
-                player.isGrounded = true;
-                // Identify which WORLD face is currently the "floor" based on bodyQuaternion
-                updateFacesVisited();
-            }
-            if (localPos.y >= halfRoom - margin) localPos.y = halfRoom - margin;
-            if (localPos.x <= -halfRoom + margin) localPos.x = -halfRoom + margin;
-            if (localPos.x >= halfRoom - margin) localPos.x = halfRoom - margin;
-            if (localPos.z <= -halfRoom + margin) localPos.z = -halfRoom + margin;
-            if (localPos.z >= halfRoom - margin) localPos.z = halfRoom - margin;
-            player.position.copy(localPos.applyQuaternion(player.bodyQuaternion));
-
-            // CRITICAL SKYBOX HACK: Move the celestial star map with the player
-            // so they can never fly closer or further away from the selector meshes
-            celestialLayer.position.copy(player.position);
-
-            // Spin the planets slowly in place over time just for visual flair
-            celestialLayer.children.forEach(planet => {
-                planet.rotation.y += 0.005;
-            });
-
-            // Check if the player is looking at any distant worlds
-            checkSkyboxTargeting();
-
-        function updateFacesVisited() {
-            // Transform the unit "up" vector (0,1,0) in local space to world space
-            const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-
-            // The world face we are grounded on is the one worldUp is pointing AWAY from.
-            // i.e., worldDown = -worldUp.
-            const worldDown = worldUp.clone().negate();
-
-            if (worldDown.y < -0.9) player.facesVisited.bottom = true;
-            else if (worldDown.y > 0.9) player.facesVisited.top = true;
-            else if (worldDown.x < -0.9) player.facesVisited.left = true;
-            else if (worldDown.x > 0.9) player.facesVisited.right = true;
-            else if (worldDown.z < -0.9) player.facesVisited.front = true;
-            else if (worldDown.z > 0.9) player.facesVisited.back = true;
-
-            updateTrialHUD();
-        }
-
-            // --- Camera Smoothing ---
+            // --- Camera Slerp Transition ---
             if (player.isLeaping) {
                 const elapsed = (time - player.leapStartTime) / 1000;
                 const t = Math.min(elapsed / player.leapDuration, 1);
-                visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, t);
-                if (t >= 1) player.isLeaping = false;
+
+                // Smooth cubic ease
+                const smoothT = t * t * (3 - 2 * t);
+                visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, smoothT);
+
+                if (t >= 1) {
+                    player.isLeaping = false;
+                    player.bodyQuaternion.copy(player.leapTargetQuaternion);
+                    visualBodyQuaternion.copy(player.bodyQuaternion);
+                }
             } else {
                 visualBodyQuaternion.copy(player.bodyQuaternion);
             }
 
-            const lookQuaternion = new THREE.Quaternion().setFromEuler(player.lookRotation);
-            camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuaternion);
-            const upOffset = new THREE.Vector3(0, player.height, 0).applyQuaternion(visualBodyQuaternion);
-            camera.position.copy(player.position).add(upOffset);
+            // --- Movement Input Relative to Local View ---
+            const moveInput = new THREE.Vector3();
+            if (keys['KeyW']) moveInput.z -= 1;
+            if (keys['KeyS']) moveInput.z += 1;
+            if (keys['KeyA']) moveInput.x -= 1;
+            if (keys['KeyD']) moveInput.x += 1;
+            moveInput.normalize();
 
-            // --- HUD ---
-            if (player.energy < player.maxEnergy) {
-                player.energy = Math.min(player.maxEnergy, player.energy + energyRegenRate * delta);
+            // Yaw rotation relative to local body
+            const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            const moveQuat = visualBodyQuaternion.clone().multiply(yawQuat);
+            const moveWorldDir = moveInput.clone().applyQuaternion(moveQuat);
+
+            player.position.addScaledVector(moveWorldDir, moveSpeed * delta);
+
+            // --- Gravity Acceleration along Local Down ---
+            const currentLocalDown = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
+
+            if (!player.isGrounded) {
+                player.velocity.addScaledVector(currentLocalDown, gravityAccel * delta);
+            } else {
+                // Dampen velocity along local surface
+                player.velocity.set(0, 0, 0);
             }
-            updateHUD();
 
+            player.position.addScaledVector(player.velocity, delta);
+
+            // --- Collision Resolution & Surface Reorientation ---
+            player.isGrounded = false;
+            const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
+
+            // 1. Room Boundary Collision
+            const halfRoom = ROOM_SIZE / 2;
+            const margin = player.radius;
+
+            const roomCollisions = [
+                { normal: new THREE.Vector3(1, 0, 0), dist: player.position.x - (-halfRoom + margin) },
+                { normal: new THREE.Vector3(-1, 0, 0), dist: (halfRoom - margin) - player.position.x },
+                { normal: new THREE.Vector3(0, 1, 0), dist: player.position.y - (-halfRoom + player.height / 2) },
+                { normal: new THREE.Vector3(0, -1, 0), dist: (halfRoom - player.height / 2) - player.position.y },
+                { normal: new THREE.Vector3(0, 0, 1), dist: player.position.z - (-halfRoom + margin) },
+                { normal: new THREE.Vector3(0, 0, -1), dist: (halfRoom - margin) - player.position.z }
+            ];
+
+            for (const col of roomCollisions) {
+                if (col.dist < 0) {
+                    // Penetrating boundary wall
+                    player.position.addScaledVector(col.normal, -col.dist);
+
+                    // Check if player is falling onto floor surface
+                    if (localUpWorld.dot(col.normal) > 0.8) {
+                        player.isGrounded = true;
+                    } else if (!player.isLeaping) {
+                        // Collision reorientation: reorient player to match hit wall normal!
+                        initiateGravityShift(col.normal);
+                    }
+                }
+            }
+
+            // 2. Voxel Platform Collision (AABB)
+            const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+            const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
+            for (const vox of collidableVoxels) {
+                if (pMax.x > vox.min.x && pMin.x < vox.max.x &&
+                    pMax.y > vox.min.y && pMin.y < vox.max.y &&
+                    pMax.z > vox.min.z && pMin.z < vox.max.z) {
+
+                    // Calculate overlap along each axis
+                    const overlapX1 = vox.max.x - pMin.x;
+                    const overlapX2 = pMax.x - vox.min.x;
+                    const overlapY1 = vox.max.y - pMin.y;
+                    const overlapY2 = pMax.y - vox.min.y;
+                    const overlapZ1 = vox.max.z - pMin.z;
+                    const overlapZ2 = pMax.z - vox.min.z;
+
+                    const minX = overlapX1 < overlapX2 ? overlapX1 : -overlapX2;
+                    const minY = overlapY1 < overlapY2 ? overlapY1 : -overlapY2;
+                    const minZ = overlapZ1 < overlapZ2 ? overlapZ1 : -overlapZ2;
+
+                    const absX = Math.abs(minX);
+                    const absY = Math.abs(minY);
+                    const absZ = Math.abs(minZ);
+
+                    // Resolve along smallest overlap axis
+                    let hitNormal = new THREE.Vector3();
+                    if (absX < absY && absX < absZ) {
+                        player.position.x += minX;
+                        hitNormal.set(Math.sign(minX), 0, 0);
+                    } else if (absY < absX && absY < absZ) {
+                        player.position.y += minY;
+                        hitNormal.set(0, Math.sign(minY), 0);
+                    } else {
+                        player.position.z += minZ;
+                        hitNormal.set(0, 0, Math.sign(minZ));
+                    }
+
+                    if (localUpWorld.dot(hitNormal) > 0.8) {
+                        player.isGrounded = true;
+                    } else if (!player.isLeaping) {
+                        // Reorient to voxel surface normal
+                        initiateGravityShift(hitNormal);
+                    }
+                }
+            }
+
+            // --- Camera Position & Orientation Update ---
+            const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
+            camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
+
+            // Camera offset in local UP direction
+            const cameraOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
+            camera.position.copy(player.position).add(cameraOffset);
+
+            // --- Energy Regeneration & HUD Update ---
+            if (player.energy < player.maxEnergy) {
+                player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta);
+            }
+            energyBarFill.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+
+            // --- Render Gyro Compass & Main Scene ---
+            renderGyroWidget();
             renderer.render(scene, camera);
         }
 
         animate();
 
+        // --- Window Resize ---
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
