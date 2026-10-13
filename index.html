@@ -507,23 +507,23 @@
     <div id="inventory-hud">
         <div class="inv-slot selected" data-type="platform">
             <div class="inv-color-preview" style="background: #2a2f45; border: 1px solid #00f0ff;"></div>
-            <span class="inv-count" id="count-platform">64</span>
+            <span class="inv-count" id="count-platform">0</span>
         </div>
         <div class="inv-slot" data-type="gold">
             <div class="inv-color-preview" style="background: #ffaa00;"></div>
-            <span class="inv-count" id="count-gold">12</span>
+            <span class="inv-count" id="count-gold">0</span>
         </div>
         <div class="inv-slot" data-type="green">
             <div class="inv-color-preview" style="background: #00ff88;"></div>
-            <span class="inv-count" id="count-green">12</span>
+            <span class="inv-count" id="count-green">0</span>
         </div>
         <div class="inv-slot" data-type="cyan">
             <div class="inv-color-preview" style="background: #00f0ff;"></div>
-            <span class="inv-count" id="count-cyan">16</span>
+            <span class="inv-count" id="count-cyan">0</span>
         </div>
         <div class="inv-slot" data-type="magenta">
             <div class="inv-color-preview" style="background: #ff0077;"></div>
-            <span class="inv-count" id="count-magenta">16</span>
+            <span class="inv-count" id="count-magenta">0</span>
         </div>
     </div>
 
@@ -540,7 +540,20 @@
 
     <div id="settings-modal">
         <div class="settings-content">
-            <h2>⚙ Sandbox Settings</h2>
+            <h2>⚙ Gemverse Nexus Menu</h2>
+
+            <!-- Inventory Section in Gyro Menu -->
+            <div style="margin-bottom: 20px; background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                <h3 style="margin-top: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
+                <div id="menu-inventory-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+                    <div>• Platform Blocks: <span id="menu-inv-platform" style="color: #00f0ff; font-weight: bold;">0</span></div>
+                    <div>• Gold Ore: <span id="menu-inv-gold" style="color: #ffaa00; font-weight: bold;">0</span></div>
+                    <div>• Crystal Veins: <span id="menu-inv-green" style="color: #00ff88; font-weight: bold;">0</span></div>
+                    <div>• Cyan Matrix: <span id="menu-inv-cyan" style="color: #00f0ff; font-weight: bold;">0</span></div>
+                    <div>• Magenta Core: <span id="menu-inv-magenta" style="color: #ff0077; font-weight: bold;">0</span></div>
+                </div>
+            </div>
+
             <div class="setting-group">
                 <label for="gyro-mode-select">Gyro Compass Mode:</label>
                 <select id="gyro-mode-select">
@@ -839,11 +852,11 @@
 
         // --- Inventory & Block Breaking / Placing Engine ---
         const playerInventory = {
-            platform: 64,
-            gold: 12,
-            green: 12,
-            cyan: 16,
-            magenta: 16
+            platform: 0,
+            gold: 0,
+            green: 0,
+            cyan: 0,
+            magenta: 0
         };
         let selectedBlockType = 'platform';
 
@@ -868,6 +881,9 @@
             for (const type in playerInventory) {
                 const countEl = document.getElementById(`count-${type}`);
                 if (countEl) countEl.textContent = playerInventory[type];
+
+                const menuCountEl = document.getElementById(`menu-inv-${type}`);
+                if (menuCountEl) menuCountEl.textContent = playerInventory[type];
             }
         }
 
