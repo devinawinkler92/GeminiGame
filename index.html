@@ -245,6 +245,20 @@
                 width: 12px;
                 height: 12px;
             }
+            #touch-jump-btn {
+                bottom: 20px;
+                right: 85px;
+                width: 55px;
+                height: 55px;
+                font-size: 0.75em;
+            }
+            #touch-gshift-btn {
+                bottom: 85px;
+                right: 85px;
+                width: 55px;
+                height: 55px;
+                font-size: 0.65em;
+            }
         }
 
         /* --- Touch Controls Overlay --- */
@@ -1058,7 +1072,14 @@
             if (!gridContainer) return;
             gridContainer.innerHTML = '';
 
-            const types = Object.keys(playerInventory);
+            // Collect active items (count > 0)
+            const activeItems = [];
+            for (const type in playerInventory) {
+                if (playerInventory[type] > 0) {
+                    activeItems.push({ type: type, count: playerInventory[type] });
+                }
+            }
+
             for (let i = 0; i < unlockedInventorySlots; i++) {
                 const slotDiv = document.createElement('div');
                 slotDiv.style.width = '100%';
@@ -1075,18 +1096,18 @@
                 slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
                 slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
 
-                if (i < types.length) {
-                    const type = types[i];
+                if (i < activeItems.length) {
+                    const item = activeItems[i];
                     const colorPrev = document.createElement('div');
                     colorPrev.style.width = '16px';
                     colorPrev.style.height = '16px';
                     colorPrev.style.borderRadius = '3px';
-                    colorPrev.style.background = BLOCK_COLORS[type] || '#fff';
+                    colorPrev.style.background = BLOCK_COLORS[item.type] || '#fff';
                     colorPrev.style.marginTop = '2px';
 
                     const countSpan = document.createElement('span');
                     countSpan.style.color = '#00f0ff';
-                    countSpan.textContent = playerInventory[type] || 0;
+                    countSpan.textContent = item.count;
 
                     slotDiv.appendChild(colorPrev);
                     slotDiv.appendChild(countSpan);
