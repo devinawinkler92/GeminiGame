@@ -3116,7 +3116,10 @@
             if (keys['ArrowDown']) player.lookRotation.x -= arrowRotateSpeed * delta;
             player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
 
-            // --- Movement Input Relative to Local View (Keyboard + Touch Joystick) ---
+            // --- Movement Input & Grounded Crouch Edge Protection ---
+            const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
+            const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
+
             const moveInput = new THREE.Vector3();
             if (keys['KeyW']) moveInput.z -= 1;
             if (keys['KeyS']) moveInput.z += 1;
@@ -3132,7 +3135,57 @@
             const moveQuat = visualBodyQuaternion.clone().multiply(yawQuat);
             const moveWorldDir = moveInput.clone().applyQuaternion(moveQuat);
 
-            player.position.addScaledVector(moveWorldDir, moveSpeed * delta);
+            // Edge Protection: prevent crouching player from stepping into empty air off supported voxels
+            if (isCrouching && moveWorldDir.lengthSq() > 0.001) {
+                const targetPos = player.position.clone().addScaledVector(moveWorldDir, currentMoveSpeed * delta);
+
+                // Helper to check if target feet position has grounded voxel support beneath
+                const checkPosHasSupport = (pos) => {
+                    const feetPosTest = pos.clone().addScaledVector(localUpWorld, -player.height / 2 - 0.1);
+                    for (const vox of collidableVoxels) {
+                        const pMin = pos.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                        const pMax = pos.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
+                        let isLatOverlap = false;
+                        if (Math.abs(localUpWorld.y) > 0.8) {
+                            isLatOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                        } else if (Math.abs(localUpWorld.x) > 0.8) {
+                            isLatOverlap = (pMax.y > vox.min.y && pMin.y < vox.max.y && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                        } else {
+                            isLatOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.y > vox.min.y && pMin.y < vox.max.y);
+                        }
+
+                        const voxFaceCenter = vox.position.clone().addScaledVector(localUpWorld, VOXEL_SIZE / 2);
+                        const sDist = feetPosTest.clone().sub(voxFaceCenter).dot(localUpWorld);
+                        if (isLatOverlap && Math.abs(sDist) <= 0.2) return true;
+                    }
+                    // Outer room boundary wall/floor support check
+                    const halfRoom = ROOM_SIZE / 2;
+                    if (Math.abs(pos.x) >= halfRoom - player.radius || Math.abs(pos.y) >= halfRoom - player.height / 2 || Math.abs(pos.z) >= halfRoom - player.radius) {
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (!checkPosHasSupport(targetPos)) {
+                    // Try sliding along individual local movement axes if full vector step is off edge
+                    const testXPos = player.position.clone();
+                    testXPos.x += moveWorldDir.x * currentMoveSpeed * delta;
+
+                    const testZPos = player.position.clone();
+                    testZPos.z += moveWorldDir.z * currentMoveSpeed * delta;
+
+                    if (checkPosHasSupport(testXPos)) {
+                        moveWorldDir.z = 0;
+                    } else if (checkPosHasSupport(testZPos)) {
+                        moveWorldDir.x = 0;
+                    } else {
+                        moveWorldDir.set(0, 0, 0);
+                    }
+                }
+            }
+
+            player.position.addScaledVector(moveWorldDir, currentMoveSpeed * delta);
 
             // --- Sovereign Gravity Acceleration along Local Down ---
             const currentLocalDown = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
