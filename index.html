@@ -3270,7 +3270,7 @@
                 }
             }
 
-            // Post-collision Ground State Processing & Footstep Audio Engine
+            // Post-collision Ground State Processing & Natural Footstep Audio Engine
             if (player.isGrounded) {
                 player.lastGroundedTime = performance.now();
                 player.groundedBlockType = groundedBlockType;
@@ -3282,23 +3282,33 @@
                     playSound('land', groundedBlockType, groundedX, groundedY, groundedZ);
                 }
 
-                // Footstep sound interval while moving on ground
+                // Dynamic footstep sound triggered on block boundary crossing or distance traveled (~0.85 voxels)
                 const isMoving = moveInput.lengthSq() > 0.01;
                 if (isMoving && !player.isLeaping) {
-                    if (!player.lastStepTime) player.lastStepTime = time;
-                    if (time - player.lastStepTime > 340) { // ~340ms pace
+                    if (!player.lastStepPos) {
+                        player.lastStepPos = player.position.clone();
+                        player.lastStepBlockKey = `${groundedX},${groundedY},${groundedZ}`;
+                    }
+
+                    const currentBlockKey = `${groundedX},${groundedY},${groundedZ}`;
+                    const distMoved = player.position.distanceTo(player.lastStepPos);
+
+                    if (currentBlockKey !== player.lastStepBlockKey || distMoved >= 0.85) {
                         if (typeof playSound === 'function') {
                             playSound('step', groundedBlockType, groundedX, groundedY, groundedZ);
                         }
-                        player.lastStepTime = time;
+                        player.lastStepPos.copy(player.position);
+                        player.lastStepBlockKey = currentBlockKey;
                     }
                 } else {
-                    player.lastStepTime = 0;
+                    player.lastStepPos = null;
+                    player.lastStepBlockKey = null;
                 }
 
                 executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
             } else {
-                player.lastStepTime = 0;
+                player.lastStepPos = null;
+                player.lastStepBlockKey = null;
             }
 
             // Continuous auto-jump while holding Jump key (Space) or Touch Jump button
