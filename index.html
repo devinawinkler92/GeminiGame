@@ -2106,14 +2106,19 @@
         let isMouseDown = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
+        let mouseLocked = false;
 
         document.addEventListener('mousedown', (e) => {
             isMouseDown = true;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            if (!document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && instructions.style.display !== 'block') {
-                renderer.domElement.requestPointerLock();
+            if (!mouseLocked && !document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+                try {
+                    renderer.domElement.requestPointerLock();
+                } catch (err) {
+                    // Fallback to drag look if pointer lock is restricted
+                }
             }
         });
 
@@ -2189,18 +2194,23 @@
 
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement) {
-                // Ensure consistent pointer lock mouse look pitch and yaw rotation
-                const moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-                const moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-                player.lookRotation.y -= moveX * mouseSensitivity;
-                player.lookRotation.x -= moveY * mouseSensitivity;
-                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
-            } else if (isMouseDown && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex') {
-                const moveX = e.clientX - lastMouseX;
-                const moveY = e.clientY - lastMouseY;
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
+            if (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex') return;
+
+            let moveX = 0;
+            let moveY = 0;
+
+            if (mouseLocked || document.pointerLockElement) {
+                moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            } else if (isMouseDown) {
+                moveX = e.clientX - lastMouseX;
+                moveY = e.clientY - lastMouseY;
+            }
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            if (moveX !== 0 || moveY !== 0) {
                 player.lookRotation.y -= moveX * mouseSensitivity;
                 player.lookRotation.x -= moveY * mouseSensitivity;
                 player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
@@ -2226,7 +2236,8 @@
         });
 
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body) {
+            mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
+            if (mouseLocked) {
                 instructions.style.display = 'none';
             } else if (settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex') {
                 instructions.style.display = 'block';
@@ -3162,16 +3173,28 @@
                 }
             }
 
-            // 2. Voxel Platform Collision & Resting Ground Probe
+            // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
+            const feetPos = player.position.clone().addScaledVector(localUpWorld, -player.height / 2);
+
             for (const vox of collidableVoxels) {
                 const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
                 const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
 
-                const isHorizOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                let isLateralOverlap = false;
+                if (Math.abs(localUpWorld.y) > 0.8) {
+                    isLateralOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                } else if (Math.abs(localUpWorld.x) > 0.8) {
+                    isLateralOverlap = (pMax.y > vox.min.y && pMin.y < vox.max.y && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                } else {
+                    isLateralOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.y > vox.min.y && pMin.y < vox.max.y);
+                }
 
-                // Ground Resting Probe: player feet resting flush or within tolerance on top of voxel surface
-                if (isHorizOverlap && !isMovingUpward && Math.abs(pMin.y - vox.max.y) <= groundSnapTolerance) {
-                    player.position.y = vox.max.y + player.height / 2;
+                const voxFaceCenter = vox.position.clone().addScaledVector(localUpWorld, VOXEL_SIZE / 2);
+                const surfaceDist = feetPos.clone().sub(voxFaceCenter).dot(localUpWorld);
+
+                // Ground Resting Probe: player feet resting flush or within tolerance on voxel face relative to current local gravity
+                if (isLateralOverlap && !isMovingUpward && surfaceDist >= -0.05 && surfaceDist <= groundSnapTolerance) {
+                    player.position.addScaledVector(localUpWorld, -surfaceDist);
                     player.isGrounded = true;
                     groundedBlockType = vox.baseType;
                     groundedX = vox.x;
