@@ -376,9 +376,9 @@
             <div><span>W, A, S, D</span> - Move</div>
             <div><span>Mouse / Touch</span> - Look Around</div>
             <div><span>Space / JUMP</span> - Jump (Hold for Higher)</div>
-            <div><span>Double Space</span> - Ceiling Flip</div>
-            <div><span>Shift + WASD</span> - Gravity Leap</div>
-            <div><span>Swipe (In Air)</span> - Leap Direction</div>
+            <div><span>V Key</span> - Toggle 1st / 3rd Person View</div>
+            <div><span>Shift + WASD (Airborne)</span> - Spatial Gravity Leap</div>
+            <div><span>Hold Left Click / R-Ctrl</span> - Continuous Mining</div>
         </div>
         <!-- Sovereign DID Onboarding -->
         <div style="margin-top: 15px; background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); text-align: left;">
@@ -1125,7 +1125,89 @@
             }
         }
 
+        // --- Nexus Corner Customization & Interactive Exit Portal Hologram ---
+        // Paint North-West bottom corner (-17 to -14, -17 to -14, -17 to -14) with Quantum Magenta blocks
+        for (let x = -17; x <= -14; x++) {
+            for (let z = -17; z <= -14; z++) {
+                const y = -ROOM_SIZE / 2 + 1;
+                const mat = createPsiVoxelMaterial(x, y, z, 'magenta', 0xff00bb);
+                spawnVoxelBlock(x, y, z, mat, 'magenta');
+            }
+        }
+
+        // 3D Holographic Exit Teleporter Portal Marker in Colored Corner
+        const exitPortalGroup = new THREE.Group();
+        exitPortalGroup.position.set(-15.5, -ROOM_SIZE / 2 + 2.2, -15.5);
+
+        const portalRingGeo = new THREE.TorusGeometry(0.9, 0.12, 16, 32);
+        const portalRingMat = new THREE.MeshStandardMaterial({
+            color: 0xff00bb,
+            emissive: 0xff00bb,
+            emissiveIntensity: 1.2,
+            roughness: 0.1,
+            metalness: 0.9
+        });
+        const portalRingMesh = new THREE.Mesh(portalRingGeo, portalRingMat);
+        exitPortalGroup.add(portalRingMesh);
+
+        const portalCoreGeo = new THREE.OctahedronGeometry(0.5, 2);
+        const portalCoreMat = new THREE.MeshStandardMaterial({
+            color: 0x00f0ff,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 1.0,
+            wireframe: true
+        });
+        const portalCoreMesh = new THREE.Mesh(portalCoreGeo, portalCoreMat);
+        exitPortalGroup.add(portalCoreMesh);
+
+        // Canvas Text Label for Exit Hologram
+        const exitCanvas = document.createElement('canvas');
+        exitCanvas.width = 256;
+        exitCanvas.height = 64;
+        const exitCtx = exitCanvas.getContext('2d');
+        exitCtx.fillStyle = 'rgba(255, 0, 187, 0.25)';
+        exitCtx.fillRect(0, 0, 256, 64);
+        exitCtx.strokeStyle = '#ff00bb';
+        exitCtx.lineWidth = 3;
+        exitCtx.strokeRect(2, 2, 252, 60);
+
+        exitCtx.font = 'bold 16px sans-serif';
+        exitCtx.fillStyle = '#ffffff';
+        exitCtx.textAlign = 'center';
+        exitCtx.fillText('🌀 NEXUS HUB EXIT', 128, 26);
+        exitCtx.font = '12px monospace';
+        exitCtx.fillStyle = '#00f0ff';
+        exitCtx.fillText('Return to Core Platform', 128, 48);
+
+        const exitSpriteMap = new THREE.CanvasTexture(exitCanvas);
+        const exitSpriteMat = new THREE.SpriteMaterial({ map: exitSpriteMap, transparent: true, depthWrite: false });
+        const exitLabelSprite = new THREE.Sprite(exitSpriteMat);
+        exitLabelSprite.position.set(0, 1.6, 0);
+        exitLabelSprite.scale.set(3.5, 0.9, 1);
+        exitPortalGroup.add(exitLabelSprite);
+
+        scene.add(exitPortalGroup);
+
+        function checkExitPortalProximity() {
+            const dist = player.position.distanceTo(exitPortalGroup.position);
+            if (dist < 2.0) {
+                teleportToNexusCoreHub();
+            }
+        }
+
+        function teleportToNexusCoreHub() {
+            player.position.set(0, -ROOM_SIZE / 2 + 1.6, 0);
+            player.velocity.set(0, 0, 0);
+            player.bodyQuaternion.identity();
+            visualBodyQuaternion.identity();
+            showItemToast('🌀 Teleported to Central Nexus Hub Platform');
+        }
+
+        window.teleportToNexusCoreHub = teleportToNexusCoreHub;
+
         // --- Player State & Sovereign Physics ---
+        let isThirdPerson = false;
+
         const player = {
             position: new THREE.Vector3(0, -ROOM_SIZE / 2 + 1.6, 0),
             velocity: new THREE.Vector3(0, 0, 0),
@@ -1138,9 +1220,10 @@
             energy: 100,
             maxEnergy: 100,
 
-            // Variable jump height state
+            // Variable jump height state & Jump Buffering
             isJumpHolding: false,
             jumpStartTime: 0,
+            jumpBufferTime: 0,
 
             // Movement vector from joystick or keyboard
             touchMoveInput: new THREE.Vector3(),
@@ -1156,8 +1239,7 @@
         const visualBodyQuaternion = new THREE.Quaternion();
 
         // --- Glowing Energy Cube Avatar (Sovereign Initial Form) ---
-        // Scaled to 1.0x1.0x1.0 with DoubleSide rendering so player feels inside the glowing avatar
-        const avatarGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+        const avatarGeo = new THREE.BoxGeometry(0.8, 1.4, 0.8);
         const avatarMat = new THREE.MeshStandardMaterial({
             color: 0x00f0ff,
             emissive: 0x00f0ff,
@@ -1165,20 +1247,22 @@
             roughness: 0.1,
             metalness: 0.9,
             transparent: true,
-            opacity: 0.25,
+            opacity: 0.7,
             side: THREE.DoubleSide
         });
         const avatarWireMat = new THREE.MeshBasicMaterial({
-            color: 0x00f0ff,
+            color: 0xff00bb,
             wireframe: true,
             transparent: true,
-            opacity: 0.6
+            opacity: 0.8
         });
 
         const avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
         const avatarWireMesh = new THREE.Mesh(avatarGeo, avatarWireMat);
         avatarMesh.add(avatarWireMesh);
         scene.add(avatarMesh);
+        // Initially hidden in First Person Mode
+        avatarMesh.visible = false;
 
         // --- Inventory & Block Breaking / Placing Engine ---
         const inventorySlots = Array(9).fill(null).map(() => ({ type: null, count: 0 }));
@@ -1602,6 +1686,7 @@
         let breakTargetVoxel = null;
         let breakStartTime = 0;
         let breakRequiredTime = 1.0;
+        let isMiningHeld = false;
 
         const breakProgressContainer = document.getElementById('break-progress-container');
         const breakProgressCircle = document.getElementById('break-progress-circle');
@@ -1629,7 +1714,8 @@
                 }
 
                 if (e.button === 0) {
-                    // Left Click -> Break Target
+                    // Left Click -> Continuous Mining Hold
+                    isMiningHeld = true;
                     if (target && target.voxel) {
                         startBreakingTarget(target.voxel);
                     }
@@ -1644,6 +1730,7 @@
 
         document.addEventListener('mouseup', (e) => {
             if (e.button === 0) {
+                isMiningHeld = false;
                 stopBreakingTarget();
             }
         });
@@ -1794,6 +1881,13 @@
 
                 checkDirectionalLeapTrigger(e.code);
 
+                if (e.code === 'KeyV') {
+                    // Toggle 1st / 3rd Person View Mode
+                    isThirdPerson = !isThirdPerson;
+                    avatarMesh.visible = isThirdPerson;
+                    showItemToast(isThirdPerson ? '🎥 Switched to 3rd Person View' : '🎥 Switched to 1st Person View');
+                }
+
                 if (e.code === 'Escape') {
                     toggleSettingsModal();
                 }
@@ -1808,6 +1902,7 @@
 
                 // Full Keyboard Gameplay Controls: Right Control = Mine/Break Block, Right Shift = Place Block
                 if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                    isMiningHeld = true;
                     const target = getTargetedVoxelAndFace();
                     if (target && target.voxel) {
                         startBreakingTarget(target.voxel);
@@ -1829,6 +1924,7 @@
                 handleJumpEnd();
             }
             if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                isMiningHeld = false;
                 stopBreakingTarget();
             }
         });
@@ -1915,14 +2011,30 @@
         const INITIAL_JUMP_IMPULSE = 5.2; // Tapped jump clears ~1.1 blocks
         const JUMP_SUSTAIN_FORCE = 26.0;  // Continuous holding boosts up to ~2.2 blocks
         const MAX_JUMP_HOLD_TIME = 0.25; // Seconds
+        const COYOTE_TIME = 0.18; // Seconds after leaving ground where jump is still allowed
+        const JUMP_BUFFER_DURATION = 0.20; // Seconds jump press is buffered before landing
 
         function handleJumpStart() {
-            if (player.isGrounded && !player.isLeaping) {
+            const now = performance.now();
+            player.jumpBufferTime = now;
+            executeBufferedJump();
+        }
+
+        function executeBufferedJump() {
+            const now = performance.now();
+            const timeSinceJumpPress = (now - player.jumpBufferTime) / 1000;
+            const timeSinceGrounded = (now - player.lastGroundedTime) / 1000;
+
+            const canJump = (player.isGrounded || timeSinceGrounded < COYOTE_TIME) && !player.isLeaping;
+
+            if (canJump && timeSinceJumpPress < JUMP_BUFFER_DURATION) {
                 const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
                 player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE);
                 player.isGrounded = false;
+                player.lastGroundedTime = 0; // consume coyote time
+                player.jumpBufferTime = 0; // consume jump buffer
                 player.isJumpHolding = true;
-                player.jumpStartTime = performance.now();
+                player.jumpStartTime = now;
             }
         }
 
@@ -1947,6 +2059,9 @@
         }
 
         function handleCeilingLeap() {
+            // Gravity Shift strictly requires airborne state
+            if (player.isGrounded) return;
+
             // Inverted Ceiling Flip strictly requires Shift key held (or G-SHIFT toggled on mobile)
             const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
             if (!isShiftHeld) return;
@@ -1979,6 +2094,12 @@
         }
 
         function triggerSpatialLeap(code) {
+            // Spatial Gravity Shifts STRICTLY work when airborne
+            if (player.isGrounded) {
+                showItemToast('⚠️ Gravity Leap requires Airborne status! Jump first.');
+                return;
+            }
+
             if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
 
             const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
@@ -2606,6 +2727,16 @@
             const pz = Math.round(player.position.z);
             gravityVectorHud.textContent = `Pos: [${px}, ${py}, ${pz}]`;
 
+            // Continuous Click-Hold Mining Engine
+            if (isMiningHeld) {
+                if (!isBreakingBlock || !breakTargetVoxel) {
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel && !target.voxel.isGenesisBeacon) {
+                        startBreakingTarget(target.voxel);
+                    }
+                }
+            }
+
             // Process Block Breaking Progress & Mini Voxel Debris Animation
             if (isBreakingBlock && breakTargetVoxel) {
                 const elapsed = (performance.now() - breakStartTime) / 1000;
@@ -2733,7 +2864,14 @@
 
             if (player.isGrounded) {
                 player.lastGroundedTime = performance.now();
+                executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
             }
+
+            // Check exit portal proximity
+            checkExitPortalProximity();
+            exitPortalGroup.rotation.y += 1.2 * delta;
+            portalCoreMesh.rotation.x += 1.5 * delta;
+            portalCoreMesh.rotation.z += 1.0 * delta;
 
             // 2. Voxel Platform Collision (Smooth AABB & Ground Snap to Eliminate Jitter)
             for (const vox of collidableVoxels) {
@@ -2787,12 +2925,22 @@
             const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
 
-            const cameraOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
-            camera.position.copy(player.position).add(cameraOffset);
+            const eyeOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
+            const eyePos = player.position.clone().add(eyeOffset);
 
-            // Update Glowing Energy Cube Avatar Centered directly at Camera Eye Position
-            avatarMesh.position.copy(camera.position);
-            avatarMesh.quaternion.copy(visualBodyQuaternion);
+            if (isThirdPerson) {
+                // 3rd Person Orbit Camera positioned behind player along camera look orientation
+                const thirdPersonBackVector = new THREE.Vector3(0, 0, 3.8).applyQuaternion(camera.quaternion);
+                const thirdPersonUpVector = new THREE.Vector3(0, 0.8, 0).applyQuaternion(visualBodyQuaternion);
+                camera.position.copy(eyePos).add(thirdPersonBackVector).add(thirdPersonUpVector);
+            } else {
+                camera.position.copy(eyePos);
+            }
+
+            // Update Player Avatar Body Position & Rotation (rotates with camera look yaw)
+            const yawQuatBody = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            avatarMesh.position.copy(player.position);
+            avatarMesh.quaternion.copy(visualBodyQuaternion).multiply(yawQuatBody);
 
             const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
             avatarMat.emissiveIntensity = pulse;
