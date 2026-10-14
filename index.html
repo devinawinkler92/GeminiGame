@@ -774,31 +774,55 @@
         window.addEventListener('pointerdown', initAudioContext, { once: false });
         window.addEventListener('keydown', initAudioContext, { once: false });
 
-        function playSound(type) {
+        function calculatePsiSeed(x = 0, y = 0, z = 0) {
+            const raw = (Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453) % 1;
+            return Math.abs(raw);
+        }
+
+        function playSound(type, blockType = 'platform', x = 0, y = 0, z = 0) {
             if (!audioCtx) initAudioContext();
             if (!audioCtx) return;
 
             const now = audioCtx.currentTime;
+            const seed = calculatePsiSeed(x, y, z);
 
             if (type === 'place') {
-                // Solid Voxel Placement Thud
+                // Block placement thud with material pitch & Psi seed variation
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(180, now);
-                osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
 
-                gain.gain.setValueAtTime(0.4, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                let baseFreq = 180 + seed * 60;
+                let waveType = 'triangle';
+
+                if (blockType === 'gold') {
+                    baseFreq = 420 + seed * 120;
+                    waveType = 'sine';
+                } else if (blockType === 'green' || blockType === 'cyan') {
+                    baseFreq = 360 + seed * 150;
+                    waveType = 'sine';
+                } else if (blockType === 'magenta') {
+                    baseFreq = 280 + seed * 100;
+                    waveType = 'sawtooth';
+                } else if (blockType === 'wall') {
+                    baseFreq = 120 + seed * 40;
+                    waveType = 'triangle';
+                }
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.25, now + 0.09);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
 
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
 
                 osc.start(now);
-                osc.stop(now + 0.08);
+                osc.stop(now + 0.09);
             } else if (type === 'break') {
-                // Voxel Debris Fracture Crunch (Noise + Low Frequency Impact)
-                const bufferSize = audioCtx.sampleRate * 0.12;
+                // Procedural Fracture Crunch (Noise + Psi Seed Material Ring)
+                const bufferSize = audioCtx.sampleRate * 0.14;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) {
@@ -808,27 +832,54 @@
                 const noise = audioCtx.createBufferSource();
                 noise.buffer = buffer;
 
+                let filterFreq = 800 + seed * 300;
+                if (blockType === 'gold') filterFreq = 1400 + seed * 500;
+                else if (blockType === 'green' || blockType === 'cyan') filterFreq = 1600 + seed * 600;
+                else if (blockType === 'magenta') filterFreq = 1100 + seed * 400;
+                else if (blockType === 'wall') filterFreq = 500 + seed * 200;
+
                 const filter = audioCtx.createBiquadFilter();
                 filter.type = 'bandpass';
-                filter.frequency.setValueAtTime(800, now);
-                filter.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+                filter.frequency.setValueAtTime(filterFreq, now);
+                filter.frequency.exponentialRampToValueAtTime(filterFreq * 0.2, now + 0.14);
 
                 const gain = audioCtx.createGain();
                 gain.gain.setValueAtTime(0.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
 
                 noise.connect(filter);
                 filter.connect(gain);
                 gain.connect(audioCtx.destination);
 
                 noise.start(now);
+
+                // Add material harmonic shimmer tone for crystal & metal voxels
+                if (blockType === 'gold' || blockType === 'green' || blockType === 'cyan') {
+                    const ringOsc = audioCtx.createOscillator();
+                    const ringGain = audioCtx.createGain();
+                    ringOsc.type = 'sine';
+                    const ringFreq = filterFreq * (1.2 + seed * 0.6);
+                    ringOsc.frequency.setValueAtTime(ringFreq, now);
+                    ringOsc.frequency.exponentialRampToValueAtTime(ringFreq * 0.5, now + 0.15);
+
+                    ringGain.gain.setValueAtTime(0.2, now);
+                    ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+                    ringOsc.connect(ringGain);
+                    ringGain.connect(audioCtx.destination);
+
+                    ringOsc.start(now);
+                    ringOsc.stop(now + 0.15);
+                }
             } else if (type === 'jump') {
-                // Upward Jump Impulse Sweep
+                // Upward Jump Impulse Sweep with surface Psi seed modulation
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(140, now);
-                osc.frequency.exponentialRampToValueAtTime(360, now + 0.15);
+                const startFreq = 130 + seed * 50;
+                const endFreq = 340 + seed * 100;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.15);
 
                 gain.gain.setValueAtTime(0.3, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
@@ -889,6 +940,50 @@
 
                 osc.start(now);
                 osc.stop(now + 0.04);
+            } else if (type === 'land') {
+                // Landing impact pitch & depth derived from surface material & Psi seed
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                let startFreq = 110 + seed * 40;
+                let waveType = 'triangle';
+
+                if (blockType === 'gold' || blockType === 'green' || blockType === 'cyan') {
+                    startFreq = 180 + seed * 60;
+                } else if (blockType === 'wall') {
+                    startFreq = 90 + seed * 30;
+                }
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(startFreq * 0.2, now + 0.12);
+
+                gain.gain.setValueAtTime(0.38, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'mine_tick') {
+                // Active Mining Chip Pulse uniquely pitched by block texture Psi seed
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                let chipFreq = 700 + seed * 600;
+                if (blockType === 'gold') chipFreq = 1200 + seed * 400;
+                else if (blockType === 'green' || blockType === 'cyan') chipFreq = 1400 + seed * 500;
+
+                osc.frequency.setValueAtTime(chipFreq, now);
+
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.035);
             }
         }
 
@@ -1897,15 +1992,13 @@
                 const hit = intersects[0];
                 if (hit.object === roomMesh) {
                     // Raycast hit outer room boundary mesh!
-                    // Invert normal because roomMesh material uses BackSide
-                    const normal = hit.face.normal.clone().negate();
+                    // Three.js BackSide face normal points inwards toward room interior
+                    const inwardNormal = hit.face.normal.clone();
 
-                    // Virtual wall/floor boundary voxel centered at the outer shell coordinate
-                    // Offset hit.point slightly behind the wall face along normal to find boundary voxel index
-                    const maxCoord = 17;
-                    const wallGridX = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.x - normal.x * 0.5)));
-                    const wallGridY = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.y - normal.y * 0.5)));
-                    const wallGridZ = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.z - normal.z * 0.5)));
+                    // Boundary voxel shell sits outside room interior along -inwardNormal
+                    const wallGridX = Math.round(hit.point.x - inwardNormal.x * 0.5);
+                    const wallGridY = Math.round(hit.point.y - inwardNormal.y * 0.5);
+                    const wallGridZ = Math.round(hit.point.z - inwardNormal.z * 0.5);
 
                     const wallVoxel = {
                         x: wallGridX,
@@ -1917,7 +2010,7 @@
                     return {
                         voxel: wallVoxel,
                         point: hit.point,
-                        faceNormal: normal
+                        faceNormal: inwardNormal
                     };
                 } else {
                     const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
@@ -1957,7 +2050,7 @@
 
             // Deduct block from inventory slot
             deductSelectedItem();
-            if (typeof playSound === 'function') playSound('place');
+            if (typeof playSound === 'function') playSound('place', blockTypeToPlace, newX, newY, newZ);
 
             // 1. Spawn Translucent Ghost Block matching target block color (Pending L2 verification, solid collision)
             const ghostColor = BLOCK_HEX[blockTypeToPlace] || 0x00f0ff;
@@ -2213,12 +2306,18 @@
             if (canJump && timeSinceJumpPress < JUMP_BUFFER_DURATION) {
                 const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
                 player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE);
+
+                const bType = player.groundedBlockType || 'platform';
+                const gx = player.groundedX || Math.round(player.position.x);
+                const gy = player.groundedY || Math.round(player.position.y);
+                const gz = player.groundedZ || Math.round(player.position.z);
+
                 player.isGrounded = false;
                 player.lastGroundedTime = 0; // consume coyote time
                 player.jumpBufferTime = 0; // consume jump buffer
                 player.isJumpHolding = true;
                 player.jumpStartTime = now;
-                if (typeof playSound === 'function') playSound('jump');
+                if (typeof playSound === 'function') playSound('jump', bType, gx, gy, gz);
             }
         }
 
@@ -2932,9 +3031,10 @@
                 const elapsed = (performance.now() - breakStartTime) / 1000;
                 const progress = Math.min(elapsed / breakRequiredTime, 1.0);
 
-                // Periodically spawn mini voxel block debris particles during mining
+                // Periodically spawn mini voxel block debris particles and sound tick during mining
                 if (Math.random() < 0.35) {
                     spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
+                    if (typeof playSound === 'function') playSound('mine_tick', breakTargetVoxel.baseType, breakTargetVoxel.x, breakTargetVoxel.y, breakTargetVoxel.z);
                 }
 
                 if (progress >= 1.0) {
@@ -2946,7 +3046,7 @@
                     spawnMiningDebris(targetPos, targetType);
 
                     addItemToInventory(targetType);
-                    if (typeof playSound === 'function') playSound('break');
+                    if (typeof playSound === 'function') playSound('break', targetType, targetPos.x, targetPos.y, targetPos.z);
 
                     // Convert into non-solid translucent red ghost block (players fall through)
                     const breakGhostMat = new THREE.MeshStandardMaterial({
@@ -3027,7 +3127,12 @@
             player.position.addScaledVector(player.velocity, delta);
 
             // --- Sovereign Collision Resolution ---
+            const wasGroundedBeforeCollision = player.isGrounded;
             player.isGrounded = false;
+            let groundedBlockType = 'wall';
+            let groundedX = Math.round(player.position.x);
+            let groundedY = Math.round(player.position.y);
+            let groundedZ = Math.round(player.position.z);
 
             // 1. Outer Room Boundary Collision
             const halfRoom = ROOM_SIZE / 2;
@@ -3049,18 +3154,12 @@
                     const dotUp = localUpWorld.dot(col.normal);
                     if (dotUp > 0.8) {
                         player.isGrounded = true;
+                        groundedBlockType = 'wall';
+                        groundedX = Math.round(player.position.x);
+                        groundedY = Math.round(player.position.y);
+                        groundedZ = Math.round(player.position.z);
                     }
                 }
-            }
-
-            if (player.isGrounded) {
-                player.lastGroundedTime = performance.now();
-                executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
-            }
-
-            // Continuous auto-jump while holding Jump key (Space) or Touch Jump button
-            if (player.isGrounded && (keys['Space'] || isTouchJumpHolding) && !player.isLeaping) {
-                handleJumpStart();
             }
 
             // Check exit portal proximity
@@ -3108,6 +3207,10 @@
                     const dotUp = localUpWorld.dot(hitNormal);
                     if (dotUp > 0.8) {
                         player.isGrounded = true;
+                        groundedBlockType = vox.baseType;
+                        groundedX = vox.x;
+                        groundedY = vox.y;
+                        groundedZ = vox.z;
                         // Zero out downward velocity when grounded on voxel surface
                         const vDownProj = player.velocity.dot(currentLocalDown);
                         if (vDownProj > 0) {
@@ -3115,6 +3218,25 @@
                         }
                     }
                 }
+            }
+
+            // Post-collision Ground State Processing
+            if (player.isGrounded) {
+                player.lastGroundedTime = performance.now();
+                player.groundedBlockType = groundedBlockType;
+                player.groundedX = groundedX;
+                player.groundedY = groundedY;
+                player.groundedZ = groundedZ;
+
+                if (!wasGroundedBeforeCollision && typeof playSound === 'function') {
+                    playSound('land', groundedBlockType, groundedX, groundedY, groundedZ);
+                }
+                executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
+            }
+
+            // Continuous auto-jump while holding Jump key (Space) or Touch Jump button
+            if (player.isGrounded && (keys['Space'] || isTouchJumpHolding) && !player.isLeaping) {
+                handleJumpStart();
             }
 
             // --- Camera Position & Orientation Update ---
