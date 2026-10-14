@@ -1867,6 +1867,24 @@
             selectHotbarSlotByIndex(selectedHotbarIndex);
         });
 
+        let isMouseDown = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        document.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            if (!document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
         document.addEventListener('keydown', (e) => {
             if (!keys[e.code]) {
                 keys[e.code] = true;
@@ -1937,8 +1955,18 @@
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement) {
                 // Ensure consistent pointer lock mouse look pitch and yaw rotation
-                player.lookRotation.y -= e.movementX * mouseSensitivity;
-                player.lookRotation.x -= e.movementY * mouseSensitivity;
+                const moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                const moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+                player.lookRotation.y -= moveX * mouseSensitivity;
+                player.lookRotation.x -= moveY * mouseSensitivity;
+                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            } else if (isMouseDown && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex') {
+                const moveX = e.clientX - lastMouseX;
+                const moveY = e.clientY - lastMouseY;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                player.lookRotation.y -= moveX * mouseSensitivity;
+                player.lookRotation.x -= moveY * mouseSensitivity;
                 player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
             }
         });
@@ -2366,8 +2394,10 @@
 
         // Touch JUMP Button Logic
         let lastJumpTouchTime = 0;
+        let isTouchJumpHolding = false;
         touchJumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            isTouchJumpHolding = true;
             const now = performance.now();
             const isDoubleTap = (now - lastJumpTouchTime) < 350;
 
@@ -2383,11 +2413,13 @@
 
         touchJumpBtn.addEventListener('touchend', (e) => {
             e.preventDefault();
+            isTouchJumpHolding = false;
             handleJumpEnd();
         });
 
         touchJumpBtn.addEventListener('touchcancel', (e) => {
             e.preventDefault();
+            isTouchJumpHolding = false;
             handleJumpEnd();
         });
 
@@ -2869,6 +2901,11 @@
             if (player.isGrounded) {
                 player.lastGroundedTime = performance.now();
                 executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
+            }
+
+            // Continuous auto-jump while holding Jump key (Space) or Touch Jump button
+            if (player.isGrounded && (keys['Space'] || isTouchJumpHolding) && !player.isLeaping) {
+                handleJumpStart();
             }
 
             // Check exit portal proximity
