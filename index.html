@@ -893,7 +893,8 @@
         }
 
         // --- Voxel World & Environment Setup ---
-        const ROOM_SIZE = 36;
+        // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17 (outer bounds ±17.5)
+        const ROOM_SIZE = 35;
         const VOXEL_SIZE = 1;
         const collidableVoxels = [];
 
@@ -1093,8 +1094,11 @@
         beaconMarkerMesh.position.set(0, 1.8, 0);
         scene.add(beaconMarkerMesh);
 
+        // Grid-aligned stairs and platforms on integer voxel grid
+        const bottomFloorY = -Math.floor(ROOM_SIZE / 2) + 1; // y = -16
+
         for (let i = 0; i < 8; i++) {
-            const yPos = Math.floor(-ROOM_SIZE / 2 + 1 + i * 1.5);
+            const yPos = bottomFloorY + i;
             const zPos = -12 + i;
             for (let x = -1; x <= 1; x++) {
                 const mat = createPsiVoxelMaterial(x, yPos, zPos, 'gold', 0x885500);
@@ -1102,7 +1106,7 @@
             }
         }
         for (let i = 0; i < 8; i++) {
-            const yPos = Math.floor(1 + i * 1.5);
+            const yPos = 1 + i;
             const zPos = 4 + i;
             for (let x = -1; x <= 1; x++) {
                 const mat = createPsiVoxelMaterial(x, yPos, zPos, 'green', 0x00a855);
@@ -1112,32 +1116,31 @@
 
         for (let y = -4; y <= 4; y += 2) {
             for (let z = -4; z <= 4; z += 2) {
-                const xPos = Math.floor(-ROOM_SIZE / 2 + 2);
+                const xPos = -15;
                 const mat = createPsiVoxelMaterial(xPos, y, z, 'magenta', 0xaa0044);
                 spawnVoxelBlock(xPos, y, z, mat, 'magenta');
             }
         }
         for (let y = -4; y <= 4; y += 2) {
             for (let z = -4; z <= 4; z += 2) {
-                const xPos = Math.floor(ROOM_SIZE / 2 - 2);
+                const xPos = 15;
                 const mat = createPsiVoxelMaterial(xPos, y, z, 'cyan', 0x00aacc);
                 spawnVoxelBlock(xPos, y, z, mat, 'cyan');
             }
         }
 
         // --- Nexus Corner Customization & Interactive Exit Portal Hologram ---
-        // Paint North-West bottom corner (-17 to -14, -17 to -14, -17 to -14) with Quantum Magenta blocks
+        // Paint North-West bottom corner (-17 to -14, -17 to -14) flush on the floor grid (y = bottomFloorY)
         for (let x = -17; x <= -14; x++) {
             for (let z = -17; z <= -14; z++) {
-                const y = -ROOM_SIZE / 2 + 1;
-                const mat = createPsiVoxelMaterial(x, y, z, 'magenta', 0xff00bb);
-                spawnVoxelBlock(x, y, z, mat, 'magenta');
+                const mat = createPsiVoxelMaterial(x, bottomFloorY, z, 'magenta', 0xff00bb);
+                spawnVoxelBlock(x, bottomFloorY, z, mat, 'magenta');
             }
         }
 
-        // 3D Holographic Exit Teleporter Portal Marker in Colored Corner
+        // 3D Holographic Exit Teleporter Portal Marker centered cleanly on corner platform
         const exitPortalGroup = new THREE.Group();
-        exitPortalGroup.position.set(-15.5, -ROOM_SIZE / 2 + 2.2, -15.5);
+        exitPortalGroup.position.set(-15.5, bottomFloorY + 1.8, -15.5);
 
         const portalRingGeo = new THREE.TorusGeometry(0.9, 0.12, 16, 32);
         const portalRingMat = new THREE.MeshStandardMaterial({
@@ -1196,7 +1199,7 @@
         }
 
         function teleportToNexusCoreHub() {
-            player.position.set(0, -ROOM_SIZE / 2 + 1.6, 0);
+            player.position.set(0, bottomFloorY + 16.6, 0);
             player.velocity.set(0, 0, 0);
             player.bodyQuaternion.identity();
             visualBodyQuaternion.identity();
@@ -1209,7 +1212,7 @@
         let isThirdPerson = false;
 
         const player = {
-            position: new THREE.Vector3(0, -ROOM_SIZE / 2 + 1.6, 0),
+            position: new THREE.Vector3(0, bottomFloorY + 16.6, 0),
             velocity: new THREE.Vector3(0, 0, 0),
             bodyQuaternion: new THREE.Quaternion(),
             lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
@@ -1749,10 +1752,11 @@
                     // Invert normal because roomMesh material uses BackSide
                     const normal = hit.face.normal.clone().negate();
 
-                    // Calculate the grid coordinates of the outer wall voxel itself
-                    const wallGridX = Math.max(-18, Math.min(18, Math.round(hit.point.x + normal.x * 0.5)));
-                    const wallGridY = Math.max(-18, Math.min(18, Math.round(hit.point.y + normal.y * 0.5)));
-                    const wallGridZ = Math.max(-18, Math.min(18, Math.round(hit.point.z + normal.z * 0.5)));
+                    // Calculate the grid coordinates of the outer wall voxel itself on ROOM_SIZE 35 grid (bounds ±17.5)
+                    const maxCoord = Math.floor(ROOM_SIZE / 2); // 17
+                    const wallGridX = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.x + normal.x * 0.5)));
+                    const wallGridY = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.y + normal.y * 0.5)));
+                    const wallGridZ = Math.max(-maxCoord, Math.min(maxCoord, Math.round(hit.point.z + normal.z * 0.5)));
 
                     const wallVoxel = {
                         x: wallGridX,
