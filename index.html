@@ -584,6 +584,19 @@
     <!-- Floating Item Name Toast -->
     <div id="item-name-toast" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(13, 14, 21, 0.9); border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.8em; letter-spacing: 0.5px; z-index: 50; pointer-events: none; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);"></div>
 
+    <!-- Exit Confirmation Modal -->
+    <div id="exit-confirmation-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 140; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #ff00bb; border-radius: 12px; padding: 25px; width: 340px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 25px rgba(255, 0, 187, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <div style="font-size: 2em;">🌀</div>
+            <h2 style="margin: 0; color: #ff00bb; font-size: 1.3em; letter-spacing: 1px;">EXIT NEXUS CORE</h2>
+            <p style="font-size: 0.85em; color: #ccc; margin: 0;">Are you sure you want to return to the Central Nexus Hub Platform?</p>
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-confirm-exit" style="flex: 1; padding: 11px; background: linear-gradient(135deg, #ff00bb, #9900ff); border: none; color: #ffffff; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">YES</button>
+                <button id="btn-cancel-exit" style="flex: 1; padding: 11px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">NO</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Genesis Beacon Modal -->
     <div id="genesis-beacon-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 130; justify-content: center; align-items: center;">
         <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 340px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px;">
@@ -1371,73 +1384,41 @@
             }
         }
 
-        // --- Nexus Corner Customization & Interactive Exit Portal Hologram ---
+        // --- Nexus Corner Customization & Interactive Exit Voxel Blocks ---
         // Paint North-West bottom corner (-17 to -14, -17 to -14) flush on the floor grid (y = bottomFloorY)
         for (let x = -17; x <= -14; x++) {
             for (let z = -17; z <= -14; z++) {
                 const mat = createPsiVoxelMaterial(x, bottomFloorY, z, 'magenta', 0xff00bb);
-                spawnVoxelBlock(x, bottomFloorY, z, mat, 'magenta');
+                const vox = spawnVoxelBlock(x, bottomFloorY, z, mat, 'magenta');
+                vox.isExitCorner = true;
             }
         }
 
-        // 3D Holographic Exit Teleporter Portal Marker centered cleanly on corner platform
-        const exitPortalGroup = new THREE.Group();
-        exitPortalGroup.position.set(-15.5, bottomFloorY + 1.8, -15.5);
+        const exitConfirmationModal = document.getElementById('exit-confirmation-modal');
+        const btnConfirmExit = document.getElementById('btn-confirm-exit');
+        const btnCancelExit = document.getElementById('btn-cancel-exit');
 
-        const portalRingGeo = new THREE.TorusGeometry(0.9, 0.12, 16, 32);
-        const portalRingMat = new THREE.MeshStandardMaterial({
-            color: 0xff00bb,
-            emissive: 0xff00bb,
-            emissiveIntensity: 1.2,
-            roughness: 0.1,
-            metalness: 0.9
-        });
-        const portalRingMesh = new THREE.Mesh(portalRingGeo, portalRingMat);
-        exitPortalGroup.add(portalRingMesh);
-
-        const portalCoreGeo = new THREE.OctahedronGeometry(0.5, 2);
-        const portalCoreMat = new THREE.MeshStandardMaterial({
-            color: 0x00f0ff,
-            emissive: 0x00f0ff,
-            emissiveIntensity: 1.0,
-            wireframe: true
-        });
-        const portalCoreMesh = new THREE.Mesh(portalCoreGeo, portalCoreMat);
-        exitPortalGroup.add(portalCoreMesh);
-
-        // Canvas Text Label for Exit Hologram
-        const exitCanvas = document.createElement('canvas');
-        exitCanvas.width = 256;
-        exitCanvas.height = 64;
-        const exitCtx = exitCanvas.getContext('2d');
-        exitCtx.fillStyle = 'rgba(255, 0, 187, 0.25)';
-        exitCtx.fillRect(0, 0, 256, 64);
-        exitCtx.strokeStyle = '#ff00bb';
-        exitCtx.lineWidth = 3;
-        exitCtx.strokeRect(2, 2, 252, 60);
-
-        exitCtx.font = 'bold 16px sans-serif';
-        exitCtx.fillStyle = '#ffffff';
-        exitCtx.textAlign = 'center';
-        exitCtx.fillText('🌀 NEXUS HUB EXIT', 128, 26);
-        exitCtx.font = '12px monospace';
-        exitCtx.fillStyle = '#00f0ff';
-        exitCtx.fillText('Return to Core Platform', 128, 48);
-
-        const exitSpriteMap = new THREE.CanvasTexture(exitCanvas);
-        const exitSpriteMat = new THREE.SpriteMaterial({ map: exitSpriteMap, transparent: true, depthWrite: false });
-        const exitLabelSprite = new THREE.Sprite(exitSpriteMat);
-        exitLabelSprite.position.set(0, 1.6, 0);
-        exitLabelSprite.scale.set(3.5, 0.9, 1);
-        exitPortalGroup.add(exitLabelSprite);
-
-        scene.add(exitPortalGroup);
-
-        function checkExitPortalProximity() {
-            const dist = player.position.distanceTo(exitPortalGroup.position);
-            if (dist < 2.0) {
-                teleportToNexusCoreHub();
+        function openExitConfirmationModal() {
+            if (exitConfirmationModal) {
+                exitConfirmationModal.style.display = 'flex';
+                document.exitPointerLock();
             }
+        }
+
+        function closeExitConfirmationModal() {
+            if (exitConfirmationModal) {
+                exitConfirmationModal.style.display = 'none';
+                document.body.requestPointerLock();
+            }
+        }
+
+        if (btnCancelExit) btnCancelExit.addEventListener('click', closeExitConfirmationModal);
+
+        if (btnConfirmExit) {
+            btnConfirmExit.addEventListener('click', () => {
+                closeExitConfirmationModal();
+                teleportToNexusCoreHub();
+            });
         }
 
         function teleportToNexusCoreHub() {
@@ -1450,6 +1431,8 @@
         }
 
         window.teleportToNexusCoreHub = teleportToNexusCoreHub;
+        window.openExitConfirmationModal = openExitConfirmationModal;
+        window.closeExitConfirmationModal = closeExitConfirmationModal;
 
         // --- Player State & Sovereign Physics ---
         let isThirdPerson = false;
@@ -1938,6 +1921,9 @@
         const breakProgressCircle = document.getElementById('break-progress-circle');
 
         function startBreakingTarget(voxelObj) {
+            if (!voxelObj || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
+                return; // Unbreakable blocks
+            }
             isBreakingBlock = true;
             breakTargetVoxel = voxelObj;
             breakStartTime = performance.now();
@@ -2026,6 +2012,11 @@
 
         // --- Block Placement & Ghost Block System ---
         function handlePlaceBlock(targetVoxel, normal) {
+            if (targetVoxel && targetVoxel.isExitCorner) {
+                openExitConfirmationModal();
+                return;
+            }
+
             const currentItem = getSelectedSlotItem();
             if (!currentItem) return;
             const blockTypeToPlace = currentItem.type;
@@ -3020,10 +3011,12 @@
             if (isMiningHeld) {
                 if (!isBreakingBlock || !breakTargetVoxel) {
                     const target = getTargetedVoxelAndFace();
-                    if (target && target.voxel && !target.voxel.isGenesisBeacon) {
+                    if (target && target.voxel && !target.voxel.isGenesisBeacon && !target.voxel.isExitCorner) {
                         startBreakingTarget(target.voxel);
                     }
                 }
+            } else {
+                stopBreakingTarget();
             }
 
             // Process Block Breaking Progress & Mini Voxel Debris Animation
@@ -3162,11 +3155,6 @@
                 }
             }
 
-            // Check exit portal proximity
-            checkExitPortalProximity();
-            exitPortalGroup.rotation.y += 1.2 * delta;
-            portalCoreMesh.rotation.x += 1.5 * delta;
-            portalCoreMesh.rotation.z += 1.0 * delta;
 
             // 2. Voxel Platform Collision (Smooth AABB & Ground Snap to Eliminate Jitter)
             for (const vox of collidableVoxels) {
