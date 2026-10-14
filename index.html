@@ -378,7 +378,8 @@
             <div><span>Space / JUMP</span> - Jump (Hold for Higher)</div>
             <div><span>V Key</span> - Toggle 1st / 3rd Person View</div>
             <div><span>Shift + WASD (Airborne)</span> - Spatial Gravity Leap</div>
-            <div><span>Hold Left Click / R-Ctrl</span> - Continuous Mining</div>
+            <div><span>E Key / L-Click</span> - Mine / Break Block</div>
+            <div><span>Q Key / R-Click</span> - Place / Use Voxel</div>
         </div>
         <!-- Sovereign DID Onboarding -->
         <div style="margin-top: 15px; background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); text-align: left;">
@@ -2157,8 +2158,8 @@
                     }
                 }
 
-                // Full Keyboard Gameplay Controls: Right Control = Mine/Break Block, Right Shift = Place Block
-                if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                // Full Keyboard Gameplay Controls: E / Right Control = Mine/Break Block, Q / Right Shift = Place/Use Block
+                if (e.code === 'KeyE' || e.code === 'ControlRight' || e.code === 'ControlLeft') {
                     isMiningHeld = true;
                     const target = getTargetedVoxelAndFace();
                     if (target && target.voxel) {
@@ -2166,7 +2167,7 @@
                     }
                 }
 
-                if (e.code === 'ShiftRight') {
+                if (e.code === 'KeyQ' || e.code === 'ShiftRight') {
                     const target = getTargetedVoxelAndFace();
                     if (target && target.voxel && target.faceNormal) {
                         handlePlaceBlock(target.voxel, target.faceNormal);
@@ -2180,7 +2181,7 @@
             if (e.code === 'Space') {
                 handleJumpEnd();
             }
-            if (e.code === 'ControlRight' || e.code === 'ControlLeft') {
+            if (e.code === 'KeyE' || e.code === 'ControlRight' || e.code === 'ControlLeft') {
                 isMiningHeld = false;
                 stopBreakingTarget();
             }
@@ -3119,9 +3120,13 @@
 
             player.position.addScaledVector(player.velocity, delta);
 
-            // --- Sovereign Collision Resolution ---
+            // --- Sovereign Collision Resolution & Ground Probing ---
             const wasGroundedBeforeCollision = player.isGrounded;
             player.isGrounded = false;
+
+            const isMovingUpward = localUpWorld.dot(player.velocity) > 0.1;
+            const groundSnapTolerance = 0.05;
+
             let groundedBlockType = 'wall';
             let groundedX = Math.round(player.position.x);
             let groundedY = Math.round(player.position.y);
@@ -3141,11 +3146,13 @@
             ];
 
             for (const col of roomCollisions) {
-                if (col.dist < 0) {
-                    player.position.addScaledVector(col.normal, -col.dist);
+                if (col.dist < groundSnapTolerance) {
+                    if (col.dist < 0) {
+                        player.position.addScaledVector(col.normal, -col.dist);
+                    }
 
                     const dotUp = localUpWorld.dot(col.normal);
-                    if (dotUp > 0.8) {
+                    if (dotUp > 0.8 && !isMovingUpward) {
                         player.isGrounded = true;
                         groundedBlockType = 'wall';
                         groundedX = Math.round(player.position.x);
@@ -3155,12 +3162,30 @@
                 }
             }
 
-
-            // 2. Voxel Platform Collision (Smooth AABB & Ground Snap to Eliminate Jitter)
+            // 2. Voxel Platform Collision & Resting Ground Probe
             for (const vox of collidableVoxels) {
                 const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
                 const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
 
+                const isHorizOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+
+                // Ground Resting Probe: player feet resting flush or within tolerance on top of voxel surface
+                if (isHorizOverlap && !isMovingUpward && Math.abs(pMin.y - vox.max.y) <= groundSnapTolerance) {
+                    player.position.y = vox.max.y + player.height / 2;
+                    player.isGrounded = true;
+                    groundedBlockType = vox.baseType;
+                    groundedX = vox.x;
+                    groundedY = vox.y;
+                    groundedZ = vox.z;
+
+                    const vDownProj = player.velocity.dot(currentLocalDown);
+                    if (vDownProj > 0) {
+                        player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                    }
+                    continue;
+                }
+
+                // Standard AABB penetration resolution
                 if (pMax.x > vox.min.x && pMin.x < vox.max.x &&
                     pMax.y > vox.min.y && pMin.y < vox.max.y &&
                     pMax.z > vox.min.z && pMin.z < vox.max.z) {
@@ -3193,13 +3218,13 @@
                     }
 
                     const dotUp = localUpWorld.dot(hitNormal);
-                    if (dotUp > 0.8) {
+                    if (dotUp > 0.8 && !isMovingUpward) {
                         player.isGrounded = true;
                         groundedBlockType = vox.baseType;
                         groundedX = vox.x;
                         groundedY = vox.y;
                         groundedZ = vox.z;
-                        // Zero out downward velocity when grounded on voxel surface
+
                         const vDownProj = player.velocity.dot(currentLocalDown);
                         if (vDownProj > 0) {
                             player.velocity.addScaledVector(currentLocalDown, -vDownProj);
