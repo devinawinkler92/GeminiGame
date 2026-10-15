@@ -369,8 +369,23 @@
     </script>
 </head>
 <body>
+    <!-- Voxel-Styled Welcome / Start Splash Screen -->
+    <div id="welcome-splash" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+            <div style="width: 50px; height: 50px; background: rgba(0, 240, 255, 0.2); border: 2px solid #00f0ff; border-radius: 8px; box-shadow: 0 0 15px #00f0ff; display: flex; justify-content: center; align-items: center; font-size: 1.8em; animation: floatCube 2s infinite ease-in-out;">🧊</div>
+            <h1 style="margin: 0; color: #00f0ff; font-size: 1.5em; letter-spacing: 1.5px;">GEMVERSE NEXUS</h1>
+            <p style="margin: 0; font-size: 0.85em; color: #aaa;">Sovereign Voxel Physics Engine</p>
+            <div style="margin-top: 10px; padding: 12px 20px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); cursor: pointer;">
+                CLICK OR PRESS ANY KEY TO START
+            </div>
+        </div>
+    </div>
 
     <style>
+        @keyframes floatCube {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(5deg); }
+        }
         /* Break Progress Overlay */
         #break-progress-container {
             position: absolute;
@@ -2144,8 +2159,18 @@
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
+            const isAnyModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+
             // Request pointer lock on canvas click if menu is not open
-            if (!document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && exitConfirmationModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+            if (!document.pointerLockElement && !isAnyModalOpen) {
                 try {
                     renderer.domElement.requestPointerLock();
                 } catch (err) {}
@@ -2156,16 +2181,33 @@
             isMouseDown = false;
         });
 
+        const welcomeSplash = document.getElementById('welcome-splash');
+
+        function dismissWelcomeSplash() {
+            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                welcomeSplash.style.display = 'none';
+                initAudioContext();
+                if (renderer.domElement) {
+                    try { renderer.domElement.requestPointerLock(); } catch(err){}
+                }
+                showItemToast('⚡ Sovereign Gemverse Physics Engaged');
+            }
+        }
+
+        if (welcomeSplash) {
+            welcomeSplash.addEventListener('click', dismissWelcomeSplash);
+        }
+
         document.addEventListener('keydown', (e) => {
+            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                dismissWelcomeSplash();
+                return;
+            }
+
             if (!keys[e.code]) {
                 keys[e.code] = true;
 
                 if (e.code === 'Space') {
-                    if (instructions.style.display === 'block') {
-                        instructions.style.display = 'none';
-                        showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
-                        return;
-                    }
                     const now = performance.now();
                     const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
 
@@ -2179,9 +2221,8 @@
 
                 if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                     // Handle Enter / Accept on open modals
-                    if (instructions.style.display === 'block') {
-                        instructions.style.display = 'none';
-                        showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
+                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                        dismissWelcomeSplash();
                     } else if (exitConfirmationModal.style.display === 'flex') {
                         closeExitConfirmationModal();
                         teleportToNexusCoreHub();
@@ -2245,6 +2286,7 @@
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
             const isModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
                 genesisBeaconModal.style.display === 'flex' ||
                 exitConfirmationModal.style.display === 'flex' ||
@@ -2275,21 +2317,6 @@
             }
         });
 
-        const instructions = document.getElementById('instructions');
-        const btnConnectMesh = document.getElementById('btn-connect-mesh');
-
-        if (btnConnectMesh) {
-            btnConnectMesh.addEventListener('click', (e) => {
-                e.stopPropagation();
-                instructions.style.display = 'none';
-                showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
-            });
-        }
-
-        instructions.addEventListener('click', () => {
-            instructions.style.display = 'none';
-            showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
-        });
 
         // --- First World Genesis Beacon Modal Logic ---
         const genesisBeaconModal = document.getElementById('genesis-beacon-modal');
@@ -2963,6 +2990,7 @@
             mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
             if (!mouseLocked) {
                 const isAnyModalOpen = (
+                    (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                     settingsModal.style.display === 'flex' ||
                     genesisBeaconModal.style.display === 'flex' ||
                     exitConfirmationModal.style.display === 'flex' ||
@@ -3231,7 +3259,15 @@
             player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
-            const isModalOpen = (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex' || exitConfirmationModal.style.display === 'flex' || instructions.style.display === 'block');
+            const isModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
 
             const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
             const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
