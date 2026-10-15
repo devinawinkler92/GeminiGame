@@ -1,3 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemverse Nexus</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0a0c14;
+            font-family: sans-serif;
+            user-select: none;
+        }
 
         #instructions {
             position: absolute;
@@ -710,13 +725,14 @@
 
             <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
                 <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🆔 Sovereign DID Credentials</span>
+                    <span>🆔 Sovereign DID Credentials (<span id="did-handle-display">Explorer-01</span>)</span>
                     <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
                 </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
                     <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
                 </div>
+                <div style="font-size: 0.75em; color: #00f0ff; margin-bottom: 4px;" id="did-preview-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
                 <div style="font-size: 0.75em; color: #aaa; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;" id="did-full-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
 
                 <div style="margin-top: 12px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
@@ -772,7 +788,7 @@
                     </button>
                     <button id="btn-open-connect-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
                         <span>🆔 CONNECT & DECENTRALIZED IDENTITY</span>
-                        <span>➔</span>
+                        <span id="did-status-badge-menu" style="font-size: 0.75em; padding: 2px 6px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); border: 1px solid #ffaa00; color: #ffaa00;">0 / 2 VOUCHES</span>
                     </button>
                 </div>
             </div>
@@ -1041,7 +1057,11 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        renderer.domElement.style.position = 'fixed';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.zIndex = '0';
+        document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
         // --- Lighting ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -1169,6 +1189,7 @@
         // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17
         const ROOM_SIZE = 35;
         const VOXEL_SIZE = 1;
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
         const collidableVoxels = [];
 
         // Shared physical glass material for non-minable outer room voxel shell
@@ -1312,8 +1333,6 @@
         createCelestialWorldSprite('Solaria-Nexus', 320, 180, -420, 0x00f0ff);
         createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
         createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
-
-        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
 
         function spawnVoxelBlock(x, y, z, mat, baseType = 'platform', isGhost = false) {
             const mesh = new THREE.Mesh(voxelGeo, mat);
@@ -2014,6 +2033,20 @@
             return null;
         }
 
+        // --- Aim Placement Preview Ghost Mesh ---
+        const placementGhostGeo = new THREE.BoxGeometry(VOXEL_SIZE * 1.005, VOXEL_SIZE * 1.005, VOXEL_SIZE * 1.005);
+        const placementGhostMat = new THREE.MeshStandardMaterial({
+            color: 0x00f0ff,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 0.6,
+            transparent: true,
+            opacity: 0.45,
+            wireframe: true
+        });
+        const placementGhostMesh = new THREE.Mesh(placementGhostGeo, placementGhostMat);
+        placementGhostMesh.visible = false;
+        scene.add(placementGhostMesh);
+
         // --- Block Placement & Ghost Block System ---
         function handlePlaceBlock(targetVoxel, normal) {
             if (targetVoxel && targetVoxel.isExitCorner) {
@@ -2095,9 +2128,22 @@
             }
         }
 
+        function isAnyModalOpen() {
+            return (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                (settingsModal && settingsModal.style.display === 'flex') ||
+                (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') ||
+                (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') ||
+                (graphicsModal && graphicsModal.style.display === 'flex') ||
+                (controlsModal && controlsModal.style.display === 'flex') ||
+                (connectModal && connectModal.style.display === 'flex') ||
+                (itemDetailsModal && itemDetailsModal.style.display === 'flex')
+            );
+        }
+
         // Mouse wheel hotbar scrolling
         window.addEventListener('wheel', (e) => {
-            if (settingsModal.style.display === 'flex') return;
+            if (isAnyModalOpen()) return;
             if (e.deltaY > 0) {
                 selectedHotbarIndex = (selectedHotbarIndex % 9) + 1;
             } else if (e.deltaY < 0) {
@@ -2118,18 +2164,8 @@
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            const isAnyModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-
             // Request pointer lock on canvas click if menu is not open
-            if (!document.pointerLockElement && !isAnyModalOpen) {
+            if (!document.pointerLockElement && !isAnyModalOpen()) {
                 try {
                     renderer.domElement.requestPointerLock();
                 } catch (err) {}
@@ -2162,6 +2198,7 @@
             if (welcomeSplash && welcomeSplash.style.display !== 'none') return welcomeSplash;
             if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') return exitConfirmationModal;
             if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') return genesisBeaconModal;
+            if (itemDetailsModal && itemDetailsModal.style.display === 'flex') return itemDetailsModal;
             if (graphicsModal && graphicsModal.style.display === 'flex') return graphicsModal;
             if (controlsModal && controlsModal.style.display === 'flex') return controlsModal;
             if (connectModal && connectModal.style.display === 'flex') return connectModal;
@@ -2333,16 +2370,7 @@
 
         const mouseSensitivity = 0.0025;
         window.addEventListener('mousemove', (e) => {
-            const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-            if (isModalOpen) return;
+            if (isAnyModalOpen()) return;
 
             let moveX = 0;
             let moveY = 0;
@@ -3297,17 +3325,7 @@
             }
 
             // --- Arrow Key Camera Look Controls ---
-            const isAnyModalActive = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-
-            if (!isAnyModalActive) {
+            if (!isAnyModalOpen()) {
                 const arrowRotateSpeed = 1.8;
                 if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
                 if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
@@ -3317,22 +3335,12 @@
             }
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
-            const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-
             const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
             const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
 
             const moveInput = new THREE.Vector3();
 
-            if (!isModalOpen) {
+            if (!isAnyModalOpen()) {
                 if (keys['KeyW']) moveInput.z -= 1;
                 if (keys['KeyS']) moveInput.z += 1;
                 if (keys['KeyA']) moveInput.x -= 1;
@@ -3584,6 +3592,38 @@
 
             const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
             avatarMat.emissiveIntensity = pulse;
+
+            // --- Aim Placement Ghost Visualization ---
+            const currentItem = getSelectedSlotItem();
+            if (currentItem && currentItem.count > 0 && !isAnyModalOpen()) {
+                const target = getTargetedVoxelAndFace();
+                if (target && target.voxel && target.faceNormal) {
+                    const newX = target.voxel.x + Math.round(target.faceNormal.x);
+                    const newY = target.voxel.y + Math.round(target.faceNormal.y);
+                    const newZ = target.voxel.z + Math.round(target.faceNormal.z);
+
+                    const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                    const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                    const vMin = new THREE.Vector3(newX - VOXEL_SIZE / 2, newY - VOXEL_SIZE / 2, newZ - VOXEL_SIZE / 2);
+                    const vMax = new THREE.Vector3(newX + VOXEL_SIZE / 2, newY + VOXEL_SIZE / 2, newZ + VOXEL_SIZE / 2);
+
+                    const overlapsPlayer = (pMax.x > vMin.x && pMin.x < vMax.x && pMax.y > vMin.y && pMin.y < vMax.y && pMax.z > vMin.z && pMin.z < vMax.z);
+
+                    if (!overlapsPlayer) {
+                        placementGhostMesh.position.set(newX, newY, newZ);
+                        const ghostHex = BLOCK_HEX[currentItem.type] || 0x00f0ff;
+                        placementGhostMat.color.setHex(ghostHex);
+                        placementGhostMat.emissive.setHex(ghostHex);
+                        placementGhostMesh.visible = true;
+                    } else {
+                        placementGhostMesh.visible = false;
+                    }
+                } else {
+                    placementGhostMesh.visible = false;
+                }
+            } else {
+                placementGhostMesh.visible = false;
+            }
 
             // --- Energy Regeneration & HUD Update ---
             if (player.energy < player.maxEnergy) {
