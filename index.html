@@ -2124,14 +2124,6 @@
             isMouseDown = true;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
-
-            if (!mouseLocked && !document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && instructions.style.display !== 'block') {
-                try {
-                    renderer.domElement.requestPointerLock();
-                } catch (err) {
-                    // Fallback to drag look if pointer lock is restricted
-                }
-            }
         });
 
         document.addEventListener('mouseup', () => {
@@ -2143,6 +2135,11 @@
                 keys[e.code] = true;
 
                 if (e.code === 'Space') {
+                    if (instructions.style.display === 'block') {
+                        instructions.style.display = 'none';
+                        showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
+                        return;
+                    }
                     const now = performance.now();
                     const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
 
@@ -2152,6 +2149,21 @@
                         handleJumpStart();
                     }
                     lastSpaceTime = now;
+                }
+
+                if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                    // Handle Enter / Accept on open modals
+                    if (instructions.style.display === 'block') {
+                        instructions.style.display = 'none';
+                        showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
+                    } else if (exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                        teleportToNexusCoreHub();
+                    } else if (genesisBeaconModal.style.display === 'flex') {
+                        if (btnClaimWorld) btnClaimWorld.click();
+                    } else if (settingsModal.style.display === 'flex') {
+                        toggleSettingsModal();
+                    }
                 }
 
                 checkDirectionalLeapTrigger(e.code);
@@ -2206,17 +2218,20 @@
 
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
-            if (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex') return;
+            if (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex' || exitConfirmationModal.style.display === 'flex' || instructions.style.display === 'block') return;
 
             let moveX = 0;
             let moveY = 0;
 
-            if (mouseLocked || document.pointerLockElement) {
+            if (document.pointerLockElement) {
                 moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
                 moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-            } else if (isMouseDown) {
-                moveX = e.clientX - lastMouseX;
-                moveY = e.clientY - lastMouseY;
+            } else {
+                // Direct relative mouse tracking without requiring click lock
+                if (lastMouseX !== 0 || lastMouseY !== 0) {
+                    moveX = e.clientX - lastMouseX;
+                    moveY = e.clientY - lastMouseY;
+                }
             }
 
             lastMouseX = e.clientX;
@@ -2236,24 +2251,13 @@
             btnConnectMesh.addEventListener('click', (e) => {
                 e.stopPropagation();
                 instructions.style.display = 'none';
-                renderer.domElement.requestPointerLock();
                 showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
             });
         }
 
         instructions.addEventListener('click', () => {
             instructions.style.display = 'none';
-            renderer.domElement.requestPointerLock();
             showItemToast('⚡ Connected to Gemverse P2P Mesh Network');
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
-            if (mouseLocked) {
-                instructions.style.display = 'none';
-            } else if (settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex') {
-                instructions.style.display = 'block';
-            }
         });
 
         // --- First World Genesis Beacon Modal Logic ---
@@ -3117,17 +3121,22 @@
             player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
+            const isModalOpen = (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex' || exitConfirmationModal.style.display === 'flex' || instructions.style.display === 'block');
+
             const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
             const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
 
             const moveInput = new THREE.Vector3();
-            if (keys['KeyW']) moveInput.z -= 1;
-            if (keys['KeyS']) moveInput.z += 1;
-            if (keys['KeyA']) moveInput.x -= 1;
-            if (keys['KeyD']) moveInput.x += 1;
 
-            moveInput.x += player.touchMoveInput.x;
-            moveInput.z += player.touchMoveInput.z;
+            if (!isModalOpen) {
+                if (keys['KeyW']) moveInput.z -= 1;
+                if (keys['KeyS']) moveInput.z += 1;
+                if (keys['KeyA']) moveInput.x -= 1;
+                if (keys['KeyD']) moveInput.x += 1;
+
+                moveInput.x += player.touchMoveInput.x;
+                moveInput.z += player.touchMoveInput.z;
+            }
 
             if (moveInput.lengthSq() > 1) moveInput.normalize();
 
@@ -3190,10 +3199,14 @@
             // --- Sovereign Gravity Acceleration along Local Down ---
             const currentLocalDown = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
 
-            if (!player.isGrounded) {
-                player.velocity.addScaledVector(currentLocalDown, gravityAccel * delta);
+            if (player.isGrounded) {
+                // Completely halt downward gravity accumulation when grounded to eliminate floor jitter
+                const vDownProj = player.velocity.dot(currentLocalDown);
+                if (vDownProj > 0) {
+                    player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                }
             } else {
-                player.velocity.set(0, 0, 0);
+                player.velocity.addScaledVector(currentLocalDown, gravityAccel * delta);
             }
 
             player.position.addScaledVector(player.velocity, delta);
