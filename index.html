@@ -1542,7 +1542,6 @@
         avatarMesh.visible = false;
 
         // --- Inventory & Block Breaking / Placing Engine ---
-        const inventorySlots = Array(9).fill(null).map(() => ({ type: null, count: 0 }));
         let selectedBlockType = null;
 
         function addItemToInventory(type) {
@@ -1846,6 +1845,7 @@
         });
 
         let unlockedInventorySlots = 18;
+        const inventorySlots = Array(18).fill(null).map(() => ({ type: null, count: 0 }));
 
         function renderProgressionInventoryMenu() {
             const gridContainer = document.getElementById('progression-inventory-grid');
@@ -2131,6 +2131,8 @@
         let lastMouseY = 0;
         let mouseLocked = false;
 
+        const welcomeSplash = document.getElementById('welcome-splash');
+
         document.addEventListener('mousedown', (e) => {
             isMouseDown = true;
             lastMouseX = e.clientX;
@@ -2158,9 +2160,11 @@
             isMouseDown = false;
         });
 
-        const welcomeSplash = document.getElementById('welcome-splash');
-
-        function dismissWelcomeSplash() {
+        function dismissWelcomeSplash(e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
             if (welcomeSplash && welcomeSplash.style.display !== 'none') {
                 welcomeSplash.style.display = 'none';
                 initAudioContext();
@@ -2173,11 +2177,9 @@
 
         if (welcomeSplash) {
             welcomeSplash.addEventListener('pointerdown', dismissWelcomeSplash, { capture: true });
+            welcomeSplash.addEventListener('mousedown', dismissWelcomeSplash, { capture: true });
             welcomeSplash.addEventListener('click', dismissWelcomeSplash, { capture: true });
         }
-        window.addEventListener('pointerdown', () => {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') dismissWelcomeSplash();
-        }, { once: false });
 
         // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
         let modalFocusedIndex = 0;
@@ -3064,21 +3066,6 @@
 
         document.addEventListener('pointerlockchange', () => {
             mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
-            if (!mouseLocked) {
-                const isAnyModalOpen = (
-                    (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                    settingsModal.style.display === 'flex' ||
-                    genesisBeaconModal.style.display === 'flex' ||
-                    exitConfirmationModal.style.display === 'flex' ||
-                    graphicsModal.style.display === 'flex' ||
-                    controlsModal.style.display === 'flex' ||
-                    connectModal.style.display === 'flex'
-                );
-                if (!isAnyModalOpen) {
-                    renderProgressionInventoryMenu();
-                    settingsModal.style.display = 'flex';
-                }
-            }
         });
 
         function toggleSettingsModal() {
