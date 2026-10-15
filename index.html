@@ -369,36 +369,6 @@
     </script>
 </head>
 <body>
-    <div id="instructions">
-        <h1>Gemverse Nexus Core</h1>
-        <p style="color: #00f0ff; font-weight: bold; margin-bottom: 15px;">Sovereign Player Gravity Engine - Version 1.0</p>
-        <div class="controls-grid">
-            <div><span>W, A, S, D</span> - Move</div>
-            <div><span>Mouse / Touch</span> - Look Around</div>
-            <div><span>Space / JUMP</span> - Jump (Hold for Higher)</div>
-            <div><span>V Key</span> - Toggle 1st / 3rd Person View</div>
-            <div><span>Shift + WASD (Airborne)</span> - Spatial Gravity Leap</div>
-            <div><span>E Key / L-Click</span> - Mine / Break Block</div>
-            <div><span>Q Key / R-Click</span> - Place / Use Voxel</div>
-        </div>
-        <!-- Sovereign DID Onboarding -->
-        <div style="margin-top: 15px; background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); text-align: left;">
-            <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span>🆔 Sovereign DID Onboarding</span>
-                <span id="did-status-badge-menu" style="background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; padding: 2px 6px; border-radius: 4px; font-size: 0.75em;">Unattested (0/2)</span>
-            </div>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 6px 10px; border-radius: 4px; font-size: 0.8em;">
-                <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 6px 10px; border-radius: 4px; font-size: 0.8em;">
-            </div>
-            <div style="font-size: 0.75em; color: #aaa; word-break: break-all;" id="did-preview-string">DID: did:gemverse:8a9f4c3b7e...</div>
-        </div>
-
-        <div style="margin-top: 15px;">
-            <button id="btn-connect-mesh" style="background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 12px 28px; font-weight: bold; font-size: 1.05em; border-radius: 8px; cursor: pointer; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); transition: transform 0.2s, box-shadow 0.2s;">⚡ CONNECT TO P2P MESH</button>
-        </div>
-        <p style="font-size: 0.8em; color: #aaa; margin-top: 10px;">Sync state deltas & step out into the Nexus Hub</p>
-    </div>
 
     <style>
         /* Break Progress Overlay */
@@ -689,6 +659,88 @@
         <div id="touch-jump-btn">JUMP</div>
     </div>
 
+    <!-- Graphics Sub-Modal -->
+    <div id="graphics-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 420px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">⚙ GRAPHICS & GYRO SETTINGS</h2>
+            <div class="setting-group" style="margin: 10px 0;">
+                <label for="gyro-mode-select">Gyro Compass Mode:</label>
+                <select id="gyro-mode-select">
+                    <option value="axes">X / Y / Z Axes</option>
+                    <option value="horizon">Artificial Horizon (Flight Plane)</option>
+                </select>
+            </div>
+            <button id="btn-close-graphics" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Controls Sub-Modal -->
+    <div id="controls-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 480px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">🎮 CONTROLS & KEYBINDINGS</h2>
+
+            <div class="setting-group" style="margin: 5px 0;">
+                <label for="touch-hud-select">Touch Controls HUD:</label>
+                <select id="touch-hud-select">
+                    <option value="auto">Auto-detect</option>
+                    <option value="on">Always On (Touch Parity)</option>
+                    <option value="off">Off (Mouse Only)</option>
+                </select>
+            </div>
+
+            <div style="background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 0.95em;">🕹 KEYBINDINGS REFERENCE</h3>
+                <div class="controls-grid" style="margin: 0; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+                    <div><span>W, A, S, D</span> - Movement</div>
+                    <div><span>Mouse</span> - Smooth Camera Look</div>
+                    <div><span>Space</span> - Jump (Hold for boost)</div>
+                    <div><span>Shift + WASD</span> - Airborne Gravity Leap</div>
+                    <div><span>Shift + Double-Space</span> - Inverted Ceiling Flip</div>
+                    <div><span>Shift (Grounded)</span> - Crouch & Edge Protection</div>
+                    <div><span>E Key / L-Click</span> - Mine Voxel Block</div>
+                    <div><span>Q Key / R-Click</span> - Place / Use Voxel Block</div>
+                    <div><span>V Key</span> - Toggle 1st / 3rd Person View</div>
+                    <div><span>ESC Key</span> - Open Nexus Menu</div>
+                </div>
+            </div>
+
+            <button id="btn-close-controls" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Connect & DID Sub-Modal -->
+    <div id="connect-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 480px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">🆔 CONNECT & DECENTRALIZED IDENTITY</h2>
+
+            <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🆔 Sovereign DID Credentials</span>
+                    <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
+                    <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
+                </div>
+                <div style="font-size: 0.75em; color: #aaa; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;" id="did-full-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
+
+                <div style="margin-top: 12px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
+                    <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.85em;">🛡 Web of Trust (Peer Vouches)</h4>
+                    <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 10px;">
+                        <em>No peer endorsements received yet.</em>
+                    </div>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-request-vouch" style="flex: 1; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ REQUEST PEER VOUCH</button>
+                        <button id="btn-vouch-peer" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #00f0ff; border: 1px solid #00f0ff; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">🤝 VOUCH FOR PEER</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-close-connect" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px;">Back to Menu</button>
+        </div>
+    </div>
+
     <div id="settings-modal">
         <div class="settings-content">
             <h2>⚙ Gemverse Nexus Menu</h2>
@@ -712,48 +764,21 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Settings Sub-Menu containing System Settings & Identity / Network Connect -->
+            <!-- Tab 2: Settings Navigation Hub with Category Buttons -->
             <div id="tab-content-settings" style="display: none;">
-                <div class="setting-group">
-                    <label for="gyro-mode-select">Gyro Compass Mode:</label>
-                    <select id="gyro-mode-select">
-                        <option value="axes">X / Y / Z Axes</option>
-                        <option value="horizon">Artificial Horizon</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label for="touch-hud-select">Touch Controls HUD:</label>
-                    <select id="touch-hud-select">
-                        <option value="auto">Auto-detect</option>
-                        <option value="on">Always On</option>
-                        <option value="off">Off</option>
-                    </select>
-                </div>
-
-                <!-- Connect & Decentralized Identity (DID) Onboarding Nested inside Settings -->
-                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); margin-top: 15px;">
-                    <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 0.95em; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 12px; margin: 10px 0;">
+                    <button id="btn-open-graphics-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                        <span>⚙ GRAPHICS & GYRO DISPLAY</span>
+                        <span>➔</span>
+                    </button>
+                    <button id="btn-open-controls-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                        <span>🎮 CONTROLS & KEYBINDINGS</span>
+                        <span>➔</span>
+                    </button>
+                    <button id="btn-open-connect-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
                         <span>🆔 CONNECT & DECENTRALIZED IDENTITY</span>
-                        <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
-                    </h3>
-                    <div style="font-size: 0.8em; color: #ddd; margin-bottom: 6px;">
-                        <strong>Sovereign Handle:</strong> <span id="did-handle-display" style="color: #00f0ff;">Explorer-01</span>
-                    </div>
-                    <div style="font-size: 0.75em; color: #aaa; margin-bottom: 12px; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;">
-                        <strong>W3C Identifier:</strong><br><span id="did-full-string" style="color: #88d;">did:gemverse:8a9f4c3b7e12d4a5...</span>
-                    </div>
-
-                    <div style="margin-top: 10px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
-                        <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.85em;">🛡 Web of Trust (Peer Vouches)</h4>
-                        <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 10px;">
-                            <em>No peer endorsements received yet.</em>
-                        </div>
-
-                        <div style="display: flex; gap: 8px;">
-                            <button id="btn-request-vouch" style="flex: 1; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ REQUEST PEER VOUCH</button>
-                            <button id="btn-vouch-peer" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #00f0ff; border: 1px solid #00f0ff; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">🤝 VOUCH FOR PEER</button>
-                        </div>
-                    </div>
+                        <span>➔</span>
+                    </button>
                 </div>
             </div>
 
@@ -2219,7 +2244,15 @@
 
         const mouseSensitivity = 0.002;
         document.addEventListener('mousemove', (e) => {
-            if (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex' || exitConfirmationModal.style.display === 'flex' || instructions.style.display === 'block') return;
+            const isModalOpen = (
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+            if (isModalOpen) return;
 
             let moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
             let moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
@@ -2710,6 +2743,26 @@
         const btnCloseSettings = document.getElementById('btn-close-settings');
         const gravityVectorHud = document.getElementById('gravity-vector-hud');
 
+        const graphicsModal = document.getElementById('graphics-modal');
+        const controlsModal = document.getElementById('controls-modal');
+        const connectModal = document.getElementById('connect-modal');
+
+        const btnOpenGraphics = document.getElementById('btn-open-graphics-modal');
+        const btnOpenControls = document.getElementById('btn-open-controls-modal');
+        const btnOpenConnect = document.getElementById('btn-open-connect-modal');
+
+        const btnCloseGraphics = document.getElementById('btn-close-graphics');
+        const btnCloseControls = document.getElementById('btn-close-controls');
+        const btnCloseConnect = document.getElementById('btn-close-connect');
+
+        if (btnOpenGraphics) btnOpenGraphics.addEventListener('click', () => { graphicsModal.style.display = 'flex'; });
+        if (btnOpenControls) btnOpenControls.addEventListener('click', () => { controlsModal.style.display = 'flex'; });
+        if (btnOpenConnect) btnOpenConnect.addEventListener('click', () => { connectModal.style.display = 'flex'; });
+
+        if (btnCloseGraphics) btnCloseGraphics.addEventListener('click', () => { graphicsModal.style.display = 'none'; });
+        if (btnCloseControls) btnCloseControls.addEventListener('click', () => { controlsModal.style.display = 'none'; });
+        if (btnCloseConnect) btnCloseConnect.addEventListener('click', () => { connectModal.style.display = 'none'; });
+
         let gyroMode = 'axes';
 
         let lastMenuToggleTime = 0;
@@ -2909,8 +2962,15 @@
         document.addEventListener('pointerlockchange', () => {
             mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
             if (!mouseLocked) {
-                // Single press ESC unlocks pointerlock and immediately shows Nexus Menu modal
-                if (settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && exitConfirmationModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+                const isAnyModalOpen = (
+                    settingsModal.style.display === 'flex' ||
+                    genesisBeaconModal.style.display === 'flex' ||
+                    exitConfirmationModal.style.display === 'flex' ||
+                    graphicsModal.style.display === 'flex' ||
+                    controlsModal.style.display === 'flex' ||
+                    connectModal.style.display === 'flex'
+                );
+                if (!isAnyModalOpen) {
                     renderProgressionInventoryMenu();
                     settingsModal.style.display = 'flex';
                 }
@@ -2920,6 +2980,9 @@
         function toggleSettingsModal() {
             if (settingsModal.style.display === 'flex') {
                 settingsModal.style.display = 'none';
+                if (graphicsModal) graphicsModal.style.display = 'none';
+                if (controlsModal) controlsModal.style.display = 'none';
+                if (connectModal) connectModal.style.display = 'none';
                 if (renderer.domElement) {
                     try { renderer.domElement.requestPointerLock(); } catch(e){}
                 }
@@ -2998,12 +3061,14 @@
                 gyroContext.arc(0, 0, r, 0, Math.PI * 2);
                 gyroContext.clip();
 
-                gyroContext.fillStyle = '#115588';
+                // Sky & Ground Dividers
+                gyroContext.fillStyle = '#0055aa';
                 gyroContext.fillRect(-r, -r * 2 + pitchOffset, r * 2, r * 2);
 
-                gyroContext.fillStyle = '#664422';
+                gyroContext.fillStyle = '#553311';
                 gyroContext.fillRect(-r, pitchOffset, r * 2, r * 2);
 
+                // Horizon Line
                 gyroContext.beginPath();
                 gyroContext.moveTo(-r, pitchOffset);
                 gyroContext.lineTo(r, pitchOffset);
@@ -3011,7 +3076,36 @@
                 gyroContext.lineWidth = 2;
                 gyroContext.stroke();
 
+                // Pitch Attitude Ladder Lines
+                gyroContext.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                gyroContext.lineWidth = 1;
+                for (let step = -30; step <= 30; step += 15) {
+                    if (step === 0) continue;
+                    const lineY = pitchOffset - (step / 90) * r;
+                    const lineLength = Math.abs(step) === 30 ? 12 : 18;
+                    gyroContext.beginPath();
+                    gyroContext.moveTo(-lineLength, lineY);
+                    gyroContext.lineTo(lineLength, lineY);
+                    gyroContext.stroke();
+                }
+
                 gyroContext.restore();
+
+                // Aircraft Center Reference Wing Indicator (Fixed relative to HUD)
+                gyroContext.strokeStyle = '#ffaa00';
+                gyroContext.lineWidth = 2;
+                gyroContext.beginPath();
+                gyroContext.moveTo(cx - 14, cy);
+                gyroContext.lineTo(cx - 5, cy);
+                gyroContext.lineTo(cx, cy + 5);
+                gyroContext.lineTo(cx + 5, cy);
+                gyroContext.lineTo(cx + 14, cy);
+                gyroContext.stroke();
+
+                gyroContext.fillStyle = '#ffaa00';
+                gyroContext.beginPath();
+                gyroContext.arc(cx, cy, 2, 0, Math.PI * 2);
+                gyroContext.fill();
             }
         }
 
