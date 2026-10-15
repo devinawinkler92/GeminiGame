@@ -370,14 +370,13 @@
 </head>
 <body>
     <!-- Voxel-Styled Welcome / Start Splash Screen -->
-    <div id="welcome-splash" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer;">
-        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px; pointer-events: none;">
-            <div style="width: 50px; height: 50px; background: rgba(0, 240, 255, 0.2); border: 2px solid #00f0ff; border-radius: 8px; box-shadow: 0 0 15px #00f0ff; display: flex; justify-content: center; align-items: center; font-size: 1.8em; animation: floatCube 2s infinite ease-in-out;">🧊</div>
+    <div id="welcome-splash" onclick="this.style.display='none'; if(window.initAudioContext) window.initAudioContext(); try{ document.querySelector('canvas').requestPointerLock(); }catch(e){}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
             <h1 style="margin: 0; color: #00f0ff; font-size: 1.5em; letter-spacing: 1.5px;">WELCOME TO THE GEMVERSE</h1>
             <p style="margin: 0; font-size: 0.85em; color: #aaa;">Click on Gyro to open menu</p>
-            <div style="margin-top: 10px; padding: 12px 20px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);">
+            <button style="margin-top: 10px; padding: 12px 24px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); cursor: pointer;">
                 PRESS TO START
-            </div>
+            </button>
         </div>
     </div>
 
@@ -2161,10 +2160,6 @@
         });
 
         function dismissWelcomeSplash(e) {
-            if (e) {
-                e.stopPropagation();
-                e.preventDefault();
-            }
             if (welcomeSplash && welcomeSplash.style.display !== 'none') {
                 welcomeSplash.style.display = 'none';
                 initAudioContext();
@@ -2176,9 +2171,7 @@
         }
 
         if (welcomeSplash) {
-            welcomeSplash.addEventListener('pointerdown', dismissWelcomeSplash, { capture: true });
-            welcomeSplash.addEventListener('mousedown', dismissWelcomeSplash, { capture: true });
-            welcomeSplash.addEventListener('click', dismissWelcomeSplash, { capture: true });
+            welcomeSplash.addEventListener('click', dismissWelcomeSplash);
         }
 
         // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
