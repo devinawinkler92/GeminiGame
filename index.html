@@ -1180,8 +1180,10 @@
         const VOXEL_SIZE = 1;
         const collidableVoxels = [];
 
-        // Outer room glass boundary mesh
-        const roomBoxMat = new THREE.MeshPhysicalMaterial({
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
+
+        // Outer Room Shell: Greedy Voxel Instancing & Frustum Culling
+        const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
             color: 0x00d0ff,
             emissive: 0x003355,
             emissiveIntensity: 0.2,
@@ -1190,37 +1192,76 @@
             transmission: 0.85,
             transparent: true,
             opacity: 0.35,
-            ior: 1.5,
-            side: THREE.BackSide
+            ior: 1.5
         });
 
-        const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
-        const roomMesh = new THREE.Mesh(roomBox, roomBoxMat);
-        scene.add(roomMesh);
+        const halfBounds = Math.floor(ROOM_SIZE / 2); // 17
+        const shellPositions = [];
 
-        const wireframeRoomMat = new THREE.MeshBasicMaterial({
-            color: 0x00f0ff,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.08
-        });
-        const roomWireframe = new THREE.Mesh(roomBox, wireframeRoomMat);
-        roomWireframe.material.side = THREE.BackSide;
-        scene.add(roomWireframe);
-
-        const roomGrid = new THREE.GridHelper(ROOM_SIZE, ROOM_SIZE, 0x00f0ff, 0x223344);
-        roomGrid.position.y = -ROOM_SIZE / 2 + 0.01;
-        scene.add(roomGrid);
-
-        // Interactive North-West Quantum Magenta Exit Corner Voxel Platform
-        const bottomFloorY = -17;
-        for (let x = -17; x <= -14; x++) {
-            for (let z = -17; z <= -14; z++) {
-                const mat = createPsiVoxelMaterial(x, bottomFloorY, z, 'magenta', 0xff00bb);
-                const vox = spawnVoxelBlock(x, bottomFloorY, z, mat, 'magenta');
-                vox.isExitCorner = true;
+        for (let x = -halfBounds; x <= halfBounds; x++) {
+            for (let z = -halfBounds; z <= halfBounds; z++) {
+                const isExitCorner = (x >= -17 && x <= -14 && z >= -17 && z <= -14);
+                if (isExitCorner) {
+                    const mat = createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, -halfBounds, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, -halfBounds, z));
+                }
+                shellPositions.push(new THREE.Vector3(x, halfBounds, z));
             }
         }
+
+        for (let y = -halfBounds + 1; y <= halfBounds - 1; y++) {
+            for (let x = -halfBounds; x <= halfBounds; x++) {
+                const isNWExitNorth = (x >= -17 && x <= -14 && y <= -14);
+                if (isNWExitNorth) {
+                    const mat = createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, y, -halfBounds, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, y, -halfBounds));
+                }
+                shellPositions.push(new THREE.Vector3(x, y, halfBounds));
+            }
+            for (let z = -halfBounds + 1; z <= halfBounds - 1; z++) {
+                const isNWExitWest = (z >= -17 && z <= -14 && y <= -14);
+                if (isNWExitWest) {
+                    const mat = createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(-halfBounds, y, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(-halfBounds, y, z));
+                }
+                shellPositions.push(new THREE.Vector3(halfBounds, y, z));
+            }
+        }
+
+        // InstancedMesh GPU Batching for outer glass voxel blocks with automatic frustum culling
+        const instancedGlassMesh = new THREE.InstancedMesh(voxelGeo, outerShellGlassMat, shellPositions.length);
+        instancedGlassMesh.frustumCulled = true;
+
+        const dummyMatrix = new THREE.Matrix4();
+        shellPositions.forEach((pos, idx) => {
+            dummyMatrix.setPosition(pos);
+            instancedGlassMesh.setMatrixAt(idx, dummyMatrix);
+
+            // Register voxel data for raycasting and placement without individual mesh bloat
+            collidableVoxels.push({
+                mesh: instancedGlassMesh,
+                instanceId: idx,
+                min: new THREE.Vector3(pos.x - VOXEL_SIZE / 2, pos.y - VOXEL_SIZE / 2, pos.z - VOXEL_SIZE / 2),
+                max: new THREE.Vector3(pos.x + VOXEL_SIZE / 2, pos.y + VOXEL_SIZE / 2, pos.z + VOXEL_SIZE / 2),
+                position: pos,
+                baseType: 'wall',
+                isGhost: false,
+                x: pos.x,
+                y: pos.y,
+                z: pos.z
+            });
+        });
+        instancedGlassMesh.instanceMatrix.needsUpdate = true;
+        scene.add(instancedGlassMesh);
 
         // --- Skybox Celestial World Projections & Sector Mapping ---
         const skyboxCelestialGroup = new THREE.Group();
@@ -1313,8 +1354,6 @@
         createCelestialWorldSprite('Solaria-Nexus', 320, 180, -420, 0x00f0ff);
         createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
         createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
-
-        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
 
         function spawnVoxelBlock(x, y, z, mat, baseType = 'platform', isGhost = false) {
             const mesh = new THREE.Mesh(voxelGeo, mat);
@@ -2000,28 +2039,17 @@
 
         function getTargetedVoxelAndFace() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const meshes = collidableVoxels.map(v => v.mesh).concat([roomMesh]);
-            const intersects = raycaster.intersectObjects(meshes, false);
+            const uniqueMeshes = Array.from(new Set(collidableVoxels.map(v => v.mesh)));
+            const intersects = raycaster.intersectObjects(uniqueMeshes, false);
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                if (hit.object === roomMesh) {
-                    const inwardNormal = hit.face.normal.clone();
-                    const wallGridX = Math.round(hit.point.x - inwardNormal.x * 0.5);
-                    const wallGridY = Math.round(hit.point.y - inwardNormal.y * 0.5);
-                    const wallGridZ = Math.round(hit.point.z - inwardNormal.z * 0.5);
-
-                    const wallVoxel = {
-                        x: wallGridX,
-                        y: wallGridY,
-                        z: wallGridZ,
-                        baseType: 'wall'
-                    };
-
+                if (hit.object.isInstancedMesh) {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object && v.instanceId === hit.instanceId);
                     return {
-                        voxel: wallVoxel,
+                        voxel: hitVoxel,
                         point: hit.point,
-                        faceNormal: inwardNormal
+                        faceNormal: hit.face.normal.clone()
                     };
                 } else {
                     const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
@@ -3421,35 +3449,6 @@
             let groundedZ = Math.round(player.position.z);
 
 
-            // 1. Outer Room Boundary Collision
-            const halfRoom = ROOM_SIZE / 2;
-            const margin = player.radius;
-
-            const roomCollisions = [
-                { normal: new THREE.Vector3(1, 0, 0), dist: player.position.x - (-halfRoom + margin) },
-                { normal: new THREE.Vector3(-1, 0, 0), dist: (halfRoom - margin) - player.position.x },
-                { normal: new THREE.Vector3(0, 1, 0), dist: player.position.y - (-halfRoom + player.height / 2) },
-                { normal: new THREE.Vector3(0, -1, 0), dist: (halfRoom - player.height / 2) - player.position.y },
-                { normal: new THREE.Vector3(0, 0, 1), dist: player.position.z - (-halfRoom + margin) },
-                { normal: new THREE.Vector3(0, 0, -1), dist: (halfRoom - margin) - player.position.z }
-            ];
-
-            for (const col of roomCollisions) {
-                if (col.dist < groundSnapTolerance) {
-                    if (col.dist < 0) {
-                        player.position.addScaledVector(col.normal, -col.dist);
-                    }
-
-                    const dotUp = localUpWorld.dot(col.normal);
-                    if (dotUp > 0.8 && !isMovingUpward) {
-                        player.isGrounded = true;
-                        groundedBlockType = 'wall';
-                        groundedX = Math.round(player.position.x);
-                        groundedY = Math.round(player.position.y);
-                        groundedZ = Math.round(player.position.z);
-                    }
-                }
-            }
 
             // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
             const feetPos = player.position.clone().addScaledVector(localUpWorld, -player.height / 2);
