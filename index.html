@@ -1965,8 +1965,8 @@
         const breakProgressCircle = document.getElementById('break-progress-circle');
 
         function startBreakingTarget(voxelObj) {
-            if (!voxelObj || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
-                return; // Unbreakable blocks
+            if (!voxelObj || voxelObj.isGhost || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
+                return; // Unbreakable or ghost blocks
             }
             isBreakingBlock = true;
             breakTargetVoxel = voxelObj;
