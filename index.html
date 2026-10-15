@@ -695,26 +695,25 @@
 
             <!-- Gyro Menu Navigation Tabs -->
             <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
-                <button id="tab-btn-inventory" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
-                <button id="tab-btn-settings" style="flex: 1; padding: 8px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
-                <button id="tab-btn-identity" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🆔 IDENTITY</button>
+                <button id="tab-btn-inventory" style="flex: 1; padding: 8px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-settings" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
             </div>
 
-            <!-- Tab 1: Dedicated Expandable Inventory Sub-Menu (Hidden by default) -->
-            <div id="tab-content-inventory" style="display: none;">
+            <!-- Tab 1: 9-Across Expandable Inventory Sub-Menu (Default view when menu opens) -->
+            <div id="tab-content-inventory" style="display: block;">
                 <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
-                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">12 INVENTORY SLOTS</span>
+                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">18 INVENTORY SLOTS</span>
                     </div>
-                    <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+                    <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; max-height: 240px; overflow-y: auto; padding-right: 2px;">
                         <!-- Unlocked Slots generated via JS -->
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 2: Settings Sub-Menu (Default view when menu opens) -->
-            <div id="tab-content-settings" style="display: block;">
+            <!-- Tab 2: Settings Sub-Menu containing System Settings & Identity / Network Connect -->
+            <div id="tab-content-settings" style="display: none;">
                 <div class="setting-group">
                     <label for="gyro-mode-select">Gyro Compass Mode:</label>
                     <select id="gyro-mode-select">
@@ -730,13 +729,11 @@
                         <option value="off">Off</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Tab 3: Identity & Web of Trust Sub-Menu -->
-            <div id="tab-content-identity" style="display: none;">
-                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
-                    <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px; display: flex; justify-content: space-between; align-align: center;">
-                        <span>🆔 DECENTRALIZED IDENTITY (DID)</span>
+                <!-- Connect & Decentralized Identity (DID) Onboarding Nested inside Settings -->
+                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2); margin-top: 15px;">
+                    <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 0.95em; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>🆔 CONNECT & DECENTRALIZED IDENTITY</span>
                         <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
                     </h3>
                     <div style="font-size: 0.8em; color: #ddd; margin-bottom: 6px;">
@@ -746,12 +743,9 @@
                         <strong>W3C Identifier:</strong><br><span id="did-full-string" style="color: #88d;">did:gemverse:8a9f4c3b7e12d4a5...</span>
                     </div>
 
-                    <div style="margin-top: 15px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 12px;">
-                        <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.9em;">🛡 Web of Trust (The Vouching Rule)</h4>
-                        <p style="font-size: 0.75em; color: #aaa; margin-bottom: 10px; line-height: 1.3;">
-                            Newly initialized accounts require endorsements (vouches) from existing active mesh peers to prevent Sybil spam and unlock network transmission & build rights.
-                        </p>
-                        <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 12px;">
+                    <div style="margin-top: 10px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.85em;">🛡 Web of Trust (Peer Vouches)</h4>
+                        <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 10px;">
                             <em>No peer endorsements received yet.</em>
                         </div>
 
@@ -1810,7 +1804,7 @@
             attachHoldAndClickListeners(slot, idx, true);
         });
 
-        let unlockedInventorySlots = 12;
+        let unlockedInventorySlots = 18;
 
         function renderProgressionInventoryMenu() {
             const gridContainer = document.getElementById('progression-inventory-grid');
@@ -2124,6 +2118,13 @@
             isMouseDown = true;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
+
+            // Request pointer lock on canvas click if menu is not open
+            if (!document.pointerLockElement && settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && exitConfirmationModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+                try {
+                    renderer.domElement.requestPointerLock();
+                } catch (err) {}
+            }
         });
 
         document.addEventListener('mouseup', () => {
@@ -2220,14 +2221,11 @@
         document.addEventListener('mousemove', (e) => {
             if (settingsModal.style.display === 'flex' || genesisBeaconModal.style.display === 'flex' || exitConfirmationModal.style.display === 'flex' || instructions.style.display === 'block') return;
 
-            let moveX = 0;
-            let moveY = 0;
+            let moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+            let moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
 
-            if (document.pointerLockElement) {
-                moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-                moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-            } else {
-                // Direct relative mouse tracking without requiring click lock
+            // Fallback for drag look if pointer lock is inactive
+            if (!document.pointerLockElement && isMouseDown) {
                 if (lastMouseX !== 0 || lastMouseY !== 0) {
                     moveX = e.clientX - lastMouseX;
                     moveY = e.clientY - lastMouseY;
@@ -2825,40 +2823,43 @@
 
         const tabBtnInventory = document.getElementById('tab-btn-inventory');
         const tabBtnSettings = document.getElementById('tab-btn-settings');
-        const tabBtnIdentity = document.getElementById('tab-btn-identity');
         const tabContentInventory = document.getElementById('tab-content-inventory');
         const tabContentSettings = document.getElementById('tab-content-settings');
-        const tabContentIdentity = document.getElementById('tab-content-identity');
 
         function setActiveTab(activeBtn, activeContent) {
-            [tabContentInventory, tabContentSettings, tabContentIdentity].forEach(c => c.style.display = 'none');
-            [tabBtnInventory, tabBtnSettings, tabBtnIdentity].forEach(b => {
-                b.style.background = 'rgba(255, 255, 255, 0.05)';
-                b.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                b.style.color = '#aaa';
+            if (tabContentInventory) tabContentInventory.style.display = 'none';
+            if (tabContentSettings) tabContentSettings.style.display = 'none';
+
+            [tabBtnInventory, tabBtnSettings].forEach(b => {
+                if (b) {
+                    b.style.background = 'rgba(255, 255, 255, 0.05)';
+                    b.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    b.style.color = '#aaa';
+                }
             });
 
-            activeContent.style.display = 'block';
-            activeBtn.style.background = 'rgba(0, 240, 255, 0.2)';
-            activeBtn.style.borderColor = '#00f0ff';
-            activeBtn.style.color = '#00f0ff';
+            if (activeContent) activeContent.style.display = 'block';
+            if (activeBtn) {
+                activeBtn.style.background = 'rgba(0, 240, 255, 0.2)';
+                activeBtn.style.borderColor = '#00f0ff';
+                activeBtn.style.color = '#00f0ff';
+            }
         }
 
-        tabBtnInventory.addEventListener('click', (e) => {
-            e.preventDefault();
-            setActiveTab(tabBtnInventory, tabContentInventory);
-        });
+        if (tabBtnInventory) {
+            tabBtnInventory.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveTab(tabBtnInventory, tabContentInventory);
+            });
+        }
 
-        tabBtnSettings.addEventListener('click', (e) => {
-            e.preventDefault();
-            setActiveTab(tabBtnSettings, tabContentSettings);
-        });
-
-        tabBtnIdentity.addEventListener('click', (e) => {
-            e.preventDefault();
-            setActiveTab(tabBtnIdentity, tabContentIdentity);
-            updateDIDIdentityUI();
-        });
+        if (tabBtnSettings) {
+            tabBtnSettings.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveTab(tabBtnSettings, tabContentSettings);
+                updateDIDIdentityUI();
+            });
+        }
 
         // Initialize DID credentials event listeners
         const didUsernameInput = document.getElementById('did-username-input');
@@ -2905,14 +2906,29 @@
         });
         window.toggleSettingsModal = toggleSettingsModal;
 
+        document.addEventListener('pointerlockchange', () => {
+            mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
+            if (!mouseLocked) {
+                // Single press ESC unlocks pointerlock and immediately shows Nexus Menu modal
+                if (settingsModal.style.display !== 'flex' && genesisBeaconModal.style.display !== 'flex' && exitConfirmationModal.style.display !== 'flex' && instructions.style.display !== 'block') {
+                    renderProgressionInventoryMenu();
+                    settingsModal.style.display = 'flex';
+                }
+            }
+        });
+
         function toggleSettingsModal() {
             if (settingsModal.style.display === 'flex') {
                 settingsModal.style.display = 'none';
-                document.body.requestPointerLock();
+                if (renderer.domElement) {
+                    try { renderer.domElement.requestPointerLock(); } catch(e){}
+                }
             } else {
                 renderProgressionInventoryMenu();
                 settingsModal.style.display = 'flex';
-                document.exitPointerLock();
+                if (document.pointerLockElement) {
+                    document.exitPointerLock();
+                }
             }
         }
 
