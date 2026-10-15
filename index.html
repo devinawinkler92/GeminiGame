@@ -1,3 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gemverse Nexus</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0a0c14;
+            color: #ffffff;
+            user-select: none;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
         #instructions {
             position: absolute;
@@ -350,16 +370,7 @@
     </script>
 </head>
 <body>
-    <!-- Voxel-Styled Welcome / Start Splash Screen -->
-    <div id="welcome-splash" onclick="this.style.display='none'; if(window.initAudioContext) window.initAudioContext(); try{ document.querySelector('canvas').requestPointerLock(); }catch(e){}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer;">
-        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
-            <h1 style="margin: 0; color: #00f0ff; font-size: 1.5em; letter-spacing: 1.5px;">WELCOME TO THE GEMVERSE</h1>
-            <p style="margin: 0; font-size: 0.85em; color: #aaa;">Click on Gyro to open menu</p>
-            <button style="margin-top: 10px; padding: 12px 24px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); cursor: pointer;">
-                PRESS TO START
-            </button>
-        </div>
-    </div>
+
 
     <style>
         @keyframes floatCube {
@@ -710,13 +721,14 @@
 
             <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
                 <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🆔 Sovereign DID Credentials</span>
+                    <span>🆔 Sovereign DID Credentials (<span id="did-handle-display">Explorer-01</span>)</span>
                     <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
                 </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
                     <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
                 </div>
+                <div style="font-size: 0.75em; color: #00f0ff; margin-bottom: 4px;" id="did-preview-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
                 <div style="font-size: 0.75em; color: #aaa; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;" id="did-full-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
 
                 <div style="margin-top: 12px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
@@ -772,7 +784,7 @@
                     </button>
                     <button id="btn-open-connect-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
                         <span>🆔 CONNECT & DECENTRALIZED IDENTITY</span>
-                        <span>➔</span>
+                        <span id="did-status-badge-menu" style="font-size: 0.75em; padding: 2px 6px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); border: 1px solid #ffaa00; color: #ffaa00;">0 / 2 VOUCHES</span>
                     </button>
                 </div>
             </div>
@@ -1041,7 +1053,11 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        renderer.domElement.style.position = 'fixed';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.zIndex = '0';
+        document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
         // --- Lighting ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -1169,9 +1185,10 @@
         // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17
         const ROOM_SIZE = 35;
         const VOXEL_SIZE = 1;
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
         const collidableVoxels = [];
 
-        // Shared physical glass material for non-minable outer room voxel shell
+        // Outer Room Shell: Greedy Voxel Instancing & Frustum Culling
         const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
             color: 0x00d0ff,
             emissive: 0x003355,
@@ -1184,42 +1201,73 @@
             ior: 1.5
         });
 
-        // Construct outer room shell (6 faces at x/y/z = ±17) strictly out of transparent physical glass voxel blocks
         const halfBounds = Math.floor(ROOM_SIZE / 2); // 17
+        const shellPositions = [];
+
         for (let x = -halfBounds; x <= halfBounds; x++) {
             for (let z = -halfBounds; z <= halfBounds; z++) {
-                // Check if position is in the North-West Quantum Magenta Exit Corner (-17 to -14) on the floor
                 const isExitCorner = (x >= -17 && x <= -14 && z >= -17 && z <= -14);
-                const floorMat = isExitCorner ? createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const floorVox = spawnVoxelBlock(x, -halfBounds, z, floorMat, isExitCorner ? 'magenta' : 'wall');
-                if (isExitCorner) floorVox.isExitCorner = true;
-
-                // Ceiling face (y = 17)
-                spawnVoxelBlock(x, halfBounds, z, outerShellGlassMat, 'wall');
+                if (isExitCorner) {
+                    const mat = createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, -halfBounds, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, -halfBounds, z));
+                }
+                shellPositions.push(new THREE.Vector3(x, halfBounds, z));
             }
         }
 
         for (let y = -halfBounds + 1; y <= halfBounds - 1; y++) {
             for (let x = -halfBounds; x <= halfBounds; x++) {
-                // North Wall (z = -17) & South Wall (z = 17)
-                // Check NW exit corner wall blocks
                 const isNWExitNorth = (x >= -17 && x <= -14 && y <= -14);
-                const northMat = isNWExitNorth ? createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const northVox = spawnVoxelBlock(x, y, -halfBounds, northMat, isNWExitNorth ? 'magenta' : 'wall');
-                if (isNWExitNorth) northVox.isExitCorner = true;
-
-                spawnVoxelBlock(x, y, halfBounds, outerShellGlassMat, 'wall');
+                if (isNWExitNorth) {
+                    const mat = createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, y, -halfBounds, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, y, -halfBounds));
+                }
+                shellPositions.push(new THREE.Vector3(x, y, halfBounds));
             }
             for (let z = -halfBounds + 1; z <= halfBounds - 1; z++) {
-                // West Wall (x = -17) & East Wall (x = 17)
                 const isNWExitWest = (z >= -17 && z <= -14 && y <= -14);
-                const westMat = isNWExitWest ? createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const westVox = spawnVoxelBlock(-halfBounds, y, z, westMat, isNWExitWest ? 'magenta' : 'wall');
-                if (isNWExitWest) westVox.isExitCorner = true;
-
-                spawnVoxelBlock(halfBounds, y, z, outerShellGlassMat, 'wall');
+                if (isNWExitWest) {
+                    const mat = createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(-halfBounds, y, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(-halfBounds, y, z));
+                }
+                shellPositions.push(new THREE.Vector3(halfBounds, y, z));
             }
         }
+
+        // InstancedMesh GPU Batching for outer glass voxel blocks with automatic frustum culling
+        const instancedGlassMesh = new THREE.InstancedMesh(voxelGeo, outerShellGlassMat, shellPositions.length);
+        instancedGlassMesh.frustumCulled = true;
+
+        const dummyMatrix = new THREE.Matrix4();
+        shellPositions.forEach((pos, idx) => {
+            dummyMatrix.setPosition(pos);
+            instancedGlassMesh.setMatrixAt(idx, dummyMatrix);
+
+            // Register voxel data for raycasting and placement without individual mesh bloat
+            collidableVoxels.push({
+                mesh: instancedGlassMesh,
+                instanceId: idx,
+                min: new THREE.Vector3(pos.x - VOXEL_SIZE / 2, pos.y - VOXEL_SIZE / 2, pos.z - VOXEL_SIZE / 2),
+                max: new THREE.Vector3(pos.x + VOXEL_SIZE / 2, pos.y + VOXEL_SIZE / 2, pos.z + VOXEL_SIZE / 2),
+                position: pos,
+                baseType: 'wall',
+                isGhost: false,
+                x: pos.x,
+                y: pos.y,
+                z: pos.z
+            });
+        });
+        instancedGlassMesh.instanceMatrix.needsUpdate = true;
+        scene.add(instancedGlassMesh);
 
         // --- Skybox Celestial World Projections & Sector Mapping ---
         const skyboxCelestialGroup = new THREE.Group();
@@ -1313,7 +1361,6 @@
         createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
         createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
 
-        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
 
         function spawnVoxelBlock(x, y, z, mat, baseType = 'platform', isGhost = false) {
             const mesh = new THREE.Mesh(voxelGeo, mat);
@@ -1949,8 +1996,8 @@
         const breakProgressCircle = document.getElementById('break-progress-circle');
 
         function startBreakingTarget(voxelObj) {
-            if (!voxelObj || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
-                return; // Unbreakable blocks
+            if (!voxelObj || voxelObj.isGhost || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
+                return; // Unbreakable or ghost blocks
             }
             isBreakingBlock = true;
             breakTargetVoxel = voxelObj;
@@ -1999,21 +2046,43 @@
 
         function getTargetedVoxelAndFace() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const meshes = collidableVoxels.map(v => v.mesh);
-            const intersects = raycaster.intersectObjects(meshes, false);
+            const uniqueMeshes = Array.from(new Set(collidableVoxels.map(v => v.mesh)));
+            const intersects = raycaster.intersectObjects(uniqueMeshes, false);
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
-                return {
-                    voxel: hitVoxel,
-                    point: hit.point,
-                    faceNormal: hit.face.normal.clone()
-                };
+                if (hit.object.isInstancedMesh) {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object && v.instanceId === hit.instanceId);
+                    return {
+                        voxel: hitVoxel,
+                        point: hit.point,
+                        faceNormal: hit.face.normal.clone()
+                    };
+                } else {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
+                    return {
+                        voxel: hitVoxel,
+                        point: hit.point,
+                        faceNormal: hit.face.normal.clone()
+                    };
+                }
             }
             return null;
         }
 
+        // --- Aim Placement Preview Ghost Mesh ---
+        const placementGhostGeo = new THREE.BoxGeometry(VOXEL_SIZE * 1.005, VOXEL_SIZE * 1.005, VOXEL_SIZE * 1.005);
+        const placementGhostMat = new THREE.MeshStandardMaterial({
+            color: 0x00f0ff,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 0.6,
+            transparent: true,
+            opacity: 0.45,
+            wireframe: true
+        });
+        const placementGhostMesh = new THREE.Mesh(placementGhostGeo, placementGhostMat);
+        placementGhostMesh.visible = false;
+        scene.add(placementGhostMesh);
         // --- Block Placement & Ghost Block System ---
         function handlePlaceBlock(targetVoxel, normal) {
             if (targetVoxel && targetVoxel.isExitCorner) {
@@ -2095,9 +2164,21 @@
             }
         }
 
+        function isAnyModalOpen() {
+            return (
+                (settingsModal && settingsModal.style.display === 'flex') ||
+                (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') ||
+                (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') ||
+                (graphicsModal && graphicsModal.style.display === 'flex') ||
+                (controlsModal && controlsModal.style.display === 'flex') ||
+                (connectModal && connectModal.style.display === 'flex') ||
+                (itemDetailsModal && itemDetailsModal.style.display === 'flex')
+            );
+        }
+
         // Mouse wheel hotbar scrolling
         window.addEventListener('wheel', (e) => {
-            if (settingsModal.style.display === 'flex') return;
+            if (isAnyModalOpen()) return;
             if (e.deltaY > 0) {
                 selectedHotbarIndex = (selectedHotbarIndex % 9) + 1;
             } else if (e.deltaY < 0) {
@@ -2111,25 +2192,14 @@
         let lastMouseY = 0;
         let mouseLocked = false;
 
-        const welcomeSplash = document.getElementById('welcome-splash');
 
         document.addEventListener('mousedown', (e) => {
             isMouseDown = true;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            const isAnyModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-
             // Request pointer lock on canvas click if menu is not open
-            if (!document.pointerLockElement && !isAnyModalOpen) {
+            if (!document.pointerLockElement && !isAnyModalOpen()) {
                 try {
                     renderer.domElement.requestPointerLock();
                 } catch (err) {}
@@ -2140,28 +2210,14 @@
             isMouseDown = false;
         });
 
-        function dismissWelcomeSplash(e) {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                welcomeSplash.style.display = 'none';
-                initAudioContext();
-                if (renderer && renderer.domElement) {
-                    try { renderer.domElement.requestPointerLock(); } catch(err){}
-                }
-                showItemToast('⚡ Sovereign Gemverse Physics Engaged');
-            }
-        }
-
-        if (welcomeSplash) {
-            welcomeSplash.addEventListener('click', dismissWelcomeSplash);
-        }
 
         // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
         let modalFocusedIndex = 0;
 
         function getActiveModalContainer() {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') return welcomeSplash;
             if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') return exitConfirmationModal;
             if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') return genesisBeaconModal;
+            if (itemDetailsModal && itemDetailsModal.style.display === 'flex') return itemDetailsModal;
             if (graphicsModal && graphicsModal.style.display === 'flex') return graphicsModal;
             if (controlsModal && controlsModal.style.display === 'flex') return controlsModal;
             if (connectModal && connectModal.style.display === 'flex') return connectModal;
@@ -2217,10 +2273,7 @@
                     return;
                 } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                     e.preventDefault();
-                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                        dismissWelcomeSplash();
-                        return;
-                    }
+
                     const focused = document.activeElement;
                     if (focused && activeModal.contains(focused)) {
                         focused.click();
@@ -2253,9 +2306,7 @@
 
                 if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                     // Handle Enter / Accept on open modals
-                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                        dismissWelcomeSplash();
-                    } else if (exitConfirmationModal.style.display === 'flex') {
+                    if (exitConfirmationModal.style.display === 'flex') {
                         closeExitConfirmationModal();
                         teleportToNexusCoreHub();
                     } else if (genesisBeaconModal.style.display === 'flex') {
@@ -2333,16 +2384,7 @@
 
         const mouseSensitivity = 0.0025;
         window.addEventListener('mousemove', (e) => {
-            const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-            if (isModalOpen) return;
+            if (isAnyModalOpen()) return;
 
             let moveX = 0;
             let moveY = 0;
@@ -3297,17 +3339,7 @@
             }
 
             // --- Arrow Key Camera Look Controls ---
-            const isAnyModalActive = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
-
-            if (!isAnyModalActive) {
+            if (!isAnyModalOpen()) {
                 const arrowRotateSpeed = 1.8;
                 if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
                 if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
@@ -3317,22 +3349,13 @@
             }
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
-            const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
-                settingsModal.style.display === 'flex' ||
-                genesisBeaconModal.style.display === 'flex' ||
-                exitConfirmationModal.style.display === 'flex' ||
-                graphicsModal.style.display === 'flex' ||
-                controlsModal.style.display === 'flex' ||
-                connectModal.style.display === 'flex'
-            );
 
             const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
             const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
 
             const moveInput = new THREE.Vector3();
 
-            if (!isModalOpen) {
+            if (!isAnyModalOpen()) {
                 if (keys['KeyW']) moveInput.z -= 1;
                 if (keys['KeyS']) moveInput.z += 1;
                 if (keys['KeyA']) moveInput.x -= 1;
@@ -3426,6 +3449,7 @@
             let groundedX = Math.round(player.position.x);
             let groundedY = Math.round(player.position.y);
             let groundedZ = Math.round(player.position.z);
+
 
 
             // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
@@ -3584,6 +3608,38 @@
 
             const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
             avatarMat.emissiveIntensity = pulse;
+
+            // --- Aim Placement Ghost Visualization ---
+            const currentItem = getSelectedSlotItem();
+            if (currentItem && currentItem.count > 0 && !isAnyModalOpen()) {
+                const target = getTargetedVoxelAndFace();
+                if (target && target.voxel && target.faceNormal) {
+                    const newX = target.voxel.x + Math.round(target.faceNormal.x);
+                    const newY = target.voxel.y + Math.round(target.faceNormal.y);
+                    const newZ = target.voxel.z + Math.round(target.faceNormal.z);
+
+                    const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                    const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                    const vMin = new THREE.Vector3(newX - VOXEL_SIZE / 2, newY - VOXEL_SIZE / 2, newZ - VOXEL_SIZE / 2);
+                    const vMax = new THREE.Vector3(newX + VOXEL_SIZE / 2, newY + VOXEL_SIZE / 2, newZ + VOXEL_SIZE / 2);
+
+                    const overlapsPlayer = (pMax.x > vMin.x && pMin.x < vMax.x && pMax.y > vMin.y && pMin.y < vMax.y && pMax.z > vMin.z && pMin.z < vMax.z);
+
+                    if (!overlapsPlayer) {
+                        placementGhostMesh.position.set(newX, newY, newZ);
+                        const ghostHex = BLOCK_HEX[currentItem.type] || 0x00f0ff;
+                        placementGhostMat.color.setHex(ghostHex);
+                        placementGhostMat.emissive.setHex(ghostHex);
+                        placementGhostMesh.visible = true;
+                    } else {
+                        placementGhostMesh.visible = false;
+                    }
+                } else {
+                    placementGhostMesh.visible = false;
+                }
+            } else {
+                placementGhostMesh.visible = false;
+            }
 
             // --- Energy Regeneration & HUD Update ---
             if (player.energy < player.maxEnergy) {
