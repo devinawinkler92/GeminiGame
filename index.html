@@ -1,3 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebGL Voxel Physics - Sovereign Gravity Sandbox</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d0e15;
+            color: #ffffff;
+            user-select: none;
+            touch-action: none;
+        }
 
         #instructions {
             position: absolute;
@@ -350,16 +369,6 @@
     </script>
 </head>
 <body>
-    <!-- Voxel-Styled Welcome / Start Splash Screen -->
-    <div id="welcome-splash" onclick="this.style.display='none'; if(window.initAudioContext) window.initAudioContext(); try{ document.querySelector('canvas').requestPointerLock(); }catch(e){}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer;">
-        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
-            <h1 style="margin: 0; color: #00f0ff; font-size: 1.5em; letter-spacing: 1.5px;">WELCOME TO THE GEMVERSE</h1>
-            <p style="margin: 0; font-size: 0.85em; color: #aaa;">Click on Gyro to open menu</p>
-            <button style="margin-top: 10px; padding: 12px 24px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); cursor: pointer;">
-                PRESS TO START
-            </button>
-        </div>
-    </div>
 
     <style>
         @keyframes floatCube {
@@ -1171,7 +1180,9 @@
         const VOXEL_SIZE = 1;
         const collidableVoxels = [];
 
-        // Shared physical glass material for non-minable outer room voxel shell
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
+
+        // Outer Room Shell: Greedy Voxel Instancing & Frustum Culling
         const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
             color: 0x00d0ff,
             emissive: 0x003355,
@@ -1184,42 +1195,73 @@
             ior: 1.5
         });
 
-        // Construct outer room shell (6 faces at x/y/z = ±17) strictly out of transparent physical glass voxel blocks
         const halfBounds = Math.floor(ROOM_SIZE / 2); // 17
+        const shellPositions = [];
+
         for (let x = -halfBounds; x <= halfBounds; x++) {
             for (let z = -halfBounds; z <= halfBounds; z++) {
-                // Check if position is in the North-West Quantum Magenta Exit Corner (-17 to -14) on the floor
                 const isExitCorner = (x >= -17 && x <= -14 && z >= -17 && z <= -14);
-                const floorMat = isExitCorner ? createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const floorVox = spawnVoxelBlock(x, -halfBounds, z, floorMat, isExitCorner ? 'magenta' : 'wall');
-                if (isExitCorner) floorVox.isExitCorner = true;
-
-                // Ceiling face (y = 17)
-                spawnVoxelBlock(x, halfBounds, z, outerShellGlassMat, 'wall');
+                if (isExitCorner) {
+                    const mat = createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, -halfBounds, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, -halfBounds, z));
+                }
+                shellPositions.push(new THREE.Vector3(x, halfBounds, z));
             }
         }
 
         for (let y = -halfBounds + 1; y <= halfBounds - 1; y++) {
             for (let x = -halfBounds; x <= halfBounds; x++) {
-                // North Wall (z = -17) & South Wall (z = 17)
-                // Check NW exit corner wall blocks
                 const isNWExitNorth = (x >= -17 && x <= -14 && y <= -14);
-                const northMat = isNWExitNorth ? createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const northVox = spawnVoxelBlock(x, y, -halfBounds, northMat, isNWExitNorth ? 'magenta' : 'wall');
-                if (isNWExitNorth) northVox.isExitCorner = true;
-
-                spawnVoxelBlock(x, y, halfBounds, outerShellGlassMat, 'wall');
+                if (isNWExitNorth) {
+                    const mat = createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(x, y, -halfBounds, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(x, y, -halfBounds));
+                }
+                shellPositions.push(new THREE.Vector3(x, y, halfBounds));
             }
             for (let z = -halfBounds + 1; z <= halfBounds - 1; z++) {
-                // West Wall (x = -17) & East Wall (x = 17)
                 const isNWExitWest = (z >= -17 && z <= -14 && y <= -14);
-                const westMat = isNWExitWest ? createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb) : outerShellGlassMat;
-                const westVox = spawnVoxelBlock(-halfBounds, y, z, westMat, isNWExitWest ? 'magenta' : 'wall');
-                if (isNWExitWest) westVox.isExitCorner = true;
-
-                spawnVoxelBlock(halfBounds, y, z, outerShellGlassMat, 'wall');
+                if (isNWExitWest) {
+                    const mat = createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb);
+                    const vox = spawnVoxelBlock(-halfBounds, y, z, mat, 'magenta');
+                    vox.isExitCorner = true;
+                } else {
+                    shellPositions.push(new THREE.Vector3(-halfBounds, y, z));
+                }
+                shellPositions.push(new THREE.Vector3(halfBounds, y, z));
             }
         }
+
+        // InstancedMesh GPU Batching for outer glass voxel blocks with automatic frustum culling
+        const instancedGlassMesh = new THREE.InstancedMesh(voxelGeo, outerShellGlassMat, shellPositions.length);
+        instancedGlassMesh.frustumCulled = true;
+
+        const dummyMatrix = new THREE.Matrix4();
+        shellPositions.forEach((pos, idx) => {
+            dummyMatrix.setPosition(pos);
+            instancedGlassMesh.setMatrixAt(idx, dummyMatrix);
+
+            // Register voxel data for raycasting and placement without individual mesh bloat
+            collidableVoxels.push({
+                mesh: instancedGlassMesh,
+                instanceId: idx,
+                min: new THREE.Vector3(pos.x - VOXEL_SIZE / 2, pos.y - VOXEL_SIZE / 2, pos.z - VOXEL_SIZE / 2),
+                max: new THREE.Vector3(pos.x + VOXEL_SIZE / 2, pos.y + VOXEL_SIZE / 2, pos.z + VOXEL_SIZE / 2),
+                position: pos,
+                baseType: 'wall',
+                isGhost: false,
+                x: pos.x,
+                y: pos.y,
+                z: pos.z
+            });
+        });
+        instancedGlassMesh.instanceMatrix.needsUpdate = true;
+        scene.add(instancedGlassMesh);
 
         // --- Skybox Celestial World Projections & Sector Mapping ---
         const skyboxCelestialGroup = new THREE.Group();
@@ -1312,8 +1354,6 @@
         createCelestialWorldSprite('Solaria-Nexus', 320, 180, -420, 0x00f0ff);
         createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
         createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
-
-        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
 
         function spawnVoxelBlock(x, y, z, mat, baseType = 'platform', isGhost = false) {
             const mesh = new THREE.Mesh(voxelGeo, mat);
@@ -1999,17 +2039,26 @@
 
         function getTargetedVoxelAndFace() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const meshes = collidableVoxels.map(v => v.mesh);
-            const intersects = raycaster.intersectObjects(meshes, false);
+            const uniqueMeshes = Array.from(new Set(collidableVoxels.map(v => v.mesh)));
+            const intersects = raycaster.intersectObjects(uniqueMeshes, false);
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
-                return {
-                    voxel: hitVoxel,
-                    point: hit.point,
-                    faceNormal: hit.face.normal.clone()
-                };
+                if (hit.object.isInstancedMesh) {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object && v.instanceId === hit.instanceId);
+                    return {
+                        voxel: hitVoxel,
+                        point: hit.point,
+                        faceNormal: hit.face.normal.clone()
+                    };
+                } else {
+                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
+                    return {
+                        voxel: hitVoxel,
+                        point: hit.point,
+                        faceNormal: hit.face.normal.clone()
+                    };
+                }
             }
             return null;
         }
@@ -2111,15 +2160,12 @@
         let lastMouseY = 0;
         let mouseLocked = false;
 
-        const welcomeSplash = document.getElementById('welcome-splash');
-
         document.addEventListener('mousedown', (e) => {
             isMouseDown = true;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
             const isAnyModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
                 genesisBeaconModal.style.display === 'flex' ||
                 exitConfirmationModal.style.display === 'flex' ||
@@ -2140,26 +2186,10 @@
             isMouseDown = false;
         });
 
-        function dismissWelcomeSplash(e) {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                welcomeSplash.style.display = 'none';
-                initAudioContext();
-                if (renderer && renderer.domElement) {
-                    try { renderer.domElement.requestPointerLock(); } catch(err){}
-                }
-                showItemToast('⚡ Sovereign Gemverse Physics Engaged');
-            }
-        }
-
-        if (welcomeSplash) {
-            welcomeSplash.addEventListener('click', dismissWelcomeSplash);
-        }
-
         // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
         let modalFocusedIndex = 0;
 
         function getActiveModalContainer() {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') return welcomeSplash;
             if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') return exitConfirmationModal;
             if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') return genesisBeaconModal;
             if (graphicsModal && graphicsModal.style.display === 'flex') return graphicsModal;
@@ -2217,10 +2247,6 @@
                     return;
                 } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                     e.preventDefault();
-                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                        dismissWelcomeSplash();
-                        return;
-                    }
                     const focused = document.activeElement;
                     if (focused && activeModal.contains(focused)) {
                         focused.click();
@@ -2253,9 +2279,7 @@
 
                 if (e.code === 'Enter' || e.code === 'NumpadEnter') {
                     // Handle Enter / Accept on open modals
-                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                        dismissWelcomeSplash();
-                    } else if (exitConfirmationModal.style.display === 'flex') {
+                    if (exitConfirmationModal.style.display === 'flex') {
                         closeExitConfirmationModal();
                         teleportToNexusCoreHub();
                     } else if (genesisBeaconModal.style.display === 'flex') {
@@ -2334,7 +2358,6 @@
         const mouseSensitivity = 0.0025;
         window.addEventListener('mousemove', (e) => {
             const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
                 genesisBeaconModal.style.display === 'flex' ||
                 exitConfirmationModal.style.display === 'flex' ||
@@ -3298,7 +3321,6 @@
 
             // --- Arrow Key Camera Look Controls ---
             const isAnyModalActive = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
                 genesisBeaconModal.style.display === 'flex' ||
                 exitConfirmationModal.style.display === 'flex' ||
@@ -3318,7 +3340,6 @@
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
             const isModalOpen = (
-                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
                 genesisBeaconModal.style.display === 'flex' ||
                 exitConfirmationModal.style.display === 'flex' ||
@@ -3426,6 +3447,7 @@
             let groundedX = Math.round(player.position.x);
             let groundedY = Math.round(player.position.y);
             let groundedZ = Math.round(player.position.z);
+
 
 
             // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
