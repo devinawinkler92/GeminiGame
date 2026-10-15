@@ -2295,7 +2295,23 @@
                 }
 
                 if (e.code === 'Escape') {
-                    toggleSettingsModal();
+                    // Universal Escape Key Handler: Close top sub-modal or parent menu
+                    if (graphicsModal && graphicsModal.style.display === 'flex') {
+                        graphicsModal.style.display = 'none';
+                    } else if (controlsModal && controlsModal.style.display === 'flex') {
+                        controlsModal.style.display = 'none';
+                    } else if (connectModal && connectModal.style.display === 'flex') {
+                        connectModal.style.display = 'none';
+                    } else if (itemDetailsModal && itemDetailsModal.style.display === 'flex') {
+                        itemDetailsModal.style.display = 'none';
+                        activeDetailSlotIndex = null;
+                    } else if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') {
+                        closeGenesisBeaconModal();
+                    } else if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                    } else {
+                        toggleSettingsModal();
+                    }
                 }
 
                 // Number keys 1-9 select hotbar slot
