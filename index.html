@@ -1491,6 +1491,7 @@
             lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
             height: 1.6,
             radius: 0.4,
+            currentEyeHeight: 0.6, // Eye offset from center (standing: 0.6 = 1.6/2 - 0.2, crouching: 0.1 = lowered 0.5 blocks)
             isGrounded: false,
             lastGroundedTime: 0,
             energy: 100,
@@ -2174,10 +2175,85 @@
             welcomeSplash.addEventListener('click', dismissWelcomeSplash);
         }
 
+        // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
+        let modalFocusedIndex = 0;
+
+        function getActiveModalContainer() {
+            if (welcomeSplash && welcomeSplash.style.display !== 'none') return welcomeSplash;
+            if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') return exitConfirmationModal;
+            if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') return genesisBeaconModal;
+            if (graphicsModal && graphicsModal.style.display === 'flex') return graphicsModal;
+            if (controlsModal && controlsModal.style.display === 'flex') return controlsModal;
+            if (connectModal && connectModal.style.display === 'flex') return connectModal;
+            if (settingsModal && settingsModal.style.display === 'flex') return settingsModal;
+            return null;
+        }
+
+        function getNavigableElements(modal) {
+            if (!modal) return [];
+            return Array.from(modal.querySelectorAll('button, input, select, .inv-slot, [tabindex="0"]')).filter(el => {
+                return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
+            });
+        }
+
+        function updateModalKeyboardFocus(modal, delta) {
+            const items = getNavigableElements(modal);
+            if (items.length === 0) return;
+
+            // Remove previous focus style
+            items.forEach(item => item.style.outline = 'none');
+
+            modalFocusedIndex += delta;
+            if (modalFocusedIndex < 0) modalFocusedIndex = items.length - 1;
+            if (modalFocusedIndex >= items.length) modalFocusedIndex = 0;
+
+            const target = items[modalFocusedIndex];
+            if (target) {
+                target.focus();
+                target.style.outline = '2px solid #00f0ff';
+                target.style.outlineOffset = '2px';
+            }
+        }
+
         document.addEventListener('keydown', (e) => {
-            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
-                dismissWelcomeSplash();
-                return;
+            const activeModal = getActiveModalContainer();
+
+            if (activeModal) {
+                if (['ArrowDown', 'KeyS', 'Tab'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, 1);
+                    return;
+                } else if (['ArrowUp', 'KeyW'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, -1);
+                    return;
+                } else if (['ArrowRight', 'KeyD'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, 1);
+                    return;
+                } else if (['ArrowLeft', 'KeyA'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, -1);
+                    return;
+                } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                    e.preventDefault();
+                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                        dismissWelcomeSplash();
+                        return;
+                    }
+                    const focused = document.activeElement;
+                    if (focused && activeModal.contains(focused)) {
+                        focused.click();
+                    } else if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                        teleportToNexusCoreHub();
+                    } else if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') {
+                        if (btnClaimWorld) btnClaimWorld.click();
+                    } else if (settingsModal && settingsModal.style.display === 'flex') {
+                        toggleSettingsModal();
+                    }
+                    return;
+                }
             }
 
             if (!keys[e.code]) {
@@ -3500,11 +3576,15 @@
                 handleJumpStart();
             }
 
+            // --- Smooth Crouch Eye Height Transition ---
+            const targetEyeHeight = isCrouching ? (player.height / 2 - 0.7) : (player.height / 2 - 0.2);
+            player.currentEyeHeight += (targetEyeHeight - player.currentEyeHeight) * Math.min(12 * delta, 1.0);
+
             // --- Camera Position & Orientation Update ---
             const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
             camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
 
-            const eyeOffset = new THREE.Vector3(0, player.height / 2 - 0.2, 0).applyQuaternion(visualBodyQuaternion);
+            const eyeOffset = new THREE.Vector3(0, player.currentEyeHeight, 0).applyQuaternion(visualBodyQuaternion);
             const eyePos = player.position.clone().add(eyeOffset);
 
             if (isThirdPerson) {
