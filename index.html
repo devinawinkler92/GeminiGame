@@ -1186,22 +1186,13 @@
         }
 
         // --- Voxel World & Environment Setup ---
-        // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17 (outer bounds ±17.5)
+        // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17
         const ROOM_SIZE = 35;
         const VOXEL_SIZE = 1;
         const collidableVoxels = [];
 
-        function createVoxelMaterial(colorHex, emissiveHex = 0x000000) {
-            return new THREE.MeshStandardMaterial({
-                color: colorHex,
-                roughness: 0.4,
-                metalness: 0.2,
-                emissive: emissiveHex,
-                emissiveIntensity: 0.2
-            });
-        }
-
-        const roomBoxMat = new THREE.MeshPhysicalMaterial({
+        // Shared physical glass material for non-minable outer room voxel shell
+        const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
             color: 0x00d0ff,
             emissive: 0x003355,
             emissiveIntensity: 0.2,
@@ -1210,27 +1201,45 @@
             transmission: 0.85,
             transparent: true,
             opacity: 0.35,
-            ior: 1.5,
-            side: THREE.BackSide
+            ior: 1.5
         });
 
-        const roomBox = new THREE.BoxGeometry(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE);
-        const roomMesh = new THREE.Mesh(roomBox, roomBoxMat);
-        scene.add(roomMesh);
+        // Construct outer room shell (6 faces at x/y/z = ±17) strictly out of transparent physical glass voxel blocks
+        const halfBounds = Math.floor(ROOM_SIZE / 2); // 17
+        for (let x = -halfBounds; x <= halfBounds; x++) {
+            for (let z = -halfBounds; z <= halfBounds; z++) {
+                // Check if position is in the North-West Quantum Magenta Exit Corner (-17 to -14) on the floor
+                const isExitCorner = (x >= -17 && x <= -14 && z >= -17 && z <= -14);
+                const floorMat = isExitCorner ? createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const floorVox = spawnVoxelBlock(x, -halfBounds, z, floorMat, isExitCorner ? 'magenta' : 'wall');
+                if (isExitCorner) floorVox.isExitCorner = true;
 
-        const wireframeRoomMat = new THREE.MeshBasicMaterial({
-            color: 0x00f0ff,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.08
-        });
-        const roomWireframe = new THREE.Mesh(roomBox, wireframeRoomMat);
-        roomWireframe.material.side = THREE.BackSide;
-        scene.add(roomWireframe);
+                // Ceiling face (y = 17)
+                spawnVoxelBlock(x, halfBounds, z, outerShellGlassMat, 'wall');
+            }
+        }
 
-        const roomGrid = new THREE.GridHelper(ROOM_SIZE, ROOM_SIZE, 0x00f0ff, 0x223344);
-        roomGrid.position.y = -ROOM_SIZE / 2 + 0.01;
-        scene.add(roomGrid);
+        for (let y = -halfBounds + 1; y <= halfBounds - 1; y++) {
+            for (let x = -halfBounds; x <= halfBounds; x++) {
+                // North Wall (z = -17) & South Wall (z = 17)
+                // Check NW exit corner wall blocks
+                const isNWExitNorth = (x >= -17 && x <= -14 && y <= -14);
+                const northMat = isNWExitNorth ? createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const northVox = spawnVoxelBlock(x, y, -halfBounds, northMat, isNWExitNorth ? 'magenta' : 'wall');
+                if (isNWExitNorth) northVox.isExitCorner = true;
+
+                spawnVoxelBlock(x, y, halfBounds, outerShellGlassMat, 'wall');
+            }
+            for (let z = -halfBounds + 1; z <= halfBounds - 1; z++) {
+                // West Wall (x = -17) & East Wall (x = 17)
+                const isNWExitWest = (z >= -17 && z <= -14 && y <= -14);
+                const westMat = isNWExitWest ? createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const westVox = spawnVoxelBlock(-halfBounds, y, z, westMat, isNWExitWest ? 'magenta' : 'wall');
+                if (isNWExitWest) westVox.isExitCorner = true;
+
+                spawnVoxelBlock(halfBounds, y, z, outerShellGlassMat, 'wall');
+            }
+        }
 
         // --- Skybox Celestial World Projections & Sector Mapping ---
         const skyboxCelestialGroup = new THREE.Group();
@@ -1431,15 +1440,6 @@
             }
         }
 
-        // --- Nexus Corner Customization & Interactive Exit Voxel Blocks ---
-        // Paint North-West bottom corner (-17 to -14, -17 to -14) flush on the floor grid (y = bottomFloorY)
-        for (let x = -17; x <= -14; x++) {
-            for (let z = -17; z <= -14; z++) {
-                const mat = createPsiVoxelMaterial(x, bottomFloorY, z, 'magenta', 0xff00bb);
-                const vox = spawnVoxelBlock(x, bottomFloorY, z, mat, 'magenta');
-                vox.isExitCorner = true;
-            }
-        }
 
         const exitConfirmationModal = document.getElementById('exit-confirmation-modal');
         const btnConfirmExit = document.getElementById('btn-confirm-exit');
@@ -2018,41 +2018,17 @@
 
         function getTargetedVoxelAndFace() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const meshes = collidableVoxels.map(v => v.mesh).concat([roomMesh]);
+            const meshes = collidableVoxels.map(v => v.mesh);
             const intersects = raycaster.intersectObjects(meshes, false);
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                if (hit.object === roomMesh) {
-                    // Raycast hit outer room boundary mesh!
-                    // Three.js BackSide face normal points inwards toward room interior
-                    const inwardNormal = hit.face.normal.clone();
-
-                    // Boundary voxel shell sits outside room interior along -inwardNormal
-                    const wallGridX = Math.round(hit.point.x - inwardNormal.x * 0.5);
-                    const wallGridY = Math.round(hit.point.y - inwardNormal.y * 0.5);
-                    const wallGridZ = Math.round(hit.point.z - inwardNormal.z * 0.5);
-
-                    const wallVoxel = {
-                        x: wallGridX,
-                        y: wallGridY,
-                        z: wallGridZ,
-                        baseType: 'wall'
-                    };
-
-                    return {
-                        voxel: wallVoxel,
-                        point: hit.point,
-                        faceNormal: inwardNormal
-                    };
-                } else {
-                    const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
-                    return {
-                        voxel: hitVoxel,
-                        point: hit.point,
-                        faceNormal: hit.face.normal.clone()
-                    };
-                }
+                const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
+                return {
+                    voxel: hitVoxel,
+                    point: hit.point,
+                    faceNormal: hit.face.normal.clone()
+                };
             }
             return null;
         }
@@ -2283,8 +2259,8 @@
             }
         });
 
-        const mouseSensitivity = 0.002;
-        document.addEventListener('mousemove', (e) => {
+        const mouseSensitivity = 0.0025;
+        window.addEventListener('mousemove', (e) => {
             const isModalOpen = (
                 (welcomeSplash && welcomeSplash.style.display !== 'none') ||
                 settingsModal.style.display === 'flex' ||
@@ -2296,12 +2272,15 @@
             );
             if (isModalOpen) return;
 
-            let moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-            let moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            let moveX = 0;
+            let moveY = 0;
 
-            // Fallback for drag look if pointer lock is inactive
-            if (!document.pointerLockElement && isMouseDown) {
-                if (lastMouseX !== 0 || lastMouseY !== 0) {
+            if (document.pointerLockElement) {
+                moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            } else {
+                // Drag-look fallback or cursor-based camera movement when pointer lock is not active
+                if (lastMouseX !== 0 && lastMouseY !== 0) {
                     moveX = e.clientX - lastMouseX;
                     moveY = e.clientY - lastMouseY;
                 }
@@ -2310,10 +2289,12 @@
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            if (moveX !== 0 || moveY !== 0) {
-                player.lookRotation.y -= moveX * mouseSensitivity;
-                player.lookRotation.x -= moveY * mouseSensitivity;
-                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            if (Math.abs(moveX) < 150 && Math.abs(moveY) < 150) {
+                if (moveX !== 0 || moveY !== 0) {
+                    player.lookRotation.y -= moveX * mouseSensitivity;
+                    player.lookRotation.x -= moveY * mouseSensitivity;
+                    player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+                }
             }
         });
 
@@ -2457,7 +2438,6 @@
         function triggerSpatialLeap(code) {
             // Spatial Gravity Shifts STRICTLY work when airborne
             if (player.isGrounded) {
-                showItemToast('⚠️ Gravity Leap requires Airborne status! Jump first.');
                 return;
             }
 
@@ -3164,6 +3144,15 @@
                     player.isLeaping = false;
                     player.bodyQuaternion.copy(player.leapTargetQuaternion);
                     visualBodyQuaternion.copy(player.bodyQuaternion);
+
+                    // Zero out transverse velocity drift after leap completion to ensure crisp landing/flight
+                    const localDown = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
+                    const vDownProj = player.velocity.dot(localDown);
+                    if (vDownProj < 0) {
+                        player.velocity.set(0, 0, 0);
+                    } else {
+                        player.velocity.copy(localDown).multiplyScalar(vDownProj);
+                    }
                 }
             } else {
                 visualBodyQuaternion.copy(player.bodyQuaternion);
@@ -3251,12 +3240,24 @@
             }
 
             // --- Arrow Key Camera Look Controls ---
-            const arrowRotateSpeed = 1.8;
-            if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
-            if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
-            if (keys['ArrowUp']) player.lookRotation.x += arrowRotateSpeed * delta;
-            if (keys['ArrowDown']) player.lookRotation.x -= arrowRotateSpeed * delta;
-            player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            const isAnyModalActive = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+
+            if (!isAnyModalActive) {
+                const arrowRotateSpeed = 1.8;
+                if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
+                if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
+                if (keys['ArrowUp']) player.lookRotation.x += arrowRotateSpeed * delta;
+                if (keys['ArrowDown']) player.lookRotation.x -= arrowRotateSpeed * delta;
+                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            }
 
             // --- Movement Input & Grounded Crouch Edge Protection ---
             const isModalOpen = (
@@ -3369,35 +3370,6 @@
             let groundedY = Math.round(player.position.y);
             let groundedZ = Math.round(player.position.z);
 
-            // 1. Outer Room Boundary Collision
-            const halfRoom = ROOM_SIZE / 2;
-            const margin = player.radius;
-
-            const roomCollisions = [
-                { normal: new THREE.Vector3(1, 0, 0), dist: player.position.x - (-halfRoom + margin) },
-                { normal: new THREE.Vector3(-1, 0, 0), dist: (halfRoom - margin) - player.position.x },
-                { normal: new THREE.Vector3(0, 1, 0), dist: player.position.y - (-halfRoom + player.height / 2) },
-                { normal: new THREE.Vector3(0, -1, 0), dist: (halfRoom - player.height / 2) - player.position.y },
-                { normal: new THREE.Vector3(0, 0, 1), dist: player.position.z - (-halfRoom + margin) },
-                { normal: new THREE.Vector3(0, 0, -1), dist: (halfRoom - margin) - player.position.z }
-            ];
-
-            for (const col of roomCollisions) {
-                if (col.dist < groundSnapTolerance) {
-                    if (col.dist < 0) {
-                        player.position.addScaledVector(col.normal, -col.dist);
-                    }
-
-                    const dotUp = localUpWorld.dot(col.normal);
-                    if (dotUp > 0.8 && !isMovingUpward) {
-                        player.isGrounded = true;
-                        groundedBlockType = 'wall';
-                        groundedX = Math.round(player.position.x);
-                        groundedY = Math.round(player.position.y);
-                        groundedZ = Math.round(player.position.z);
-                    }
-                }
-            }
 
             // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
             const feetPos = player.position.clone().addScaledVector(localUpWorld, -player.height / 2);
