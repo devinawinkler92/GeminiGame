@@ -1,1 +1,3608 @@
 
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            background: rgba(13, 14, 21, 0.85);
+            padding: 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            z-index: 30;
+            border: 2px solid #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        #instructions h1 {
+            margin-top: 0;
+            color: #00f0ff;
+            font-size: 1.8em;
+            letter-spacing: 1px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: left;
+            margin: 20px 0;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .controls-grid div span {
+            color: #00f0ff;
+            font-weight: bold;
+        }
+
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 240, 255, 0.8);
+        }
+        #crosshair::before {
+            top: 4px; left: 0; width: 10px; height: 2px;
+        }
+        #crosshair::after {
+            top: 0; left: 4px; width: 2px; height: 10px;
+        }
+
+        /* Gravity Vector Real-time Overlay directly above Gyro Widget */
+        #gravity-vector-hud {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            width: 90px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.65em;
+            font-weight: bold;
+            color: #00f0ff;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            border-radius: 4px;
+            padding: 2px 4px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        /* Gyro Compass Widget Corner */
+        #gyro-widget-container {
+            position: absolute;
+            top: 32px;
+            right: 12px;
+            width: 90px;
+            height: 90px;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            transition: transform 0.2s, border-color 0.2s;
+            overflow: hidden;
+            z-index: 110;
+        }
+
+        #gyro-widget-container:hover {
+            transform: scale(1.05);
+            border-color: #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+
+        #gyro-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #gyro-label {
+            position: absolute;
+            bottom: 4px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 0.55em;
+            color: #00f0ff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+
+        /* Vertical Energy Bar under Gyro Compass */
+        #energy-bar-wrapper {
+            position: absolute;
+            top: 130px;
+            right: 42px;
+            width: 30px;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 12px;
+            padding: 6px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        #energy-label {
+            font-size: 0.45em;
+            font-weight: bold;
+            color: #00f0ff;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        #energy-bar-outer {
+            width: 8px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        #energy-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #00f0ff, #0077ff);
+            border-radius: 4px;
+            transition: height 0.05s linear;
+            box-shadow: 0 0 8px #00f0ff;
+        }
+
+
+        /* --- Touch Controls Overlay --- */
+        #touch-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 15;
+            display: none;
+        }
+
+        #touch-left-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #touch-right-zone {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #touch-joystick-base {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(0, 240, 255, 0.5);
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.1);
+            transform: translate(-50%, -50%);
+            display: none;
+            pointer-events: none;
+        }
+
+        #touch-joystick-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: #00f0ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #00f0ff;
+        }
+
+        #touch-jump-btn {
+            position: absolute;
+            bottom: 110px;
+            right: 25px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: rgba(0, 240, 255, 0.75);
+            font-weight: bold;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+            pointer-events: auto;
+            touch-action: none;
+            z-index: 25;
+            backdrop-filter: blur(3px);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        #touch-jump-btn:active {
+            background: rgba(0, 240, 255, 0.4);
+            transform: scale(0.95);
+        }
+
+        /* Settings Modal */
+        #settings-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-content {
+            background: #12141d;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #00f0ff;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            max-width: 480px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: white;
+        }
+
+        .settings-content h2 {
+            margin-top: 0;
+            color: #00f0ff;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .setting-group {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-group label {
+            font-size: 0.95em;
+        }
+
+        .setting-group select {
+            background: #1a1d29;
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-close {
+            background: #00f0ff;
+            color: #0d0e15;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-close:hover {
+            background: #ffffff;
+            box-shadow: 0 0 15px #00f0ff;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Voxel-Styled Welcome / Start Splash Screen -->
+    <div id="welcome-splash" onclick="this.style.display='none'; if(window.initAudioContext) window.initAudioContext(); try{ document.querySelector('canvas').requestPointerLock(); }catch(e){}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 12, 20, 0.92); backdrop-filter: blur(10px); z-index: 200; display: flex; justify-content: center; align-items: center; cursor: pointer;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 30px; text-align: center; color: #fff; box-shadow: 0 0 35px rgba(0, 240, 255, 0.4); max-width: 400px; width: 85%; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+            <h1 style="margin: 0; color: #00f0ff; font-size: 1.5em; letter-spacing: 1.5px;">WELCOME TO THE GEMVERSE</h1>
+            <p style="margin: 0; font-size: 0.85em; color: #aaa;">Click on Gyro to open menu</p>
+            <button style="margin-top: 10px; padding: 12px 24px; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; font-weight: bold; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); cursor: pointer;">
+                PRESS TO START
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes floatCube {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(5deg); }
+        }
+        /* Break Progress Overlay */
+        #break-progress-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            z-index: 20;
+        }
+
+        #break-progress-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        #break-progress-circle {
+            fill: none;
+            stroke: #ffaa00;
+            stroke-width: 4;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            transition: stroke-dashoffset 0.05s linear;
+        }
+
+        /* Inventory Bar */
+        #inventory-hud {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(13, 14, 21, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 10px;
+            padding: 6px;
+            backdrop-filter: blur(5px);
+            z-index: 25;
+            pointer-events: auto;
+        }
+
+        .inv-slot {
+            width: 48px;
+            height: 48px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px;
+            cursor: pointer;
+            font-size: 0.7em;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .inv-slot.selected {
+            border-color: #00f0ff;
+            background: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+        }
+
+        .inv-color-preview {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+        }
+
+        #touch-gshift-btn {
+            position: absolute;
+            bottom: 185px;
+            right: 25px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            color: rgba(0, 240, 255, 0.75);
+            font-weight: bold;
+            font-size: 0.7em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+            pointer-events: auto;
+            touch-action: none;
+            z-index: 25;
+            backdrop-filter: blur(3px);
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #touch-gshift-btn.active {
+            background: rgba(255, 0, 119, 0.6);
+            border-color: #ff0077;
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
+        }
+
+        /* Landscape Mobile Responsive Layouts */
+        @media (max-height: 520px) {
+            #gravity-vector-hud {
+                top: 4px;
+                right: 8px;
+                width: 70px;
+                font-size: 0.55em;
+                padding: 1px 2px;
+            }
+            #gyro-widget-container {
+                top: 22px;
+                right: 8px;
+                width: 70px;
+                height: 70px;
+            }
+            #energy-bar-wrapper {
+                top: 96px;
+                right: 29px;
+                width: 24px;
+                padding: 3px 2px;
+            }
+            #energy-bar-outer {
+                width: 6px;
+                height: 48px;
+            }
+            #inventory-hud {
+                bottom: 8px;
+                padding: 4px;
+                gap: 4px;
+            }
+            .inv-slot {
+                width: 36px;
+                height: 36px;
+                padding: 2px;
+            }
+            .inv-color-preview {
+                width: 12px;
+                height: 12px;
+            }
+            #touch-jump-btn {
+                bottom: 12px !important;
+                right: 100px !important;
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 0.7em !important;
+            }
+            #touch-gshift-btn {
+                bottom: 70px !important;
+                right: 100px !important;
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 0.6em !important;
+            }
+        }
+    </style>
+
+    <div id="hud">
+        <div id="crosshair"></div>
+        <div id="break-progress-container">
+            <svg id="break-progress-svg" viewBox="0 0 36 36">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4"/>
+                <path id="break-progress-circle" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ffaa00" stroke-width="4"/>
+            </svg>
+        </div>
+        <div id="gravity-vector-hud">Pos: [0, -16, 0]</div>
+        <div id="gyro-widget-container" title="Click or Press ESC for Settings">
+            <canvas id="gyro-canvas"></canvas>
+            <div id="gyro-label">Compass</div>
+        </div>
+        <div id="energy-bar-wrapper">
+            <span id="energy-label">ENERGY</span>
+            <div id="energy-bar-outer">
+                <div id="energy-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Item Name Toast -->
+    <div id="item-name-toast" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(13, 14, 21, 0.9); border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.8em; letter-spacing: 0.5px; z-index: 50; pointer-events: none; box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);"></div>
+
+    <!-- Exit Confirmation Modal -->
+    <div id="exit-confirmation-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 140; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #ff00bb; border-radius: 12px; padding: 25px; width: 340px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 25px rgba(255, 0, 187, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <div style="font-size: 2em;">🌀</div>
+            <h2 style="margin: 0; color: #ff00bb; font-size: 1.3em; letter-spacing: 1px;">EXIT NEXUS CORE</h2>
+            <p style="font-size: 0.85em; color: #ccc; margin: 0;">Are you sure you want to return to the Central Nexus Hub Platform?</p>
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-confirm-exit" style="flex: 1; padding: 11px; background: linear-gradient(135deg, #ff00bb, #9900ff); border: none; color: #ffffff; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">YES</button>
+                <button id="btn-cancel-exit" style="flex: 1; padding: 11px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">NO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Genesis Beacon Modal -->
+    <div id="genesis-beacon-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 130; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 340px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <div style="font-size: 2em;">🏛</div>
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px;">FIRST WORLD GENESIS BEACON</h2>
+            <p style="font-size: 0.85em; color: #ccc; margin: 0;">Enter a name for your sovereign procedurally synthesized world to generate its cryptographic seed:</p>
+            <input type="text" id="world-name-input" placeholder="e.g. Aetheria-Prime" style="background: #1a1d29; border: 1px solid #00f0ff; color: #00f0ff; padding: 10px; border-radius: 6px; font-size: 0.95em; outline: none; text-align: center;" />
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 5px;">
+                <button id="btn-claim-world" style="flex: 1; padding: 11px; background: linear-gradient(135deg, #00f0ff, #0077ff); border: none; color: #0d0e15; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">✨ CLAIM WORLD SEED</button>
+                <button id="btn-close-genesis" style="padding: 11px 15px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Details Modal -->
+    <div id="item-details-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: rgba(13, 14, 21, 0.95); border: 2px solid #00f0ff; border-radius: 12px; padding: 20px; width: 280px; max-width: 90%; color: #fff; text-align: center; box-shadow: 0 0 20px rgba(0,240,255,0.4); display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <div id="item-details-color-preview" style="width: 48px; height: 48px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); margin-bottom: 4px;"></div>
+            <h3 id="item-details-title" style="margin: 0; color: #00f0ff; font-size: 1.1em; letter-spacing: 1px;">Item Name</h3>
+            <div style="font-size: 0.8em; color: #ccc; width: 100%; display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
+                <div>Type: <span id="item-details-type" style="color: #00f0ff;">-</span></div>
+                <div>Hardness: <span id="item-details-hardness" style="color: #00f0ff;">-</span></div>
+                <div>Stack Quantity: <span id="item-details-count" style="color: #00f0ff;">-</span></div>
+            </div>
+            <div style="display: flex; gap: 10px; width: 100%; margin-top: 8px;">
+                <button id="btn-delete-item" style="flex: 1; padding: 10px; background: rgba(255, 0, 85, 0.2); border: 1px solid #ff0055; color: #ff0055; font-weight: bold; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🗑 Trash Item</button>
+                <button id="btn-close-item-details" style="flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9-Slot Hotbar HUD -->
+    <div id="inventory-hud">
+        <div class="inv-slot selected" data-index="1">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">1</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="2">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">2</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="3">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">3</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="4">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">4</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="5">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">5</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="6">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">6</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="7">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">7</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="8">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">8</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+        <div class="inv-slot" data-index="9">
+            <span style="font-size: 0.6em; color: #888; align-self: flex-start;">9</span>
+            <div class="inv-color-preview" style="display: none;"></div>
+            <span class="inv-count"></span>
+        </div>
+    </div>
+
+    <!-- Touch Controls Overlay -->
+    <div id="touch-overlay">
+        <div id="touch-left-zone"></div>
+        <div id="touch-right-zone"></div>
+        <div id="touch-joystick-base">
+            <div id="touch-joystick-knob"></div>
+        </div>
+        <div id="touch-gshift-btn">G-SHIFT</div>
+        <div id="touch-jump-btn">JUMP</div>
+    </div>
+
+    <!-- Graphics Sub-Modal -->
+    <div id="graphics-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 420px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">⚙ GRAPHICS & GYRO SETTINGS</h2>
+            <div class="setting-group" style="margin: 10px 0;">
+                <label for="gyro-mode-select">Gyro Compass Mode:</label>
+                <select id="gyro-mode-select">
+                    <option value="axes">X / Y / Z Axes</option>
+                    <option value="horizon">Artificial Horizon (Flight Plane)</option>
+                </select>
+            </div>
+            <button id="btn-close-graphics" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Controls Sub-Modal -->
+    <div id="controls-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 480px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">🎮 CONTROLS & KEYBINDINGS</h2>
+
+            <div class="setting-group" style="margin: 5px 0;">
+                <label for="touch-hud-select">Touch Controls HUD:</label>
+                <select id="touch-hud-select">
+                    <option value="auto">Auto-detect</option>
+                    <option value="on">Always On (Touch Parity)</option>
+                    <option value="off">Off (Mouse Only)</option>
+                </select>
+            </div>
+
+            <div style="background: rgba(0, 240, 255, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                <h3 style="margin: 0 0 10px 0; color: #00f0ff; font-size: 0.95em;">🕹 KEYBINDINGS REFERENCE</h3>
+                <div class="controls-grid" style="margin: 0; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85em;">
+                    <div><span>W, A, S, D</span> - Movement</div>
+                    <div><span>Mouse</span> - Smooth Camera Look</div>
+                    <div><span>Space</span> - Jump (Hold for boost)</div>
+                    <div><span>Shift + WASD</span> - Airborne Gravity Leap</div>
+                    <div><span>Shift + Double-Space</span> - Inverted Ceiling Flip</div>
+                    <div><span>Shift (Grounded)</span> - Crouch & Edge Protection</div>
+                    <div><span>E Key / L-Click</span> - Mine Voxel Block</div>
+                    <div><span>Q Key / R-Click</span> - Place / Use Voxel Block</div>
+                    <div><span>V Key</span> - Toggle 1st / 3rd Person View</div>
+                    <div><span>ESC Key</span> - Open Nexus Menu</div>
+                </div>
+            </div>
+
+            <button id="btn-close-controls" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Connect & DID Sub-Modal -->
+    <div id="connect-modal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 120; justify-content: center; align-items: center;">
+        <div style="background: #12141d; border: 2px solid #00f0ff; border-radius: 12px; padding: 25px; width: 480px; max-width: 90%; color: #fff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); display: flex; flex-direction: column; gap: 15px; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin: 0; color: #00f0ff; font-size: 1.3em; letter-spacing: 1px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">🆔 CONNECT & DECENTRALIZED IDENTITY</h2>
+
+            <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                <div style="font-size: 0.85em; font-weight: bold; color: #00f0ff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🆔 Sovereign DID Credentials</span>
+                    <span id="did-attested-status-tag" style="font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00;">0 / 2 VOUCHES</span>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <input id="did-username-input" type="text" value="Explorer-01" placeholder="Sovereign Handle" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
+                    <input id="did-passphrase-input" type="password" value="nexus-sovereign-pass" placeholder="Passphrase" style="flex: 1; background: #0d0e15; border: 1px solid #333; color: #00f0ff; padding: 8px 10px; border-radius: 4px; font-size: 0.85em;">
+                </div>
+                <div style="font-size: 0.75em; color: #aaa; word-break: break-all; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; border: 1px solid #222;" id="did-full-string">DID: did:gemverse:8a9f4c3b7e12d4a5...</div>
+
+                <div style="margin-top: 12px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 10px;">
+                    <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.85em;">🛡 Web of Trust (Peer Vouches)</h4>
+                    <div id="vouch-endorsers-list" style="font-size: 0.75em; color: #00f0ff; margin-bottom: 10px;">
+                        <em>No peer endorsements received yet.</em>
+                    </div>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-request-vouch" style="flex: 1; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ REQUEST PEER VOUCH</button>
+                        <button id="btn-vouch-peer" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #00f0ff; border: 1px solid #00f0ff; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">🤝 VOUCH FOR PEER</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-close-connect" style="padding: 10px; background: #00f0ff; color: #0d0e15; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px;">Back to Menu</button>
+        </div>
+    </div>
+
+    <div id="settings-modal">
+        <div class="settings-content">
+            <h2>⚙ Gemverse Nexus Menu</h2>
+
+            <!-- Gyro Menu Navigation Tabs -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
+                <button id="tab-btn-inventory" style="flex: 1; padding: 8px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-settings" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
+            </div>
+
+            <!-- Tab 1: 9-Across Expandable Inventory Sub-Menu (Default view when menu opens) -->
+            <div id="tab-content-inventory" style="display: block;">
+                <div style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0; color: #00f0ff; font-size: 1em; letter-spacing: 1px;">🎒 PLAYER INVENTORY</h3>
+                        <span id="unlocked-slots-label" style="font-size: 0.75em; color: #aaa;">18 INVENTORY SLOTS</span>
+                    </div>
+                    <div id="progression-inventory-grid" style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; max-height: 240px; overflow-y: auto; padding-right: 2px;">
+                        <!-- Unlocked Slots generated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Settings Navigation Hub with Category Buttons -->
+            <div id="tab-content-settings" style="display: none;">
+                <div style="display: flex; flex-direction: column; gap: 12px; margin: 10px 0;">
+                    <button id="btn-open-graphics-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                        <span>⚙ GRAPHICS & GYRO DISPLAY</span>
+                        <span>➔</span>
+                    </button>
+                    <button id="btn-open-controls-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                        <span>🎮 CONTROLS & KEYBINDINGS</span>
+                        <span>➔</span>
+                    </button>
+                    <button id="btn-open-connect-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+                        <span>🆔 CONNECT & DECENTRALIZED IDENTITY</span>
+                        <span>➔</span>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn-close" id="btn-close-settings">Resume Sandbox</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- Procedural Low-Latency Web Audio API Sound Engine ---
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        window.addEventListener('pointerdown', initAudioContext, { once: false });
+        window.addEventListener('keydown', initAudioContext, { once: false });
+
+        function calculatePsiSeed(x = 0, y = 0, z = 0) {
+            const raw = (Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453) % 1;
+            return Math.abs(raw);
+        }
+
+        function playSound(type, blockType = 'platform', x = 0, y = 0, z = 0) {
+            if (!audioCtx) initAudioContext();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const seed = calculatePsiSeed(x, y, z);
+
+            if (type === 'place') {
+                // Consistent block-specific placement sound
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                let baseFreq = 220;
+                let waveType = 'triangle';
+
+                if (blockType === 'gold') { baseFreq = 480; waveType = 'sine'; }
+                else if (blockType === 'green') { baseFreq = 380; waveType = 'sine'; }
+                else if (blockType === 'cyan') { baseFreq = 340; waveType = 'sine'; }
+                else if (blockType === 'magenta') { baseFreq = 270; waveType = 'sawtooth'; }
+                else if (blockType === 'wall') { baseFreq = 130; waveType = 'triangle'; }
+                else if (blockType === 'platform') { baseFreq = 220; waveType = 'triangle'; }
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.25, now + 0.09);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } else if (type === 'break') {
+                // Consistent block-specific breaking fracture sound
+                const bufferSize = audioCtx.sampleRate * 0.14;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                let filterFreq = 900;
+                if (blockType === 'gold') filterFreq = 1600;
+                else if (blockType === 'green') filterFreq = 1800;
+                else if (blockType === 'cyan') filterFreq = 1500;
+                else if (blockType === 'magenta') filterFreq = 1200;
+                else if (blockType === 'wall') filterFreq = 600;
+                else if (blockType === 'platform') filterFreq = 900;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(filterFreq, now);
+                filter.frequency.exponentialRampToValueAtTime(filterFreq * 0.2, now + 0.14);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                noise.start(now);
+
+                if (blockType === 'gold' || blockType === 'green' || blockType === 'cyan') {
+                    const ringOsc = audioCtx.createOscillator();
+                    const ringGain = audioCtx.createGain();
+                    ringOsc.type = 'sine';
+                    const ringFreq = filterFreq * 1.4;
+                    ringOsc.frequency.setValueAtTime(ringFreq, now);
+                    ringOsc.frequency.exponentialRampToValueAtTime(ringFreq * 0.5, now + 0.15);
+
+                    ringGain.gain.setValueAtTime(0.2, now);
+                    ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+                    ringOsc.connect(ringGain);
+                    ringGain.connect(audioCtx.destination);
+
+                    ringOsc.start(now);
+                    ringOsc.stop(now + 0.15);
+                }
+            } else if (type === 'jump') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                const startFreq = 150;
+                const endFreq = 380;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.15);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'leap') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'teleport') {
+                const freqs = [523.25, 659.25, 783.99, 1046.50];
+                freqs.forEach((f, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.04);
+
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.5);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(now + idx * 0.04);
+                    osc.stop(now + idx * 0.04 + 0.5);
+                });
+            } else if (type === 'select') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.04);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.04);
+            } else if (type === 'land') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                let startFreq = 120;
+                let waveType = 'triangle';
+
+                if (blockType === 'gold') startFreq = 220;
+                else if (blockType === 'green' || blockType === 'cyan') startFreq = 200;
+                else if (blockType === 'wall') startFreq = 90;
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(startFreq * 0.2, now + 0.12);
+
+                gain.gain.setValueAtTime(0.38, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'step') {
+                // Footstep sound tuned to block type
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                let stepFreq = 140;
+                let waveType = 'triangle';
+
+                if (blockType === 'gold') { stepFreq = 300; waveType = 'sine'; }
+                else if (blockType === 'green' || blockType === 'cyan') { stepFreq = 260; waveType = 'sine'; }
+                else if (blockType === 'magenta') { stepFreq = 200; waveType = 'sawtooth'; }
+                else if (blockType === 'wall') { stepFreq = 100; waveType = 'triangle'; }
+
+                osc.type = waveType;
+                osc.frequency.setValueAtTime(stepFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(stepFreq * 0.3, now + 0.06);
+
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.06);
+            } else if (type === 'mine_tick') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                let chipFreq = 900;
+                if (blockType === 'gold') chipFreq = 1400;
+                else if (blockType === 'green' || blockType === 'cyan') chipFreq = 1600;
+                else if (blockType === 'magenta') chipFreq = 1100;
+                else if (blockType === 'wall') chipFreq = 600;
+
+                osc.frequency.setValueAtTime(chipFreq, now);
+
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.035);
+            }
+        }
+
+        window.playSound = playSound;
+
+        // --- Main Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0c14);
+        scene.fog = new THREE.FogExp2(0x0a0c14, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight1 = new THREE.DirectionalLight(0x00f0ff, 0.8);
+        dirLight1.position.set(15, 20, 10);
+        scene.add(dirLight1);
+
+        const dirLight2 = new THREE.DirectionalLight(0xff0055, 0.5);
+        dirLight2.position.set(-15, -10, -15);
+        scene.add(dirLight2);
+
+        // --- Procedural Texture & Pattern Synthesis (PTPS - Psi Kernel) ---
+        // Implementation of Psi(J_t | z)[R] weighted average formula for algorithmic textures
+        function generatePsiProceduralCanvas(x, y, z, baseType = 'platform') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            const seed = (Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453) % 1;
+            const seedAbs = Math.abs(seed);
+
+            // Base color palette selection based on material type and Psi kernel seed offsets
+            let colorA, colorB, patternType;
+            if (baseType === 'platform') {
+                colorA = [35, 45, 70];
+                colorB = [0, 180, 220];
+                patternType = 0;
+            } else if (baseType === 'gold') {
+                colorA = [180, 120, 20];
+                colorB = [255, 210, 50];
+                patternType = 1;
+            } else if (baseType === 'green') {
+                colorA = [10, 100, 50];
+                colorB = [0, 255, 136];
+                patternType = 2;
+            } else if (baseType === 'magenta') {
+                colorA = [120, 10, 60];
+                colorB = [255, 0, 119];
+                patternType = 0;
+            } else if (baseType === 'cyan') {
+                colorA = [10, 80, 120];
+                colorB = [0, 240, 255];
+                patternType = 1;
+            } else {
+                colorA = [20, 25, 40];
+                colorB = [60, 80, 120];
+                patternType = 2;
+            }
+
+            const imgData = ctx.createImageData(64, 64);
+            const data = imgData.data;
+
+            for (let py = 0; py < 64; py++) {
+                for (let px = 0; px < 64; px++) {
+                    const idx = (py * 64 + px) * 4;
+
+                    // Psi Kernel Neighborhood Weights: U_i and W_i
+                    const u1 = Math.sin((px + x * 8) * 0.15) * 0.5 + 0.5;
+                    const u2 = Math.cos((py + z * 8) * 0.15) * 0.5 + 0.5;
+                    const w1 = ((px ^ py ^ Math.floor(y * 4)) & 7) / 7.0;
+
+                    // Weighted average evaluation
+                    const weightSum = u1 + u2 + 0.2;
+                    let psiValue = (u1 * w1 + u2 * seedAbs + 0.2 * ((px + py) % 2)) / weightSum;
+
+                    if (patternType === 0) {
+                        // Grid Weave Pattern
+                        if (px === 0 || px === 63 || py === 0 || py === 63 || px % 16 === 0 || py % 16 === 0) {
+                            psiValue = 0.9;
+                        }
+                    } else if (patternType === 1) {
+                        // Mineral Vein Noise
+                        const vein = Math.sin((px * 0.2) + (py * 0.2) + seedAbs * 10);
+                        if (Math.abs(vein) < 0.15) psiValue = 0.95;
+                    } else {
+                        // Crystal Noise Grain
+                        if ((px * py + Math.floor(seedAbs * 100)) % 11 === 0) psiValue = 0.85;
+                    }
+
+                    const r = Math.floor(colorA[0] * (1 - psiValue) + colorB[0] * psiValue);
+                    const g = Math.floor(colorA[1] * (1 - psiValue) + colorB[1] * psiValue);
+                    const b = Math.floor(colorA[2] * (1 - psiValue) + colorB[2] * psiValue);
+
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                    data[idx + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        function createPsiVoxelMaterial(x, y, z, baseType = 'platform', emissiveHex = 0x000000) {
+            const mapTexture = generatePsiProceduralCanvas(x, y, z, baseType);
+            return new THREE.MeshStandardMaterial({
+                map: mapTexture,
+                roughness: 0.35,
+                metalness: 0.25,
+                emissive: emissiveHex,
+                emissiveIntensity: 0.2
+            });
+        }
+
+        // Material & Texture Caching for High-Performance Rendering
+        const psiMaterialCache = new Map();
+        function getCachedPsiVoxelMaterial(x, y, z, baseType = 'platform', emissiveHex = 0x000000) {
+            const cacheKey = `${baseType}_${emissiveHex}`;
+            if (!psiMaterialCache.has(cacheKey)) {
+                const mat = createPsiVoxelMaterial(x, y, z, baseType, emissiveHex);
+                psiMaterialCache.set(cacheKey, mat);
+            }
+            return psiMaterialCache.get(cacheKey);
+        }
+
+        // --- Voxel World & Environment Setup ---
+        // ROOM_SIZE 35 aligns outer shell faces (±17.5) flush with voxel grid blocks centered at ±17
+        const ROOM_SIZE = 35;
+        const VOXEL_SIZE = 1;
+        const collidableVoxels = [];
+
+        // Shared physical glass material for non-minable outer room voxel shell
+        const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
+            color: 0x00d0ff,
+            emissive: 0x003355,
+            emissiveIntensity: 0.2,
+            roughness: 0.05,
+            metalness: 0.1,
+            transmission: 0.85,
+            transparent: true,
+            opacity: 0.35,
+            ior: 1.5
+        });
+
+        // Construct outer room shell (6 faces at x/y/z = ±17) strictly out of transparent physical glass voxel blocks
+        const halfBounds = Math.floor(ROOM_SIZE / 2); // 17
+        for (let x = -halfBounds; x <= halfBounds; x++) {
+            for (let z = -halfBounds; z <= halfBounds; z++) {
+                // Check if position is in the North-West Quantum Magenta Exit Corner (-17 to -14) on the floor
+                const isExitCorner = (x >= -17 && x <= -14 && z >= -17 && z <= -14);
+                const floorMat = isExitCorner ? createPsiVoxelMaterial(x, -halfBounds, z, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const floorVox = spawnVoxelBlock(x, -halfBounds, z, floorMat, isExitCorner ? 'magenta' : 'wall');
+                if (isExitCorner) floorVox.isExitCorner = true;
+
+                // Ceiling face (y = 17)
+                spawnVoxelBlock(x, halfBounds, z, outerShellGlassMat, 'wall');
+            }
+        }
+
+        for (let y = -halfBounds + 1; y <= halfBounds - 1; y++) {
+            for (let x = -halfBounds; x <= halfBounds; x++) {
+                // North Wall (z = -17) & South Wall (z = 17)
+                // Check NW exit corner wall blocks
+                const isNWExitNorth = (x >= -17 && x <= -14 && y <= -14);
+                const northMat = isNWExitNorth ? createPsiVoxelMaterial(x, y, -halfBounds, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const northVox = spawnVoxelBlock(x, y, -halfBounds, northMat, isNWExitNorth ? 'magenta' : 'wall');
+                if (isNWExitNorth) northVox.isExitCorner = true;
+
+                spawnVoxelBlock(x, y, halfBounds, outerShellGlassMat, 'wall');
+            }
+            for (let z = -halfBounds + 1; z <= halfBounds - 1; z++) {
+                // West Wall (x = -17) & East Wall (x = 17)
+                const isNWExitWest = (z >= -17 && z <= -14 && y <= -14);
+                const westMat = isNWExitWest ? createPsiVoxelMaterial(-halfBounds, y, z, 'magenta', 0xff00bb) : outerShellGlassMat;
+                const westVox = spawnVoxelBlock(-halfBounds, y, z, westMat, isNWExitWest ? 'magenta' : 'wall');
+                if (isNWExitWest) westVox.isExitCorner = true;
+
+                spawnVoxelBlock(halfBounds, y, z, outerShellGlassMat, 'wall');
+            }
+        }
+
+        // --- Skybox Celestial World Projections & Sector Mapping ---
+        const skyboxCelestialGroup = new THREE.Group();
+        scene.add(skyboxCelestialGroup);
+
+        const skyboxWorlds = [];
+
+        function createCelestialWorldSprite(worldName, x, y, z, hexColor = 0x00f0ff) {
+            const containerGroup = new THREE.Group();
+
+            // Calculate directional vector and scale to skybox distance (R = 120)
+            const sectorVector = new THREE.Vector3(x, y, z);
+            const skyPos = sectorVector.clone().normalize().multiplyScalar(120);
+            containerGroup.position.copy(skyPos);
+
+            // Glowing planet core
+            const planetGeo = new THREE.IcosahedronGeometry(2.2, 2);
+            const planetMat = new THREE.MeshStandardMaterial({
+                color: hexColor,
+                emissive: hexColor,
+                emissiveIntensity: 0.8,
+                roughness: 0.2,
+                wireframe: false
+            });
+            const planetMesh = new THREE.Mesh(planetGeo, planetMat);
+            containerGroup.add(planetMesh);
+
+            // Outer nebula aura
+            const auraGeo = new THREE.IcosahedronGeometry(3.5, 1);
+            const auraMat = new THREE.MeshBasicMaterial({
+                color: hexColor,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.35
+            });
+            const auraMesh = new THREE.Mesh(auraGeo, auraMat);
+            containerGroup.add(auraMesh);
+
+            // Canvas Text Sprite for Celestial Name & Sector Coordinates
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(10, 12, 20, 0.75)';
+            ctx.fillRect(0, 0, 256, 64);
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(2, 2, 252, 60);
+
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillStyle = '#00f0ff';
+            ctx.textAlign = 'center';
+            ctx.fillText(worldName, 128, 26);
+
+            ctx.font = '12px monospace';
+            ctx.fillStyle = '#aaa';
+            ctx.fillText(`Sector: (${x}, ${y}, ${z})`, 128, 48);
+
+            const spriteMap = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: spriteMap, transparent: true, depthWrite: false });
+            const labelSprite = new THREE.Sprite(spriteMat);
+            labelSprite.position.set(0, 5.0, 0);
+            labelSprite.scale.set(12, 3, 1);
+            containerGroup.add(labelSprite);
+
+            skyboxCelestialGroup.add(containerGroup);
+
+            const worldData = { name: worldName, seedCoords: { x, y, z }, meshGroup: containerGroup };
+            skyboxWorlds.push(worldData);
+            return worldData;
+        }
+
+        function mapSeedToSectorCoordinates(seedHash) {
+            const posX = ((seedHash * 31) % 800) + (seedHash > 0 ? 150 : -150);
+            const posY = (((seedHash >> 4) * 37) % 600) + (seedHash % 2 === 0 ? 100 : -100);
+            const posZ = (((seedHash >> 8) * 41) % 800) + (seedHash > 2 ? 150 : -150);
+            return { x: posX, y: posY, z: posZ };
+        }
+
+        function projectWorldToSkybox(worldName, seedHash) {
+            const coords = mapSeedToSectorCoordinates(seedHash);
+            const colors = [0x00f0ff, 0xff00bb, 0xffaa00, 0x00ff88, 0x9900ff];
+            const chosenColor = colors[Math.abs(seedHash) % colors.length];
+            return createCelestialWorldSprite(worldName, coords.x, coords.y, coords.z, chosenColor);
+        }
+
+        window.projectWorldToSkybox = projectWorldToSkybox;
+
+        // Initialize default cosmic worlds on skybox
+        createCelestialWorldSprite('Solaria-Nexus', 320, 180, -420, 0x00f0ff);
+        createCelestialWorldSprite('Aetheria-Prime', -280, 310, 250, 0xff00bb);
+        createCelestialWorldSprite('Krypton-Core', 190, -250, 380, 0xffaa00);
+
+        const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
+
+        function spawnVoxelBlock(x, y, z, mat, baseType = 'platform', isGhost = false) {
+            const mesh = new THREE.Mesh(voxelGeo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = !isGhost;
+            mesh.receiveShadow = !isGhost;
+            scene.add(mesh);
+
+            const voxelObj = {
+                mesh: mesh,
+                min: new THREE.Vector3(x - VOXEL_SIZE / 2, y - VOXEL_SIZE / 2, z - VOXEL_SIZE / 2),
+                max: new THREE.Vector3(x + VOXEL_SIZE / 2, y + VOXEL_SIZE / 2, z + VOXEL_SIZE / 2),
+                position: mesh.position,
+                baseType: baseType,
+                isGhost: isGhost,
+                x: x,
+                y: y,
+                z: z
+            };
+
+            collidableVoxels.push(voxelObj);
+            return voxelObj;
+        }
+
+        function removeVoxelBlock(voxelObj) {
+            const idx = collidableVoxels.indexOf(voxelObj);
+            if (idx !== -1) {
+                collidableVoxels.splice(idx, 1);
+            }
+            scene.remove(voxelObj.mesh);
+            if (voxelObj.mesh.geometry) voxelObj.mesh.geometry.dispose();
+            if (voxelObj.mesh.material) {
+                if (Array.isArray(voxelObj.mesh.material)) {
+                    voxelObj.mesh.material.forEach(m => m.dispose());
+                } else {
+                    voxelObj.mesh.material.dispose();
+                }
+            }
+        }
+
+        // Floating Platforms with Grid-Aligned Coordinates and Procedural Psi Textures
+        for (let x = -3; x <= 3; x++) {
+            for (let z = -3; z <= 3; z++) {
+                const isCenterMonument = (x === 0 && z === 0);
+                const blockType = isCenterMonument ? 'gold' : ((Math.abs(x) === 3 || Math.abs(z) === 3) ? 'cyan' : 'platform');
+                const emissive = isCenterMonument ? 0xffaa00 : (blockType === 'cyan' ? 0x00aacc : 0x003355);
+                const mat = createPsiVoxelMaterial(x, 0, z, blockType, emissive);
+                const voxelObj = spawnVoxelBlock(x, 0, z, mat, blockType);
+                if (isCenterMonument) {
+                    voxelObj.isGenesisBeacon = true;
+                }
+            }
+        }
+
+        // Add 3D Glowing Holographic Marker over Genesis Beacon Monument
+        const beaconMarkerGeo = new THREE.OctahedronGeometry(0.6, 0);
+        const beaconMarkerMat = new THREE.MeshStandardMaterial({
+            color: 0xffaa00,
+            emissive: 0xffaa00,
+            emissiveIntensity: 1.0,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.85
+        });
+        const beaconMarkerMesh = new THREE.Mesh(beaconMarkerGeo, beaconMarkerMat);
+        beaconMarkerMesh.position.set(0, 1.8, 0);
+        scene.add(beaconMarkerMesh);
+
+        // Grid-aligned stairs and platforms on integer voxel grid
+        // ROOM_SIZE = 35 -> shell bounds are -17.5 to +17.5.
+        // Bottom inner surface of outer shell is at y = -17.5.
+        // Voxel blocks centered at y = -17 have bottom faces at y = -17.5!
+        const bottomFloorY = -17;
+
+        for (let i = 0; i < 8; i++) {
+            const yPos = bottomFloorY + i;
+            const zPos = -12 + i;
+            for (let x = -1; x <= 1; x++) {
+                const mat = createPsiVoxelMaterial(x, yPos, zPos, 'gold', 0x885500);
+                spawnVoxelBlock(x, yPos, zPos, mat, 'gold');
+            }
+        }
+        for (let i = 0; i < 8; i++) {
+            const yPos = 1 + i;
+            const zPos = 4 + i;
+            for (let x = -1; x <= 1; x++) {
+                const mat = createPsiVoxelMaterial(x, yPos, zPos, 'green', 0x00a855);
+                spawnVoxelBlock(x, yPos, zPos, mat, 'green');
+            }
+        }
+
+        for (let y = -4; y <= 4; y += 2) {
+            for (let z = -4; z <= 4; z += 2) {
+                const xPos = -15;
+                const mat = createPsiVoxelMaterial(xPos, y, z, 'magenta', 0xaa0044);
+                spawnVoxelBlock(xPos, y, z, mat, 'magenta');
+            }
+        }
+        for (let y = -4; y <= 4; y += 2) {
+            for (let z = -4; z <= 4; z += 2) {
+                const xPos = 15;
+                const mat = createPsiVoxelMaterial(xPos, y, z, 'cyan', 0x00aacc);
+                spawnVoxelBlock(xPos, y, z, mat, 'cyan');
+            }
+        }
+
+
+        const exitConfirmationModal = document.getElementById('exit-confirmation-modal');
+        const btnConfirmExit = document.getElementById('btn-confirm-exit');
+        const btnCancelExit = document.getElementById('btn-cancel-exit');
+
+        function openExitConfirmationModal() {
+            if (exitConfirmationModal) {
+                exitConfirmationModal.style.display = 'flex';
+                document.exitPointerLock();
+            }
+        }
+
+        function closeExitConfirmationModal() {
+            if (exitConfirmationModal) {
+                exitConfirmationModal.style.display = 'none';
+                document.body.requestPointerLock();
+            }
+        }
+
+        if (btnCancelExit) btnCancelExit.addEventListener('click', closeExitConfirmationModal);
+
+        if (btnConfirmExit) {
+            btnConfirmExit.addEventListener('click', () => {
+                closeExitConfirmationModal();
+                teleportToNexusCoreHub();
+            });
+        }
+
+        function teleportToNexusCoreHub() {
+            player.position.set(0, 1.3, 0);
+            player.velocity.set(0, 0, 0);
+            player.bodyQuaternion.identity();
+            visualBodyQuaternion.identity();
+            playSound('teleport');
+            showItemToast('🌀 Teleported to Central Nexus Hub Platform');
+        }
+
+        window.teleportToNexusCoreHub = teleportToNexusCoreHub;
+        window.openExitConfirmationModal = openExitConfirmationModal;
+        window.closeExitConfirmationModal = closeExitConfirmationModal;
+
+        // --- Player State & Sovereign Physics ---
+        let isThirdPerson = false;
+
+        const player = {
+            position: new THREE.Vector3(0, 1.3, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            bodyQuaternion: new THREE.Quaternion(),
+            lookRotation: new THREE.Euler(0, 0, 0, 'YXZ'),
+            height: 1.6,
+            radius: 0.4,
+            currentEyeHeight: 0.6, // Eye offset from center (standing: 0.6 = 1.6/2 - 0.2, crouching: 0.1 = lowered 0.5 blocks)
+            isGrounded: false,
+            lastGroundedTime: 0,
+            energy: 100,
+            maxEnergy: 100,
+
+            // Variable jump height state & Jump Buffering
+            isJumpHolding: false,
+            jumpStartTime: 0,
+            jumpBufferTime: 0,
+
+            // Movement vector from joystick or keyboard
+            touchMoveInput: new THREE.Vector3(),
+
+            // Slerp transition state
+            isLeaping: false,
+            leapStartTime: 0,
+            leapDuration: 0.3,
+            leapStartQuaternion: new THREE.Quaternion(),
+            leapTargetQuaternion: new THREE.Quaternion()
+        };
+
+        const visualBodyQuaternion = new THREE.Quaternion();
+
+        // --- Glowing Energy Cube Avatar (Sovereign Initial Form) ---
+        const avatarGeo = new THREE.BoxGeometry(0.8, 1.4, 0.8);
+        const avatarMat = new THREE.MeshStandardMaterial({
+            color: 0x00f0ff,
+            emissive: 0x00f0ff,
+            emissiveIntensity: 0.8,
+            roughness: 0.1,
+            metalness: 0.9,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const avatarWireMat = new THREE.MeshBasicMaterial({
+            color: 0xff00bb,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const avatarMesh = new THREE.Mesh(avatarGeo, avatarMat);
+        const avatarWireMesh = new THREE.Mesh(avatarGeo, avatarWireMat);
+        avatarMesh.add(avatarWireMesh);
+        scene.add(avatarMesh);
+        // Initially hidden in First Person Mode
+        avatarMesh.visible = false;
+
+        // --- Inventory & Block Breaking / Placing Engine ---
+        let selectedBlockType = null;
+
+        function addItemToInventory(type) {
+            // 1. Try to add to existing stack of same type
+            for (let i = 0; i < inventorySlots.length; i++) {
+                if (inventorySlots[i].type === type && inventorySlots[i].count > 0) {
+                    inventorySlots[i].count++;
+                    updateInventoryUI();
+                    return true;
+                }
+            }
+            // 2. Try to add to first empty slot
+            for (let i = 0; i < inventorySlots.length; i++) {
+                if (!inventorySlots[i].type || inventorySlots[i].count <= 0) {
+                    inventorySlots[i].type = type;
+                    inventorySlots[i].count = 1;
+                    updateInventoryUI();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function deductSelectedItem() {
+            const slot = inventorySlots[selectedHotbarIndex - 1];
+            if (slot && slot.type && slot.count > 0) {
+                slot.count--;
+                if (slot.count <= 0) {
+                    slot.type = null;
+                    slot.count = 0;
+                }
+                updateInventoryUI();
+                return true;
+            }
+            return false;
+        }
+
+        function getSelectedSlotItem() {
+            const slot = inventorySlots[selectedHotbarIndex - 1];
+            if (slot && slot.type && slot.count > 0) {
+                return slot;
+            }
+            return null;
+        }
+
+        const BLOCK_NAMES = {
+            platform: 'Platform Core Voxel',
+            gold: 'Aureum Psi-Grid Voxel',
+            green: 'Verdant Crystal Voxel',
+            cyan: 'Cyan Quantum Voxel',
+            magenta: 'Hyper-Phase Voxel',
+            wall: 'Citadel Alloy Voxel'
+        };
+
+        const BLOCK_HARDNESS = {
+            platform: 1.0,
+            gold: 0.5,
+            green: 0.6,
+            cyan: 0.8,
+            magenta: 0.8,
+            wall: 1.5
+        };
+
+        const BLOCK_COLORS = {
+            platform: '#2a2f45',
+            gold: '#ffaa00',
+            green: '#00ff88',
+            cyan: '#00f0ff',
+            magenta: '#ff0077',
+            wall: '#1f283d'
+        };
+
+        const BLOCK_HEX = {
+            platform: 0x2a2f45,
+            gold: 0xffaa00,
+            green: 0x00ff88,
+            cyan: 0x00f0ff,
+            magenta: 0xff0077,
+            wall: 0x1f283d
+        };
+
+        const BLOCK_EMISSIVE = {
+            platform: 0x003355,
+            gold: 0x885500,
+            green: 0x00a855,
+            cyan: 0x00aacc,
+            magenta: 0xaa0044,
+            wall: 0x050811
+        };
+
+        // Debris Particle Animation Engine for Voxel Mining
+        const activeDebrisParticles = [];
+        const miniBlockGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+
+        function spawnMiningDebris(pos, baseType = 'platform') {
+            const emissive = BLOCK_EMISSIVE[baseType] || 0x000000;
+            const particleMat = createPsiVoxelMaterial(pos.x, pos.y, pos.z, baseType, emissive);
+            for (let i = 0; i < 6; i++) {
+                const mesh = new THREE.Mesh(miniBlockGeo, particleMat);
+                mesh.position.copy(pos).add(new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.6,
+                    (Math.random() - 0.5) * 0.6,
+                    (Math.random() - 0.5) * 0.6
+                ));
+                scene.add(mesh);
+
+                activeDebrisParticles.push({
+                    mesh: mesh,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 4.0,
+                        Math.random() * 3.0 + 1.0,
+                        (Math.random() - 0.5) * 4.0
+                    ),
+                    birthTime: performance.now(),
+                    lifetime: 600 + Math.random() * 300
+                });
+            }
+        }
+
+        function updateDebrisParticles(delta) {
+            const now = performance.now();
+            for (let i = activeDebrisParticles.length - 1; i >= 0; i--) {
+                const p = activeDebrisParticles[i];
+                const age = now - p.birthTime;
+                if (age >= p.lifetime) {
+                    scene.remove(p.mesh);
+                    activeDebrisParticles.splice(i, 1);
+                } else {
+                    p.velocity.y -= 12.0 * delta; // particle gravity
+                    p.mesh.position.addScaledVector(p.velocity, delta);
+                    p.mesh.rotation.x += 5.0 * delta;
+                    p.mesh.rotation.y += 5.0 * delta;
+                    const scale = 1.0 - (age / p.lifetime);
+                    p.mesh.scale.set(scale, scale, scale);
+                }
+            }
+        }
+
+        let selectedHotbarIndex = 1;
+        let selectedSwapSlotIndex = null;
+        let toastTimeoutId = null;
+        let holdTimer = null;
+        let isLongPressTriggered = false;
+        let activeDetailSlotIndex = null;
+
+        const itemNameToast = document.getElementById('item-name-toast');
+        const itemDetailsModal = document.getElementById('item-details-modal');
+        const itemDetailsTitle = document.getElementById('item-details-title');
+        const itemDetailsColorPreview = document.getElementById('item-details-color-preview');
+        const itemDetailsType = document.getElementById('item-details-type');
+        const itemDetailsHardness = document.getElementById('item-details-hardness');
+        const itemDetailsCount = document.getElementById('item-details-count');
+        const btnDeleteItem = document.getElementById('btn-delete-item');
+        const btnCloseItemDetails = document.getElementById('btn-close-item-details');
+
+        function showItemToast(textOrType) {
+            if (!itemNameToast) return;
+            const name = BLOCK_NAMES[textOrType] || textOrType || 'Empty Slot';
+            itemNameToast.textContent = name;
+            itemNameToast.style.display = 'block';
+
+            if (toastTimeoutId) clearTimeout(toastTimeoutId);
+            toastTimeoutId = setTimeout(() => {
+                itemNameToast.style.display = 'none';
+            }, 2000);
+        }
+
+        function showToastNotification(msg) {
+            showItemToast(msg);
+        }
+        window.showToastNotification = showToastNotification;
+        window.showItemToast = showItemToast;
+
+        function openItemDetailsModal(slotIndex) {
+            const slotData = inventorySlots[slotIndex];
+            if (!slotData || !slotData.type || slotData.count <= 0) return;
+
+            activeDetailSlotIndex = slotIndex;
+            const type = slotData.type;
+
+            itemDetailsTitle.textContent = BLOCK_NAMES[type] || type;
+            itemDetailsColorPreview.style.background = BLOCK_COLORS[type] || '#fff';
+            itemDetailsType.textContent = type.toUpperCase();
+            itemDetailsHardness.textContent = BLOCK_HARDNESS[type] !== undefined ? `${BLOCK_HARDNESS[type]}s` : '1.0s';
+            itemDetailsCount.textContent = slotData.count;
+
+            itemDetailsModal.style.display = 'flex';
+        }
+
+        if (btnCloseItemDetails) {
+            btnCloseItemDetails.addEventListener('click', () => {
+                itemDetailsModal.style.display = 'none';
+                activeDetailSlotIndex = null;
+            });
+        }
+
+        if (btnDeleteItem) {
+            btnDeleteItem.addEventListener('click', () => {
+                if (activeDetailSlotIndex !== null) {
+                    const deletedType = inventorySlots[activeDetailSlotIndex].type;
+                    inventorySlots[activeDetailSlotIndex] = { type: null, count: 0 };
+                    itemDetailsModal.style.display = 'none';
+                    activeDetailSlotIndex = null;
+                    updateInventoryUI();
+                    showItemToast(`Trashed ${BLOCK_NAMES[deletedType] || 'Item'}`);
+                }
+            });
+        }
+
+        function handleSlotInteraction(slotIndex, isHotbarClick = false) {
+            const slotData = inventorySlots[slotIndex];
+
+            if (isHotbarClick) {
+                // Hotbar clicks ONLY select the active hotbar slot and show item toast
+                selectedSwapSlotIndex = null;
+                selectHotbarSlotByIndex(slotIndex + 1);
+                if (slotData && slotData.type && slotData.count > 0) {
+                    showItemToast(slotData.type);
+                } else {
+                    showItemToast('Empty Slot');
+                }
+                return;
+            }
+
+            // Inventory menu clicks handle item selection and swapping
+            if (selectedSwapSlotIndex === null) {
+                if (slotData && slotData.type && slotData.count > 0) {
+                    selectedSwapSlotIndex = slotIndex;
+                    showItemToast(slotData.type);
+                } else {
+                    showItemToast('Empty Slot');
+                }
+                updateInventoryUI();
+            } else {
+                if (selectedSwapSlotIndex === slotIndex) {
+                    selectedSwapSlotIndex = null;
+                    if (slotData && slotData.type && slotData.count > 0) {
+                        showItemToast(slotData.type);
+                    }
+                    updateInventoryUI();
+                } else {
+                    // Swap items in inventory
+                    const temp = inventorySlots[selectedSwapSlotIndex];
+                    inventorySlots[selectedSwapSlotIndex] = inventorySlots[slotIndex];
+                    inventorySlots[slotIndex] = temp;
+
+                    const newSlotData = inventorySlots[slotIndex];
+                    if (newSlotData && newSlotData.type && newSlotData.count > 0) {
+                        showItemToast(newSlotData.type);
+                    } else {
+                        showItemToast('Item Moved');
+                    }
+
+                    selectedSwapSlotIndex = null;
+                    updateInventoryUI();
+                }
+            }
+        }
+
+        function attachHoldAndClickListeners(element, slotIndex, isHotbar = false) {
+            const startPress = (e) => {
+                isLongPressTriggered = false;
+                if (holdTimer) clearTimeout(holdTimer);
+                holdTimer = setTimeout(() => {
+                    const slotData = inventorySlots[slotIndex];
+                    if (slotData && slotData.type && slotData.count > 0) {
+                        isLongPressTriggered = true;
+                        openItemDetailsModal(slotIndex);
+                    }
+                }, 500);
+            };
+
+            const cancelPress = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+            };
+
+            element.addEventListener('pointerdown', startPress);
+            element.addEventListener('pointerup', cancelPress);
+            element.addEventListener('pointerleave', cancelPress);
+            element.addEventListener('pointercancel', cancelPress);
+
+            element.addEventListener('click', (e) => {
+                cancelPress();
+                if (isLongPressTriggered) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    isLongPressTriggered = false;
+                    return;
+                }
+                handleSlotInteraction(slotIndex, isHotbar);
+            });
+        }
+
+        const invSlots = document.querySelectorAll('.inv-slot[data-index]');
+        invSlots.forEach(slot => {
+            const idx = parseInt(slot.dataset.index, 10) - 1;
+            attachHoldAndClickListeners(slot, idx, true);
+        });
+
+        let unlockedInventorySlots = 18;
+        const inventorySlots = Array(18).fill(null).map(() => ({ type: null, count: 0 }));
+
+        function renderProgressionInventoryMenu() {
+            const gridContainer = document.getElementById('progression-inventory-grid');
+            if (!gridContainer) return;
+            gridContainer.innerHTML = '';
+
+            for (let i = 0; i < unlockedInventorySlots; i++) {
+                const slotDiv = document.createElement('div');
+                slotDiv.style.width = '100%';
+                slotDiv.style.aspectRatio = '1';
+                slotDiv.style.borderRadius = '6px';
+                slotDiv.style.display = 'flex';
+                slotDiv.style.flexDirection = 'column';
+                slotDiv.style.justifyContent = 'space-between';
+                slotDiv.style.alignItems = 'center';
+                slotDiv.style.padding = '4px';
+                slotDiv.style.fontSize = '0.65em';
+                slotDiv.style.fontWeight = 'bold';
+                slotDiv.style.cursor = 'pointer';
+
+                if (i === selectedSwapSlotIndex) {
+                    slotDiv.style.background = 'rgba(0, 240, 255, 0.3)';
+                    slotDiv.style.border = '2px solid #00f0ff';
+                    slotDiv.style.boxShadow = '0 0 8px #00f0ff';
+                } else {
+                    slotDiv.style.background = 'rgba(255, 255, 255, 0.08)';
+                    slotDiv.style.border = '1px solid rgba(0, 240, 255, 0.3)';
+                }
+
+                const slotData = inventorySlots[i];
+                if (slotData && slotData.type && slotData.count > 0) {
+                    const colorPrev = document.createElement('div');
+                    colorPrev.style.width = '16px';
+                    colorPrev.style.height = '16px';
+                    colorPrev.style.borderRadius = '3px';
+                    colorPrev.style.background = BLOCK_COLORS[slotData.type] || '#fff';
+                    colorPrev.style.marginTop = '2px';
+
+                    const countSpan = document.createElement('span');
+                    countSpan.style.color = '#00f0ff';
+                    countSpan.textContent = slotData.count;
+
+                    slotDiv.appendChild(colorPrev);
+                    slotDiv.appendChild(countSpan);
+                }
+
+                attachHoldAndClickListeners(slotDiv, i, false);
+                gridContainer.appendChild(slotDiv);
+            }
+
+            const labelEl = document.getElementById('unlocked-slots-label');
+            if (labelEl) labelEl.textContent = `${unlockedInventorySlots} INVENTORY SLOTS`;
+        }
+
+        function updateInventoryUI() {
+            const slots = document.querySelectorAll('.inv-slot[data-index]');
+            slots.forEach((slot) => {
+                const idx = parseInt(slot.dataset.index, 10) - 1;
+                const slotData = inventorySlots[idx];
+
+                const colorPrev = slot.querySelector('.inv-color-preview');
+                const countSpan = slot.querySelector('.inv-count');
+
+                if (idx === selectedSwapSlotIndex) {
+                    slot.style.borderColor = '#00f0ff';
+                    slot.style.boxShadow = '0 0 10px #00f0ff';
+                } else {
+                    slot.style.borderColor = (idx + 1 === selectedHotbarIndex) ? 'rgba(0, 240, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)';
+                    slot.style.boxShadow = 'none';
+                }
+
+                if (slotData && slotData.type && slotData.count > 0) {
+                    slot.dataset.type = slotData.type;
+                    if (colorPrev) {
+                        colorPrev.style.background = BLOCK_COLORS[slotData.type] || '#fff';
+                        colorPrev.style.display = 'block';
+                    }
+                    if (countSpan) {
+                        countSpan.textContent = slotData.count;
+                    }
+                } else {
+                    delete slot.dataset.type;
+                    if (colorPrev) {
+                        colorPrev.style.display = 'none';
+                    }
+                    if (countSpan) {
+                        countSpan.textContent = '';
+                    }
+                }
+            });
+
+            // Update active selectedBlockType based on current selectedHotbarIndex
+            const currentSlot = inventorySlots[selectedHotbarIndex - 1];
+            selectedBlockType = (currentSlot && currentSlot.count > 0) ? currentSlot.type : null;
+
+            renderProgressionInventoryMenu();
+        }
+
+        window.inventorySlots = inventorySlots;
+        window.addItemToInventory = addItemToInventory;
+        window.updateInventoryUI = updateInventoryUI;
+        window.player = player;
+        window.THREE = THREE;
+        window.openGenesisBeaconModal = openGenesisBeaconModal;
+        window.closeGenesisBeaconModal = closeGenesisBeaconModal;
+
+        // Render inventory grid initially
+        updateInventoryUI();
+
+        // Raycasting & Break Progress Overlay
+        const raycaster = new THREE.Raycaster();
+        raycaster.far = 8.0;
+
+        let isBreakingBlock = false;
+        let breakTargetVoxel = null;
+        let breakStartTime = 0;
+        let breakRequiredTime = 1.0;
+        let isMiningHeld = false;
+
+        const breakProgressContainer = document.getElementById('break-progress-container');
+        const breakProgressCircle = document.getElementById('break-progress-circle');
+
+        function startBreakingTarget(voxelObj) {
+            if (!voxelObj || voxelObj.baseType === 'wall' || voxelObj.isGenesisBeacon || voxelObj.isExitCorner) {
+                return; // Unbreakable blocks
+            }
+            isBreakingBlock = true;
+            breakTargetVoxel = voxelObj;
+            breakStartTime = performance.now();
+            breakRequiredTime = BLOCK_HARDNESS[voxelObj.baseType] || 1.0;
+        }
+
+        function stopBreakingTarget() {
+            isBreakingBlock = false;
+            breakTargetVoxel = null;
+        }
+
+        document.addEventListener('mousedown', (e) => {
+            if (document.pointerLockElement) {
+                const target = getTargetedVoxelAndFace();
+
+                // Check if player clicked Genesis Beacon central monument
+                if (target && target.voxel && target.voxel.isGenesisBeacon) {
+                    openGenesisBeaconModal();
+                    return;
+                }
+
+                if (e.button === 0) {
+                    // Left Click -> Continuous Mining Hold
+                    isMiningHeld = true;
+                    if (target && target.voxel) {
+                        startBreakingTarget(target.voxel);
+                    }
+                } else if (e.button === 2) {
+                    // Right Click -> Place Block
+                    if (target && target.voxel && target.faceNormal) {
+                        handlePlaceBlock(target.voxel, target.faceNormal);
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                isMiningHeld = false;
+                stopBreakingTarget();
+            }
+        });
+
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        function getTargetedVoxelAndFace() {
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const meshes = collidableVoxels.map(v => v.mesh);
+            const intersects = raycaster.intersectObjects(meshes, false);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const hitVoxel = collidableVoxels.find(v => v.mesh === hit.object);
+                return {
+                    voxel: hitVoxel,
+                    point: hit.point,
+                    faceNormal: hit.face.normal.clone()
+                };
+            }
+            return null;
+        }
+
+        // --- Block Placement & Ghost Block System ---
+        function handlePlaceBlock(targetVoxel, normal) {
+            if (targetVoxel && targetVoxel.isExitCorner) {
+                openExitConfirmationModal();
+                return;
+            }
+
+            const currentItem = getSelectedSlotItem();
+            if (!currentItem) return;
+            const blockTypeToPlace = currentItem.type;
+
+            const newX = targetVoxel.x + Math.round(normal.x);
+            const newY = targetVoxel.y + Math.round(normal.y);
+            const newZ = targetVoxel.z + Math.round(normal.z);
+
+            // Check if player position overlaps with target voxel bounding box
+            const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+            const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
+            const vMin = new THREE.Vector3(newX - VOXEL_SIZE / 2, newY - VOXEL_SIZE / 2, newZ - VOXEL_SIZE / 2);
+            const vMax = new THREE.Vector3(newX + VOXEL_SIZE / 2, newY + VOXEL_SIZE / 2, newZ + VOXEL_SIZE / 2);
+
+            if (pMax.x > vMin.x && pMin.x < vMax.x &&
+                pMax.y > vMin.y && pMin.y < vMax.y &&
+                pMax.z > vMin.z && pMin.z < vMax.z) {
+                // Player inside block placement volume
+                return;
+            }
+
+            // Deduct block from inventory slot
+            deductSelectedItem();
+            if (typeof playSound === 'function') playSound('place', blockTypeToPlace, newX, newY, newZ);
+
+            // 1. Spawn Translucent Ghost Block matching target block color (Pending L2 verification, solid collision)
+            const ghostColor = BLOCK_HEX[blockTypeToPlace] || 0x00f0ff;
+            const ghostEmissive = BLOCK_EMISSIVE[blockTypeToPlace] || 0x00f0ff;
+            const ghostMat = new THREE.MeshStandardMaterial({
+                color: ghostColor,
+                transparent: true,
+                opacity: 0.55,
+                roughness: 0.1,
+                metalness: 0.9,
+                wireframe: false,
+                emissive: ghostEmissive,
+                emissiveIntensity: 0.4
+            });
+
+            const ghostVoxel = spawnVoxelBlock(newX, newY, newZ, ghostMat, blockTypeToPlace, true);
+
+            // 2. Simulate L2 Distributed Settlement / Verification Delay (~0.8s)
+            setTimeout(() => {
+                if (collidableVoxels.includes(ghostVoxel)) {
+                    // Replace ghost material with synthesized Psi procedural texture
+                    removeVoxelBlock(ghostVoxel);
+                    const emissive = BLOCK_EMISSIVE[blockTypeToPlace] || 0x000000;
+                    const solidMat = createPsiVoxelMaterial(newX, newY, newZ, blockTypeToPlace, emissive);
+                    spawnVoxelBlock(newX, newY, newZ, solidMat, blockTypeToPlace, false);
+                }
+            }, 800);
+        }
+
+        // --- Input Handling ---
+        const keys = {};
+        let lastSpaceTime = 0;
+
+        function selectHotbarSlotByIndex(idx) {
+            selectedHotbarIndex = idx;
+            const allSlots = document.querySelectorAll('.inv-slot[data-index]');
+            allSlots.forEach(s => s.classList.remove('selected'));
+            const targetSlot = document.querySelector(`.inv-slot[data-index="${idx}"]`);
+            if (targetSlot) {
+                targetSlot.classList.add('selected');
+            }
+            const currentSlot = inventorySlots[selectedHotbarIndex - 1];
+            selectedBlockType = (currentSlot && currentSlot.count > 0) ? currentSlot.type : null;
+            if (typeof playSound === 'function') playSound('select');
+            if (typeof updateInventoryUI === 'function') {
+                updateInventoryUI();
+            }
+        }
+
+        // Mouse wheel hotbar scrolling
+        window.addEventListener('wheel', (e) => {
+            if (settingsModal.style.display === 'flex') return;
+            if (e.deltaY > 0) {
+                selectedHotbarIndex = (selectedHotbarIndex % 9) + 1;
+            } else if (e.deltaY < 0) {
+                selectedHotbarIndex = selectedHotbarIndex === 1 ? 9 : selectedHotbarIndex - 1;
+            }
+            selectHotbarSlotByIndex(selectedHotbarIndex);
+        });
+
+        let isMouseDown = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let mouseLocked = false;
+
+        const welcomeSplash = document.getElementById('welcome-splash');
+
+        document.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            const isAnyModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+
+            // Request pointer lock on canvas click if menu is not open
+            if (!document.pointerLockElement && !isAnyModalOpen) {
+                try {
+                    renderer.domElement.requestPointerLock();
+                } catch (err) {}
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        function dismissWelcomeSplash(e) {
+            if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                welcomeSplash.style.display = 'none';
+                initAudioContext();
+                if (renderer && renderer.domElement) {
+                    try { renderer.domElement.requestPointerLock(); } catch(err){}
+                }
+                showItemToast('⚡ Sovereign Gemverse Physics Engaged');
+            }
+        }
+
+        if (welcomeSplash) {
+            welcomeSplash.addEventListener('click', dismissWelcomeSplash);
+        }
+
+        // Modal Keyboard Navigation Engine (Arrow Keys / WASD Focus & Enter/Space Execution)
+        let modalFocusedIndex = 0;
+
+        function getActiveModalContainer() {
+            if (welcomeSplash && welcomeSplash.style.display !== 'none') return welcomeSplash;
+            if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') return exitConfirmationModal;
+            if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') return genesisBeaconModal;
+            if (graphicsModal && graphicsModal.style.display === 'flex') return graphicsModal;
+            if (controlsModal && controlsModal.style.display === 'flex') return controlsModal;
+            if (connectModal && connectModal.style.display === 'flex') return connectModal;
+            if (settingsModal && settingsModal.style.display === 'flex') return settingsModal;
+            return null;
+        }
+
+        function getNavigableElements(modal) {
+            if (!modal) return [];
+            return Array.from(modal.querySelectorAll('button, input, select, .inv-slot, [tabindex="0"]')).filter(el => {
+                return el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).display !== 'none';
+            });
+        }
+
+        function updateModalKeyboardFocus(modal, delta) {
+            const items = getNavigableElements(modal);
+            if (items.length === 0) return;
+
+            // Remove previous focus style
+            items.forEach(item => item.style.outline = 'none');
+
+            modalFocusedIndex += delta;
+            if (modalFocusedIndex < 0) modalFocusedIndex = items.length - 1;
+            if (modalFocusedIndex >= items.length) modalFocusedIndex = 0;
+
+            const target = items[modalFocusedIndex];
+            if (target) {
+                target.focus();
+                target.style.outline = '2px solid #00f0ff';
+                target.style.outlineOffset = '2px';
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const activeModal = getActiveModalContainer();
+
+            if (activeModal) {
+                if (['ArrowDown', 'KeyS', 'Tab'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, 1);
+                    return;
+                } else if (['ArrowUp', 'KeyW'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, -1);
+                    return;
+                } else if (['ArrowRight', 'KeyD'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, 1);
+                    return;
+                } else if (['ArrowLeft', 'KeyA'].includes(e.code)) {
+                    e.preventDefault();
+                    updateModalKeyboardFocus(activeModal, -1);
+                    return;
+                } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                    e.preventDefault();
+                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                        dismissWelcomeSplash();
+                        return;
+                    }
+                    const focused = document.activeElement;
+                    if (focused && activeModal.contains(focused)) {
+                        focused.click();
+                    } else if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                        teleportToNexusCoreHub();
+                    } else if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') {
+                        if (btnClaimWorld) btnClaimWorld.click();
+                    } else if (settingsModal && settingsModal.style.display === 'flex') {
+                        toggleSettingsModal();
+                    }
+                    return;
+                }
+            }
+
+            if (!keys[e.code]) {
+                keys[e.code] = true;
+
+                if (e.code === 'Space') {
+                    const now = performance.now();
+                    const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
+
+                    if (isShiftHeld && (now - lastSpaceTime < 300)) {
+                        handleCeilingLeap();
+                    } else {
+                        handleJumpStart();
+                    }
+                    lastSpaceTime = now;
+                }
+
+                if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                    // Handle Enter / Accept on open modals
+                    if (welcomeSplash && welcomeSplash.style.display !== 'none') {
+                        dismissWelcomeSplash();
+                    } else if (exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                        teleportToNexusCoreHub();
+                    } else if (genesisBeaconModal.style.display === 'flex') {
+                        if (btnClaimWorld) btnClaimWorld.click();
+                    } else if (settingsModal.style.display === 'flex') {
+                        toggleSettingsModal();
+                    }
+                }
+
+                checkDirectionalLeapTrigger(e.code);
+
+                if (e.code === 'KeyV') {
+                    // Toggle 1st / 3rd Person View Mode
+                    isThirdPerson = !isThirdPerson;
+                    avatarMesh.visible = isThirdPerson;
+                    showItemToast(isThirdPerson ? '🎥 Switched to 3rd Person View' : '🎥 Switched to 1st Person View');
+                }
+
+                if (e.code === 'Escape') {
+                    // Universal Escape Key Handler: Close top sub-modal or parent menu
+                    if (graphicsModal && graphicsModal.style.display === 'flex') {
+                        graphicsModal.style.display = 'none';
+                    } else if (controlsModal && controlsModal.style.display === 'flex') {
+                        controlsModal.style.display = 'none';
+                    } else if (connectModal && connectModal.style.display === 'flex') {
+                        connectModal.style.display = 'none';
+                    } else if (itemDetailsModal && itemDetailsModal.style.display === 'flex') {
+                        itemDetailsModal.style.display = 'none';
+                        activeDetailSlotIndex = null;
+                    } else if (genesisBeaconModal && genesisBeaconModal.style.display === 'flex') {
+                        closeGenesisBeaconModal();
+                    } else if (exitConfirmationModal && exitConfirmationModal.style.display === 'flex') {
+                        closeExitConfirmationModal();
+                    } else {
+                        toggleSettingsModal();
+                    }
+                }
+
+                // Number keys 1-9 select hotbar slot
+                if (e.code.startsWith('Digit')) {
+                    const num = parseInt(e.code.replace('Digit', ''), 10);
+                    if (num >= 1 && num <= 9) {
+                        selectHotbarSlotByIndex(num);
+                    }
+                }
+
+                // Full Keyboard Gameplay Controls: E / Right Control = Mine/Break Block, Q / Right Shift = Place/Use Block
+                if (e.code === 'KeyE' || e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                    isMiningHeld = true;
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel) {
+                        startBreakingTarget(target.voxel);
+                    }
+                }
+
+                if (e.code === 'KeyQ' || e.code === 'ShiftRight') {
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel && target.faceNormal) {
+                        handlePlaceBlock(target.voxel, target.faceNormal);
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+            if (e.code === 'Space') {
+                handleJumpEnd();
+            }
+            if (e.code === 'KeyE' || e.code === 'ControlRight' || e.code === 'ControlLeft') {
+                isMiningHeld = false;
+                stopBreakingTarget();
+            }
+        });
+
+        const mouseSensitivity = 0.0025;
+        window.addEventListener('mousemove', (e) => {
+            const isModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+            if (isModalOpen) return;
+
+            let moveX = 0;
+            let moveY = 0;
+
+            if (document.pointerLockElement) {
+                moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            } else {
+                // Drag-look fallback or cursor-based camera movement when pointer lock is not active
+                if (lastMouseX !== 0 && lastMouseY !== 0) {
+                    moveX = e.clientX - lastMouseX;
+                    moveY = e.clientY - lastMouseY;
+                }
+            }
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            if (Math.abs(moveX) < 150 && Math.abs(moveY) < 150) {
+                if (moveX !== 0 || moveY !== 0) {
+                    player.lookRotation.y -= moveX * mouseSensitivity;
+                    player.lookRotation.x -= moveY * mouseSensitivity;
+                    player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+                }
+            }
+        });
+
+
+        // --- First World Genesis Beacon Modal Logic ---
+        const genesisBeaconModal = document.getElementById('genesis-beacon-modal');
+        const worldNameInput = document.getElementById('world-name-input');
+        const btnClaimWorld = document.getElementById('btn-claim-world');
+        const btnCloseGenesis = document.getElementById('btn-close-genesis');
+
+        function openGenesisBeaconModal() {
+            genesisBeaconModal.style.display = 'flex';
+            document.exitPointerLock();
+            if (worldNameInput) worldNameInput.focus();
+        }
+
+        function closeGenesisBeaconModal() {
+            genesisBeaconModal.style.display = 'none';
+            document.body.requestPointerLock();
+        }
+
+        if (btnCloseGenesis) btnCloseGenesis.addEventListener('click', closeGenesisBeaconModal);
+
+        if (btnClaimWorld) {
+            btnClaimWorld.addEventListener('click', () => {
+                const worldName = worldNameInput.value.trim() || 'Aetheria-Prime';
+                // Cryptographically derive world seed CID from name
+                let seedHash = 0;
+                for (let i = 0; i < worldName.length; i++) {
+                    seedHash = ((seedHash << 5) - seedHash) + worldName.charCodeAt(i);
+                    seedHash |= 0;
+                }
+                const seedHex = Math.abs(seedHash).toString(16).padStart(8, '0');
+                const cid = `bafybeig${seedHex}gemverse0001`;
+
+                // Project world onto skybox celestial coordinates
+                const worldData = projectWorldToSkybox(worldName, seedHash);
+                const coords = worldData.seedCoords;
+
+                closeGenesisBeaconModal();
+                showItemToast(`✨ Genesis Claimed: "${worldName}" Sector (${coords.x}, ${coords.y}, ${coords.z})`);
+            });
+        }
+
+        // --- Active Gravity Leaps & Variable Jump Physics ---
+        const LEAP_ENERGY_COST = 25;
+        const ENERGY_REGEN_RATE = 18;
+        const INITIAL_JUMP_IMPULSE = 5.2; // Tapped jump clears ~1.1 blocks
+        const JUMP_SUSTAIN_FORCE = 26.0;  // Continuous holding boosts up to ~2.2 blocks
+        const MAX_JUMP_HOLD_TIME = 0.25; // Seconds
+        const COYOTE_TIME = 0.18; // Seconds after leaving ground where jump is still allowed
+        const JUMP_BUFFER_DURATION = 0.20; // Seconds jump press is buffered before landing
+
+        function handleJumpStart() {
+            const now = performance.now();
+            player.jumpBufferTime = now;
+            executeBufferedJump();
+        }
+
+        function executeBufferedJump() {
+            const now = performance.now();
+            const timeSinceJumpPress = (now - player.jumpBufferTime) / 1000;
+            const timeSinceGrounded = (now - player.lastGroundedTime) / 1000;
+
+            const canJump = (player.isGrounded || timeSinceGrounded < COYOTE_TIME) && !player.isLeaping;
+
+            if (canJump && timeSinceJumpPress < JUMP_BUFFER_DURATION) {
+                const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+                player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE);
+
+                const bType = player.groundedBlockType || 'platform';
+                const gx = player.groundedX || Math.round(player.position.x);
+                const gy = player.groundedY || Math.round(player.position.y);
+                const gz = player.groundedZ || Math.round(player.position.z);
+
+                player.isGrounded = false;
+                player.lastGroundedTime = 0; // consume coyote time
+                player.jumpBufferTime = 0; // consume jump buffer
+                player.isJumpHolding = true;
+                player.jumpStartTime = now;
+                if (typeof playSound === 'function') playSound('jump', bType, gx, gy, gz);
+            }
+        }
+
+        function handleJumpEnd() {
+            player.isJumpHolding = false;
+        }
+
+        function checkDirectionalLeapTrigger(newlyPressedCode) {
+            if (keys['ShiftLeft'] || keys['ShiftRight']) {
+                const directionKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+                if (directionKeys.includes(newlyPressedCode)) {
+                    triggerSpatialLeap(newlyPressedCode);
+                } else if (newlyPressedCode.startsWith('Shift')) {
+                    for (const k of directionKeys) {
+                        if (keys[k]) {
+                            triggerSpatialLeap(k);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function handleCeilingLeap() {
+            // Gravity Shift strictly requires airborne state
+            if (player.isGrounded) return;
+
+            // Inverted Ceiling Flip strictly requires Shift key held (or G-SHIFT toggled on mobile)
+            const isShiftHeld = keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive;
+            if (!isShiftHeld) return;
+
+            if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
+
+            // Perform exact 180° inverted ceiling leap (Half-Backflip around local X axis)
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            const pushDir = currentUp.clone(); // Push upward towards ceiling
+
+            // Half-backflip rotation: 180 degrees around local X axis (Right)
+            const halfBackflip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+            const targetBodyQuat = player.bodyQuaternion.clone().multiply(halfBackflip);
+
+            player.isLeaping = true;
+            player.leapStartTime = performance.now();
+            player.leapStartQuaternion.copy(visualBodyQuaternion);
+            player.leapTargetQuaternion.copy(targetBodyQuat).normalize();
+
+            // Apply upward impulse towards ceiling
+            player.velocity.addScaledVector(pushDir, 10);
+            player.isGrounded = false;
+
+            player.energy -= LEAP_ENERGY_COST;
+            if (typeof playSound === 'function') playSound('leap');
+
+            if (isGshiftActive) {
+                isGshiftActive = false;
+                touchGshiftBtn.classList.remove('active');
+            }
+        }
+
+        function triggerSpatialLeap(code) {
+            // Spatial Gravity Shifts STRICTLY work when airborne
+            if (player.isGrounded) {
+                return;
+            }
+
+            if (player.energy < LEAP_ENERGY_COST || player.isLeaping) return;
+
+            // Align WASD spatial leap vectors purely with local camera yaw heading (excluding pitch)
+            const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            const headingQuat = visualBodyQuaternion.clone().multiply(yawQuat);
+
+            let leapDirWorld = new THREE.Vector3();
+            if (code === 'KeyW') {
+                leapDirWorld.set(0, 0, -1).applyQuaternion(headingQuat);
+            } else if (code === 'KeyS') {
+                leapDirWorld.set(0, 0, 1).applyQuaternion(headingQuat);
+            } else if (code === 'KeyA') {
+                leapDirWorld.set(-1, 0, 0).applyQuaternion(headingQuat);
+            } else if (code === 'KeyD') {
+                leapDirWorld.set(1, 0, 0).applyQuaternion(headingQuat);
+            }
+
+            const newFloorNormal = leapDirWorld.clone().negate();
+
+            initiateGravityShift(newFloorNormal, 10, leapDirWorld);
+            player.energy -= LEAP_ENERGY_COST;
+        }
+
+        const CARDINALS = [
+            new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+            new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+            new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1)
+        ];
+
+        function snapToNearestCardinal(vec) {
+            let maxDot = -Infinity;
+            let bestCardinal = CARDINALS[0];
+            for (const c of CARDINALS) {
+                const dot = vec.dot(c);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    bestCardinal = c;
+                }
+            }
+            return bestCardinal.clone();
+        }
+
+        function initiateGravityShift(desiredUpWorld, pushImpulse = 0, impulseDir = null) {
+            player.isLeaping = true;
+            player.leapStartTime = performance.now();
+            player.leapStartQuaternion.copy(visualBodyQuaternion);
+
+            const targetUp = snapToNearestCardinal(desiredUpWorld);
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
+            const shiftQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
+            const targetBodyRaw = shiftQuat.clone().multiply(player.bodyQuaternion);
+
+            const rawZ = new THREE.Vector3(0, 0, 1).applyQuaternion(targetBodyRaw);
+            const projZ = rawZ.clone().addScaledVector(targetUp, -rawZ.dot(targetUp)).normalize();
+            const cardinalZ = snapToNearestCardinal(projZ);
+            const cardinalX = new THREE.Vector3().crossVectors(targetUp, cardinalZ).normalize();
+
+            const rotMatrix = new THREE.Matrix4().makeBasis(cardinalX, targetUp, cardinalZ);
+            player.leapTargetQuaternion.setFromRotationMatrix(rotMatrix).normalize();
+
+            if (pushImpulse > 0 && impulseDir) {
+                player.velocity.addScaledVector(impulseDir.clone().normalize(), pushImpulse);
+            }
+
+            player.isGrounded = false;
+            if (typeof playSound === 'function') playSound('leap');
+        }
+
+        // --- Touch Controls Engine ---
+        const touchOverlay = document.getElementById('touch-overlay');
+        const touchLeftZone = document.getElementById('touch-left-zone');
+        const touchRightZone = document.getElementById('touch-right-zone');
+        const touchJoystickBase = document.getElementById('touch-joystick-base');
+        const touchJoystickKnob = document.getElementById('touch-joystick-knob');
+        const touchJumpBtn = document.getElementById('touch-jump-btn');
+        const touchHudSelect = document.getElementById('touch-hud-select');
+
+        let touchHudSetting = 'auto';
+
+        function updateTouchHudVisibility() {
+            const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+            if (touchHudSetting === 'on' || (touchHudSetting === 'auto' && isTouchDevice)) {
+                touchOverlay.style.display = 'block';
+            } else {
+                touchOverlay.style.display = 'none';
+            }
+        }
+
+        touchHudSelect.addEventListener('change', (e) => {
+            touchHudSetting = e.target.value;
+            updateTouchHudVisibility();
+        });
+
+        // Touch Joystick Logic (Left Side)
+        let joystickTouchId = null;
+        let joystickStartX = 0;
+        let joystickStartY = 0;
+
+        touchLeftZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickStartX = touch.clientX;
+            joystickStartY = touch.clientY;
+
+            touchJoystickBase.style.left = `${joystickStartX}px`;
+            touchJoystickBase.style.top = `${joystickStartY}px`;
+            touchJoystickBase.style.display = 'block';
+            touchJoystickKnob.style.transform = 'translate(-50%, -50%)';
+        });
+
+        touchLeftZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    const dx = touch.clientX - joystickStartX;
+                    const dy = touch.clientY - joystickStartY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxRadius = 40;
+
+                    const clampedDist = Math.min(dist, maxRadius);
+                    const angle = Math.atan2(dy, dx);
+
+                    const knobX = Math.cos(angle) * clampedDist;
+                    const knobY = Math.sin(angle) * clampedDist;
+
+                    touchJoystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+                    player.touchMoveInput.x = knobX / maxRadius;
+                    player.touchMoveInput.z = knobY / maxRadius;
+                }
+            }
+        });
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            touchJoystickBase.style.display = 'none';
+            player.touchMoveInput.set(0, 0, 0);
+        }
+
+        touchLeftZone.addEventListener('touchend', resetJoystick);
+        touchLeftZone.addEventListener('touchcancel', resetJoystick);
+
+        // Touch G-SHIFT Toggle Logic
+        const touchGshiftBtn = document.getElementById('touch-gshift-btn');
+        let isGshiftActive = false;
+
+        touchGshiftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isGshiftActive = !isGshiftActive;
+            if (isGshiftActive) {
+                touchGshiftBtn.classList.add('active');
+            } else {
+                touchGshiftBtn.classList.remove('active');
+            }
+        });
+
+        // Touch Right-Zone Contextual Interaction: Tap (Place), Hold (Break), Airborne Swipe (Gravity Leap)
+        let lookTouchId = null;
+        let lastLookX = 0;
+        let lastLookY = 0;
+        let lookStartX = 0;
+        let lookStartY = 0;
+        let lookStartTime = 0;
+        let touchStartWasGrounded = true;
+        let touchHoldTimer = null;
+
+        touchRightZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.target === touchJumpBtn || e.target === touchGshiftBtn) return;
+            if (lookTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            lookTouchId = touch.identifier;
+            lastLookX = touch.clientX;
+            lastLookY = touch.clientY;
+            lookStartX = touch.clientX;
+            lookStartY = touch.clientY;
+            lookStartTime = performance.now();
+            touchStartWasGrounded = player.isGrounded;
+
+            // Touch & Hold to Break Block after 250ms if minimal finger movement
+            touchHoldTimer = setTimeout(() => {
+                const target = getTargetedVoxelAndFace();
+                if (target && target.voxel) {
+                    startBreakingTarget(target.voxel);
+                }
+            }, 250);
+        });
+
+        touchRightZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === lookTouchId) {
+                    const dx = touch.clientX - lastLookX;
+                    const dy = touch.clientY - lastLookY;
+
+                    player.lookRotation.y -= dx * mouseSensitivity * 1.5;
+                    player.lookRotation.x -= dy * mouseSensitivity * 1.5;
+                    player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+
+                    lastLookX = touch.clientX;
+                    lastLookY = touch.clientY;
+
+                    // If finger moved significantly, cancel touch-and-hold block break timer
+                    const totalDist = Math.hypot(touch.clientX - lookStartX, touch.clientY - lookStartY);
+                    if (totalDist > 15 && touchHoldTimer) {
+                        clearTimeout(touchHoldTimer);
+                        touchHoldTimer = null;
+                    }
+                }
+            }
+        });
+
+        touchRightZone.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (touchHoldTimer) {
+                clearTimeout(touchHoldTimer);
+                touchHoldTimer = null;
+            }
+            stopBreakingTarget();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === lookTouchId) {
+                    const totalDx = touch.clientX - lookStartX;
+                    const totalDy = touch.clientY - lookStartY;
+                    const duration = performance.now() - lookStartTime;
+                    const dist = Math.hypot(totalDx, totalDy);
+
+                    if (dist < 15 && duration < 250) {
+                        // Short Tap -> Place Block
+                        const target = getTargetedVoxelAndFace();
+                        if (target && target.voxel && target.faceNormal) {
+                            handlePlaceBlock(target.voxel, target.faceNormal);
+                        }
+                    } else if (dist > 35 && duration < 350) {
+                        // Swipe Gesture -> Trigger Spatial Gravity Leap STRICTLY when G-SHIFT button is active
+                        if (isGshiftActive) {
+                            if (Math.abs(totalDx) > Math.abs(totalDy)) {
+                                triggerSpatialLeap(totalDx > 0 ? 'KeyD' : 'KeyA');
+                            } else {
+                                triggerSpatialLeap(totalDy > 0 ? 'KeyS' : 'KeyW');
+                            }
+                            isGshiftActive = false;
+                            touchGshiftBtn.classList.remove('active');
+                        }
+                    }
+
+                    lookTouchId = null;
+                }
+            }
+        });
+
+        touchRightZone.addEventListener('touchcancel', () => {
+            if (touchHoldTimer) clearTimeout(touchHoldTimer);
+            stopBreakingTarget();
+            lookTouchId = null;
+        });
+
+        // Touch JUMP Button Logic
+        let lastJumpTouchTime = 0;
+        let isTouchJumpHolding = false;
+        touchJumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isTouchJumpHolding = true;
+            const now = performance.now();
+            const isDoubleTap = (now - lastJumpTouchTime) < 350;
+
+            if (isGshiftActive && isDoubleTap) {
+                // Double tap while G-SHIFT is active -> Inverted Ceiling Flip 180°
+                handleCeilingLeap();
+            } else {
+                // Single tap or first tap -> Standard Jump
+                handleJumpStart();
+            }
+            lastJumpTouchTime = now;
+        });
+
+        touchJumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isTouchJumpHolding = false;
+            handleJumpEnd();
+        });
+
+        touchJumpBtn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            isTouchJumpHolding = false;
+            handleJumpEnd();
+        });
+
+        // Initialize touch visibility
+        updateTouchHudVisibility();
+
+        // --- Gyro Compass Widget & Settings Menu ---
+        const gyroCanvas = document.getElementById('gyro-canvas');
+        const gyroContext = gyroCanvas.getContext('2d');
+        gyroCanvas.width = 90;
+        gyroCanvas.height = 90;
+
+        const gyroContainer = document.getElementById('gyro-widget-container');
+        const settingsModal = document.getElementById('settings-modal');
+        const gyroModeSelect = document.getElementById('gyro-mode-select');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const gravityVectorHud = document.getElementById('gravity-vector-hud');
+
+        const graphicsModal = document.getElementById('graphics-modal');
+        const controlsModal = document.getElementById('controls-modal');
+        const connectModal = document.getElementById('connect-modal');
+
+        const btnOpenGraphics = document.getElementById('btn-open-graphics-modal');
+        const btnOpenControls = document.getElementById('btn-open-controls-modal');
+        const btnOpenConnect = document.getElementById('btn-open-connect-modal');
+
+        const btnCloseGraphics = document.getElementById('btn-close-graphics');
+        const btnCloseControls = document.getElementById('btn-close-controls');
+        const btnCloseConnect = document.getElementById('btn-close-connect');
+
+        if (btnOpenGraphics) btnOpenGraphics.addEventListener('click', () => { graphicsModal.style.display = 'flex'; });
+        if (btnOpenControls) btnOpenControls.addEventListener('click', () => { controlsModal.style.display = 'flex'; });
+        if (btnOpenConnect) btnOpenConnect.addEventListener('click', () => { connectModal.style.display = 'flex'; });
+
+        if (btnCloseGraphics) btnCloseGraphics.addEventListener('click', () => { graphicsModal.style.display = 'none'; });
+        if (btnCloseControls) btnCloseControls.addEventListener('click', () => { controlsModal.style.display = 'none'; });
+        if (btnCloseConnect) btnCloseConnect.addEventListener('click', () => { connectModal.style.display = 'none'; });
+
+        let gyroMode = 'axes';
+
+        let lastMenuToggleTime = 0;
+        function handleMenuToggle(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const now = performance.now();
+            if (now - lastMenuToggleTime > 300) {
+                toggleSettingsModal();
+                lastMenuToggleTime = now;
+            }
+        }
+
+        gyroContainer.addEventListener('touchstart', handleMenuToggle);
+        gyroContainer.addEventListener('click', handleMenuToggle);
+
+        gyroModeSelect.addEventListener('change', (e) => {
+            gyroMode = e.target.value;
+        });
+
+        // --- Sovereign DID & Web of Trust Identity State ---
+        let userDIDState = {
+            username: 'Explorer-01',
+            passphraseHash: '',
+            did: 'did:gemverse:8a9f4c3b7e12d4a5c6e8f0123456789a',
+            vouchesCount: 0,
+            vouchedBy: [],
+            isFullyAttested: false
+        };
+        window.userDIDState = userDIDState;
+        window.generateUserDID = generateUserDID;
+        window.addPeerVouch = addPeerVouch;
+
+        async function generateUserDID(usernameInput, passphraseInput) {
+            const handle = usernameInput.trim() || 'Explorer-01';
+            const pass = passphraseInput.trim() || 'nexus-sovereign-pass';
+
+            const msgBuffer = new TextEncoder().encode(`${handle}:${pass}`);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            userDIDState.username = handle;
+            userDIDState.passphraseHash = hashHex.substring(0, 16);
+            userDIDState.did = `did:gemverse:${hashHex.substring(0, 32)}`;
+
+            updateDIDIdentityUI();
+            return userDIDState.did;
+        }
+
+        function updateDIDIdentityUI() {
+            const didPreviewString = document.getElementById('did-preview-string');
+            const didStatusBadgeMenu = document.getElementById('did-status-badge-menu');
+            const didHandleDisplay = document.getElementById('did-handle-display');
+            const didFullString = document.getElementById('did-full-string');
+            const didAttestedStatusTag = document.getElementById('did-attested-status-tag');
+            const vouchEndorsersList = document.getElementById('vouch-endorsers-list');
+
+            if (didPreviewString) didPreviewString.textContent = `DID: ${userDIDState.did}`;
+            if (didHandleDisplay) didHandleDisplay.textContent = userDIDState.username;
+            if (didFullString) didFullString.textContent = userDIDState.did;
+
+            const count = userDIDState.vouchedBy.length;
+            const badgeText = userDIDState.isFullyAttested ? 'Fully Attested (2/2)' : `Unattested (${count}/2)`;
+            const badgeBg = userDIDState.isFullyAttested ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 170, 0, 0.2)';
+            const badgeColor = userDIDState.isFullyAttested ? '#00f0ff' : '#ffaa00';
+            const badgeBorder = userDIDState.isFullyAttested ? '#00f0ff' : '#ffaa00';
+
+            if (didStatusBadgeMenu) {
+                didStatusBadgeMenu.textContent = badgeText;
+                didStatusBadgeMenu.style.background = badgeBg;
+                didStatusBadgeMenu.style.color = badgeColor;
+                didStatusBadgeMenu.style.borderColor = badgeBorder;
+            }
+
+            if (didAttestedStatusTag) {
+                didAttestedStatusTag.textContent = badgeText.toUpperCase();
+                didAttestedStatusTag.style.background = badgeBg;
+                didAttestedStatusTag.style.color = badgeColor;
+                didAttestedStatusTag.style.borderColor = badgeBorder;
+            }
+
+            if (vouchEndorsersList) {
+                if (userDIDState.vouchedBy.length === 0) {
+                    vouchEndorsersList.innerHTML = '<em>No peer endorsements received yet.</em>';
+                } else {
+                    vouchEndorsersList.innerHTML = userDIDState.vouchedBy.map(v => `<div style="margin-top: 2px;">✔ Endorsed by <strong>${v}</strong></div>`).join('');
+                }
+            }
+        }
+
+        function addPeerVouch(voucherName = 'Clan Leader Valerius') {
+            if (userDIDState.vouchedBy.includes(voucherName)) {
+                showToastNotification(`Already vouched by ${voucherName}`);
+                return;
+            }
+            userDIDState.vouchedBy.push(voucherName);
+            userDIDState.vouchesCount = userDIDState.vouchedBy.length;
+
+            if (userDIDState.vouchesCount >= 2) {
+                userDIDState.isFullyAttested = true;
+                showToastNotification(`⚡ Web of Trust Verified! Received Vouch from ${voucherName} (${userDIDState.vouchesCount}/2 Vouches). Full Transmit & Build Rights Granted!`);
+            } else {
+                showToastNotification(`🤝 Received Peer Vouch from ${voucherName} (${userDIDState.vouchesCount}/2 Vouches)`);
+            }
+
+            updateDIDIdentityUI();
+        }
+
+        const tabBtnInventory = document.getElementById('tab-btn-inventory');
+        const tabBtnSettings = document.getElementById('tab-btn-settings');
+        const tabContentInventory = document.getElementById('tab-content-inventory');
+        const tabContentSettings = document.getElementById('tab-content-settings');
+
+        function setActiveTab(activeBtn, activeContent) {
+            if (tabContentInventory) tabContentInventory.style.display = 'none';
+            if (tabContentSettings) tabContentSettings.style.display = 'none';
+
+            [tabBtnInventory, tabBtnSettings].forEach(b => {
+                if (b) {
+                    b.style.background = 'rgba(255, 255, 255, 0.05)';
+                    b.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    b.style.color = '#aaa';
+                }
+            });
+
+            if (activeContent) activeContent.style.display = 'block';
+            if (activeBtn) {
+                activeBtn.style.background = 'rgba(0, 240, 255, 0.2)';
+                activeBtn.style.borderColor = '#00f0ff';
+                activeBtn.style.color = '#00f0ff';
+            }
+        }
+
+        if (tabBtnInventory) {
+            tabBtnInventory.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveTab(tabBtnInventory, tabContentInventory);
+            });
+        }
+
+        if (tabBtnSettings) {
+            tabBtnSettings.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveTab(tabBtnSettings, tabContentSettings);
+                updateDIDIdentityUI();
+            });
+        }
+
+        // Initialize DID credentials event listeners
+        const didUsernameInput = document.getElementById('did-username-input');
+        const didPassphraseInput = document.getElementById('did-passphrase-input');
+
+        if (didUsernameInput && didPassphraseInput) {
+            const handleInputChange = () => {
+                generateUserDID(didUsernameInput.value, didPassphraseInput.value);
+            };
+            didUsernameInput.addEventListener('input', handleInputChange);
+            didPassphraseInput.addEventListener('input', handleInputChange);
+            // Initial call
+            generateUserDID(didUsernameInput.value, didPassphraseInput.value);
+        }
+
+        const btnRequestVouch = document.getElementById('btn-request-vouch');
+        const btnVouchPeer = document.getElementById('btn-vouch-peer');
+
+        let peerVouchList = ['Clan Leader Valerius', 'Explorer Astra', 'P2P Mesh Peer 03'];
+        let peerVouchIndex = 0;
+
+        if (btnRequestVouch) {
+            btnRequestVouch.addEventListener('click', (e) => {
+                e.preventDefault();
+                const voucher = peerVouchList[peerVouchIndex % peerVouchList.length];
+                peerVouchIndex++;
+                addPeerVouch(voucher);
+            });
+        }
+
+        if (btnVouchPeer) {
+            btnVouchPeer.addEventListener('click', (e) => {
+                e.preventDefault();
+                const peerHandle = prompt('Enter Peer DID or Sovereign Handle to issue cryptographic endorsement:');
+                if (peerHandle && peerHandle.trim()) {
+                    showToastNotification(`🤝 Issued Cryptographic Peer Attestation Vouch to ${peerHandle.trim()}`);
+                }
+            });
+        }
+
+
+        btnCloseSettings.addEventListener('click', () => {
+            toggleSettingsModal();
+        });
+        window.toggleSettingsModal = toggleSettingsModal;
+
+        document.addEventListener('pointerlockchange', () => {
+            mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
+        });
+
+        function toggleSettingsModal() {
+            if (settingsModal.style.display === 'flex') {
+                settingsModal.style.display = 'none';
+                if (graphicsModal) graphicsModal.style.display = 'none';
+                if (controlsModal) controlsModal.style.display = 'none';
+                if (connectModal) connectModal.style.display = 'none';
+                if (renderer.domElement) {
+                    try { renderer.domElement.requestPointerLock(); } catch(e){}
+                }
+            } else {
+                renderProgressionInventoryMenu();
+                settingsModal.style.display = 'flex';
+                if (document.pointerLockElement) {
+                    document.exitPointerLock();
+                }
+            }
+        }
+
+        function renderGyroWidget() {
+            const w = gyroCanvas.width;
+            const h = gyroCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = w / 2 - 10;
+
+            gyroContext.clearRect(0, 0, w, h);
+
+            const camQuat = visualBodyQuaternion.clone().multiply(new THREE.Quaternion().setFromEuler(player.lookRotation));
+
+            if (gyroMode === 'axes') {
+                gyroContext.save();
+                gyroContext.translate(cx, cy);
+
+                const invCamQuat = camQuat.clone().invert();
+                const xAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(invCamQuat);
+                const yAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(invCamQuat);
+                const zAxis = new THREE.Vector3(0, 0, 1).applyQuaternion(invCamQuat);
+
+                const axes = [
+                    { vec: xAxis, color: '#ff4444', label: 'X' },
+                    { vec: yAxis, color: '#44ff44', label: 'Y' },
+                    { vec: zAxis, color: '#4488ff', label: 'Z' }
+                ];
+
+                axes.sort((a, b) => a.vec.z - b.vec.z);
+
+                axes.forEach(axis => {
+                    const px = axis.vec.x * r;
+                    const py = -axis.vec.y * r;
+
+                    gyroContext.beginPath();
+                    gyroContext.moveTo(0, 0);
+                    gyroContext.lineTo(px, py);
+                    gyroContext.strokeStyle = axis.color;
+                    gyroContext.lineWidth = axis.vec.z > 0 ? 3 : 1.5;
+                    gyroContext.stroke();
+
+                    gyroContext.beginPath();
+                    gyroContext.arc(px, py, 4, 0, Math.PI * 2);
+                    gyroContext.fillStyle = axis.color;
+                    gyroContext.fill();
+
+                    gyroContext.font = 'bold 10px sans-serif';
+                    gyroContext.fillStyle = '#ffffff';
+                    gyroContext.fillText(axis.label, px + 6, py + 3);
+                });
+
+                gyroContext.restore();
+            } else {
+                gyroContext.save();
+                gyroContext.translate(cx, cy);
+
+                const worldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat.clone().invert());
+                const pitchAngle = Math.asin(Math.max(-1, Math.min(1, worldUp.y)));
+                const rollAngle = Math.atan2(worldUp.x, worldUp.y);
+
+                gyroContext.rotate(-rollAngle);
+
+                const pitchOffset = pitchAngle * (r / (Math.PI / 2));
+
+                gyroContext.beginPath();
+                gyroContext.arc(0, 0, r, 0, Math.PI * 2);
+                gyroContext.clip();
+
+                // Sky & Ground Dividers
+                gyroContext.fillStyle = '#0055aa';
+                gyroContext.fillRect(-r, -r * 2 + pitchOffset, r * 2, r * 2);
+
+                gyroContext.fillStyle = '#553311';
+                gyroContext.fillRect(-r, pitchOffset, r * 2, r * 2);
+
+                // Horizon Line
+                gyroContext.beginPath();
+                gyroContext.moveTo(-r, pitchOffset);
+                gyroContext.lineTo(r, pitchOffset);
+                gyroContext.strokeStyle = '#00f0ff';
+                gyroContext.lineWidth = 2;
+                gyroContext.stroke();
+
+                // Pitch Attitude Ladder Lines
+                gyroContext.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                gyroContext.lineWidth = 1;
+                for (let step = -30; step <= 30; step += 15) {
+                    if (step === 0) continue;
+                    const lineY = pitchOffset - (step / 90) * r;
+                    const lineLength = Math.abs(step) === 30 ? 12 : 18;
+                    gyroContext.beginPath();
+                    gyroContext.moveTo(-lineLength, lineY);
+                    gyroContext.lineTo(lineLength, lineY);
+                    gyroContext.stroke();
+                }
+
+                gyroContext.restore();
+
+                // Aircraft Center Reference Wing Indicator (Fixed relative to HUD)
+                gyroContext.strokeStyle = '#ffaa00';
+                gyroContext.lineWidth = 2;
+                gyroContext.beginPath();
+                gyroContext.moveTo(cx - 14, cy);
+                gyroContext.lineTo(cx - 5, cy);
+                gyroContext.lineTo(cx, cy + 5);
+                gyroContext.lineTo(cx + 5, cy);
+                gyroContext.lineTo(cx + 14, cy);
+                gyroContext.stroke();
+
+                gyroContext.fillStyle = '#ffaa00';
+                gyroContext.beginPath();
+                gyroContext.arc(cx, cy, 2, 0, Math.PI * 2);
+                gyroContext.fill();
+            }
+        }
+
+        // --- Main Sovereign Physics Loop & Collision Resolution ---
+        const energyBarFill = document.getElementById('energy-bar-fill');
+
+        let lastTime = performance.now();
+        const gravityAccel = 22;
+        const moveSpeed = 6.5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            let delta = (time - lastTime) / 1000;
+            lastTime = time;
+
+            if (delta > 0.1) delta = 0.1;
+
+            // --- Camera Slerp Transition ---
+            if (player.isLeaping) {
+                const elapsed = (time - player.leapStartTime) / 1000;
+                const t = Math.min(elapsed / player.leapDuration, 1);
+                const smoothT = t * t * (3 - 2 * t);
+                visualBodyQuaternion.copy(player.leapStartQuaternion).slerp(player.leapTargetQuaternion, smoothT);
+
+                if (t >= 1) {
+                    player.isLeaping = false;
+                    player.bodyQuaternion.copy(player.leapTargetQuaternion);
+                    visualBodyQuaternion.copy(player.bodyQuaternion);
+
+                    // Zero out transverse velocity drift after leap completion to ensure crisp landing/flight
+                    const localDown = new THREE.Vector3(0, -1, 0).applyQuaternion(player.bodyQuaternion);
+                    const vDownProj = player.velocity.dot(localDown);
+                    if (vDownProj < 0) {
+                        player.velocity.set(0, 0, 0);
+                    } else {
+                        player.velocity.copy(localDown).multiplyScalar(vDownProj);
+                    }
+                }
+            } else {
+                visualBodyQuaternion.copy(player.bodyQuaternion);
+            }
+
+            // Update real-time Player Voxel Grid Position HUD display
+            const px = Math.round(player.position.x);
+            const py = Math.round(player.position.y);
+            const pz = Math.round(player.position.z);
+            gravityVectorHud.textContent = `Pos: [${px}, ${py}, ${pz}]`;
+
+            // Continuous Click-Hold Mining Engine
+            if (isMiningHeld) {
+                if (!isBreakingBlock || !breakTargetVoxel) {
+                    const target = getTargetedVoxelAndFace();
+                    if (target && target.voxel && !target.voxel.isGenesisBeacon && !target.voxel.isExitCorner) {
+                        startBreakingTarget(target.voxel);
+                    }
+                }
+            } else {
+                stopBreakingTarget();
+            }
+
+            // Process Block Breaking Progress & Mini Voxel Debris Animation
+            if (isBreakingBlock && breakTargetVoxel) {
+                const elapsed = (performance.now() - breakStartTime) / 1000;
+                const progress = Math.min(elapsed / breakRequiredTime, 1.0);
+
+                // Periodically spawn mini voxel block debris particles and sound tick during mining
+                if (Math.random() < 0.35) {
+                    spawnMiningDebris(breakTargetVoxel.position, breakTargetVoxel.baseType);
+                    if (typeof playSound === 'function') playSound('mine_tick', breakTargetVoxel.baseType, breakTargetVoxel.x, breakTargetVoxel.y, breakTargetVoxel.z);
+                }
+
+                if (progress >= 1.0) {
+                    // Block broken! Burst particles, convert into non-solid ghost block pending L2 de-settlement
+                    const targetType = breakTargetVoxel.baseType;
+                    const targetPos = breakTargetVoxel.position.clone();
+
+                    spawnMiningDebris(targetPos, targetType);
+                    spawnMiningDebris(targetPos, targetType);
+
+                    addItemToInventory(targetType);
+                    if (typeof playSound === 'function') playSound('break', targetType, targetPos.x, targetPos.y, targetPos.z);
+
+                    // Convert into non-solid translucent red ghost block (players fall through)
+                    const breakGhostMat = new THREE.MeshStandardMaterial({
+                        color: 0xff0055,
+                        transparent: true,
+                        opacity: 0.4,
+                        roughness: 0.1,
+                        wireframe: true,
+                        emissive: 0xff0055,
+                        emissiveIntensity: 0.5
+                    });
+
+                    // Remove solid collision block immediately so entities fall through
+                    removeVoxelBlock(breakTargetVoxel);
+                    stopBreakingTarget();
+
+                    // Spawn non-collidable visual ghost block during state de-settlement verification (~0.8s)
+                    const ghostMesh = new THREE.Mesh(voxelGeo, breakGhostMat);
+                    ghostMesh.position.copy(targetPos);
+                    scene.add(ghostMesh);
+
+                    setTimeout(() => {
+                        scene.remove(ghostMesh);
+                        breakGhostMat.dispose();
+                    }, 800);
+                }
+            }
+
+            // Update mini block mining particles
+            updateDebrisParticles(delta);
+
+            // --- Variable Jump Height Physics ---
+            const localUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(visualBodyQuaternion);
+            if (player.isJumpHolding) {
+                const holdElapsed = (time - player.jumpStartTime) / 1000;
+                if (holdElapsed < MAX_JUMP_HOLD_TIME) {
+                    player.velocity.addScaledVector(localUpWorld, JUMP_SUSTAIN_FORCE * delta);
+                } else {
+                    player.isJumpHolding = false;
+                }
+            }
+
+            // --- Arrow Key Camera Look Controls ---
+            const isAnyModalActive = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+
+            if (!isAnyModalActive) {
+                const arrowRotateSpeed = 1.8;
+                if (keys['ArrowLeft']) player.lookRotation.y += arrowRotateSpeed * delta;
+                if (keys['ArrowRight']) player.lookRotation.y -= arrowRotateSpeed * delta;
+                if (keys['ArrowUp']) player.lookRotation.x += arrowRotateSpeed * delta;
+                if (keys['ArrowDown']) player.lookRotation.x -= arrowRotateSpeed * delta;
+                player.lookRotation.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.lookRotation.x));
+            }
+
+            // --- Movement Input & Grounded Crouch Edge Protection ---
+            const isModalOpen = (
+                (welcomeSplash && welcomeSplash.style.display !== 'none') ||
+                settingsModal.style.display === 'flex' ||
+                genesisBeaconModal.style.display === 'flex' ||
+                exitConfirmationModal.style.display === 'flex' ||
+                graphicsModal.style.display === 'flex' ||
+                controlsModal.style.display === 'flex' ||
+                connectModal.style.display === 'flex'
+            );
+
+            const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
+            const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
+
+            const moveInput = new THREE.Vector3();
+
+            if (!isModalOpen) {
+                if (keys['KeyW']) moveInput.z -= 1;
+                if (keys['KeyS']) moveInput.z += 1;
+                if (keys['KeyA']) moveInput.x -= 1;
+                if (keys['KeyD']) moveInput.x += 1;
+
+                moveInput.x += player.touchMoveInput.x;
+                moveInput.z += player.touchMoveInput.z;
+            }
+
+            if (moveInput.lengthSq() > 1) moveInput.normalize();
+
+            const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            const moveQuat = visualBodyQuaternion.clone().multiply(yawQuat);
+            const moveWorldDir = moveInput.clone().applyQuaternion(moveQuat);
+
+            // Edge Protection: prevent crouching player from stepping into empty air off supported voxels
+            if (isCrouching && moveWorldDir.lengthSq() > 0.001) {
+                const targetPos = player.position.clone().addScaledVector(moveWorldDir, currentMoveSpeed * delta);
+
+                // Helper to check if target feet position has grounded voxel support beneath
+                const checkPosHasSupport = (pos) => {
+                    const feetPosTest = pos.clone().addScaledVector(localUpWorld, -player.height / 2 - 0.1);
+                    for (const vox of collidableVoxels) {
+                        const pMin = pos.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                        const pMax = pos.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
+                        let isLatOverlap = false;
+                        if (Math.abs(localUpWorld.y) > 0.8) {
+                            isLatOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                        } else if (Math.abs(localUpWorld.x) > 0.8) {
+                            isLatOverlap = (pMax.y > vox.min.y && pMin.y < vox.max.y && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                        } else {
+                            isLatOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.y > vox.min.y && pMin.y < vox.max.y);
+                        }
+
+                        const voxFaceCenter = vox.position.clone().addScaledVector(localUpWorld, VOXEL_SIZE / 2);
+                        const sDist = feetPosTest.clone().sub(voxFaceCenter).dot(localUpWorld);
+                        if (isLatOverlap && Math.abs(sDist) <= 0.2) return true;
+                    }
+                    // Outer room boundary wall/floor support check
+                    const halfRoom = ROOM_SIZE / 2;
+                    if (Math.abs(pos.x) >= halfRoom - player.radius || Math.abs(pos.y) >= halfRoom - player.height / 2 || Math.abs(pos.z) >= halfRoom - player.radius) {
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (!checkPosHasSupport(targetPos)) {
+                    // Try sliding along individual local movement axes if full vector step is off edge
+                    const testXPos = player.position.clone();
+                    testXPos.x += moveWorldDir.x * currentMoveSpeed * delta;
+
+                    const testZPos = player.position.clone();
+                    testZPos.z += moveWorldDir.z * currentMoveSpeed * delta;
+
+                    if (checkPosHasSupport(testXPos)) {
+                        moveWorldDir.z = 0;
+                    } else if (checkPosHasSupport(testZPos)) {
+                        moveWorldDir.x = 0;
+                    } else {
+                        moveWorldDir.set(0, 0, 0);
+                    }
+                }
+            }
+
+            player.position.addScaledVector(moveWorldDir, currentMoveSpeed * delta);
+
+            // --- Sovereign Gravity Acceleration along Local Down ---
+            const currentLocalDown = new THREE.Vector3(0, -1, 0).applyQuaternion(visualBodyQuaternion);
+
+            if (player.isGrounded) {
+                // Completely halt downward gravity accumulation when grounded to eliminate floor jitter
+                const vDownProj = player.velocity.dot(currentLocalDown);
+                if (vDownProj > 0) {
+                    player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                }
+            } else {
+                player.velocity.addScaledVector(currentLocalDown, gravityAccel * delta);
+            }
+
+            player.position.addScaledVector(player.velocity, delta);
+
+            // --- Sovereign Collision Resolution & Ground Probing ---
+            const wasGroundedBeforeCollision = player.isGrounded;
+            player.isGrounded = false;
+
+            const isMovingUpward = localUpWorld.dot(player.velocity) > 0.1;
+            const groundSnapTolerance = 0.05;
+
+            let groundedBlockType = 'wall';
+            let groundedX = Math.round(player.position.x);
+            let groundedY = Math.round(player.position.y);
+            let groundedZ = Math.round(player.position.z);
+
+
+            // 2. Voxel Platform Collision & Resting Ground Probe (Symmetric Box Gravity for all 6 faces)
+            const feetPos = player.position.clone().addScaledVector(localUpWorld, -player.height / 2);
+
+            for (const vox of collidableVoxels) {
+                const pMin = player.position.clone().sub(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+                const pMax = player.position.clone().add(new THREE.Vector3(player.radius, player.height / 2, player.radius));
+
+                let isLateralOverlap = false;
+                if (Math.abs(localUpWorld.y) > 0.8) {
+                    isLateralOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                } else if (Math.abs(localUpWorld.x) > 0.8) {
+                    isLateralOverlap = (pMax.y > vox.min.y && pMin.y < vox.max.y && pMax.z > vox.min.z && pMin.z < vox.max.z);
+                } else {
+                    isLateralOverlap = (pMax.x > vox.min.x && pMin.x < vox.max.x && pMax.y > vox.min.y && pMin.y < vox.max.y);
+                }
+
+                const voxFaceCenter = vox.position.clone().addScaledVector(localUpWorld, VOXEL_SIZE / 2);
+                const surfaceDist = feetPos.clone().sub(voxFaceCenter).dot(localUpWorld);
+
+                // Ground Resting Probe: player feet resting flush or within tolerance on voxel face relative to current local gravity
+                if (isLateralOverlap && !isMovingUpward && surfaceDist >= -0.05 && surfaceDist <= groundSnapTolerance) {
+                    player.position.addScaledVector(localUpWorld, -surfaceDist);
+                    player.isGrounded = true;
+                    groundedBlockType = vox.baseType;
+                    groundedX = vox.x;
+                    groundedY = vox.y;
+                    groundedZ = vox.z;
+
+                    const vDownProj = player.velocity.dot(currentLocalDown);
+                    if (vDownProj > 0) {
+                        player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                    }
+                    continue;
+                }
+
+                // Standard AABB penetration resolution
+                if (pMax.x > vox.min.x && pMin.x < vox.max.x &&
+                    pMax.y > vox.min.y && pMin.y < vox.max.y &&
+                    pMax.z > vox.min.z && pMin.z < vox.max.z) {
+
+                    const overlapX1 = vox.max.x - pMin.x;
+                    const overlapX2 = pMax.x - vox.min.x;
+                    const overlapY1 = vox.max.y - pMin.y;
+                    const overlapY2 = pMax.y - vox.min.y;
+                    const overlapZ1 = vox.max.z - pMin.z;
+                    const overlapZ2 = pMax.z - vox.min.z;
+
+                    const minX = overlapX1 < overlapX2 ? overlapX1 : -overlapX2;
+                    const minY = overlapY1 < overlapY2 ? overlapY1 : -overlapY2;
+                    const minZ = overlapZ1 < overlapZ2 ? overlapZ1 : -overlapZ2;
+
+                    const absX = Math.abs(minX);
+                    const absY = Math.abs(minY);
+                    const absZ = Math.abs(minZ);
+
+                    let hitNormal = new THREE.Vector3();
+                    if (absX <= absY && absX <= absZ) {
+                        player.position.x += minX;
+                        hitNormal.set(Math.sign(minX), 0, 0);
+                    } else if (absY <= absX && absY <= absZ) {
+                        player.position.y += minY;
+                        hitNormal.set(0, Math.sign(minY), 0);
+                    } else {
+                        player.position.z += minZ;
+                        hitNormal.set(0, 0, Math.sign(minZ));
+                    }
+
+                    const dotUp = localUpWorld.dot(hitNormal);
+                    if (dotUp > 0.8 && !isMovingUpward) {
+                        player.isGrounded = true;
+                        groundedBlockType = vox.baseType;
+                        groundedX = vox.x;
+                        groundedY = vox.y;
+                        groundedZ = vox.z;
+
+                        const vDownProj = player.velocity.dot(currentLocalDown);
+                        if (vDownProj > 0) {
+                            player.velocity.addScaledVector(currentLocalDown, -vDownProj);
+                        }
+                    }
+                }
+            }
+
+            // Post-collision Ground State Processing & Natural Footstep Audio Engine
+            if (player.isGrounded) {
+                player.lastGroundedTime = performance.now();
+                player.groundedBlockType = groundedBlockType;
+                player.groundedX = groundedX;
+                player.groundedY = groundedY;
+                player.groundedZ = groundedZ;
+
+                if (!wasGroundedBeforeCollision && typeof playSound === 'function') {
+                    playSound('land', groundedBlockType, groundedX, groundedY, groundedZ);
+                }
+
+                // Dynamic footstep sound triggered on block boundary crossing or distance traveled (~0.85 voxels)
+                const isMoving = moveInput.lengthSq() > 0.01;
+                if (isMoving && !player.isLeaping) {
+                    if (!player.lastStepPos) {
+                        player.lastStepPos = player.position.clone();
+                        player.lastStepBlockKey = `${groundedX},${groundedY},${groundedZ}`;
+                    }
+
+                    const currentBlockKey = `${groundedX},${groundedY},${groundedZ}`;
+                    const distMoved = player.position.distanceTo(player.lastStepPos);
+
+                    if (currentBlockKey !== player.lastStepBlockKey || distMoved >= 0.85) {
+                        if (typeof playSound === 'function') {
+                            playSound('step', groundedBlockType, groundedX, groundedY, groundedZ);
+                        }
+                        player.lastStepPos.copy(player.position);
+                        player.lastStepBlockKey = currentBlockKey;
+                    }
+                } else {
+                    player.lastStepPos = null;
+                    player.lastStepBlockKey = null;
+                }
+
+                executeBufferedJump(); // Execute jump immediately if jump was pressed right before landing
+            } else {
+                player.lastStepPos = null;
+                player.lastStepBlockKey = null;
+            }
+
+            // Continuous auto-jump while holding Jump key (Space) or Touch Jump button
+            if (player.isGrounded && (keys['Space'] || isTouchJumpHolding) && !player.isLeaping) {
+                handleJumpStart();
+            }
+
+            // --- Smooth Crouch Eye Height Transition ---
+            const targetEyeHeight = isCrouching ? (player.height / 2 - 0.7) : (player.height / 2 - 0.2);
+            player.currentEyeHeight += (targetEyeHeight - player.currentEyeHeight) * Math.min(12 * delta, 1.0);
+
+            // --- Camera Position & Orientation Update ---
+            const lookQuat = new THREE.Quaternion().setFromEuler(player.lookRotation);
+            camera.quaternion.copy(visualBodyQuaternion).multiply(lookQuat);
+
+            const eyeOffset = new THREE.Vector3(0, player.currentEyeHeight, 0).applyQuaternion(visualBodyQuaternion);
+            const eyePos = player.position.clone().add(eyeOffset);
+
+            if (isThirdPerson) {
+                // 3rd Person Orbit Camera positioned behind player along camera look orientation
+                const thirdPersonBackVector = new THREE.Vector3(0, 0, 3.8).applyQuaternion(camera.quaternion);
+                const thirdPersonUpVector = new THREE.Vector3(0, 0.8, 0).applyQuaternion(visualBodyQuaternion);
+                camera.position.copy(eyePos).add(thirdPersonBackVector).add(thirdPersonUpVector);
+            } else {
+                camera.position.copy(eyePos);
+            }
+
+            // Update Player Avatar Body Position & Rotation (rotates with camera look yaw)
+            const yawQuatBody = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), player.lookRotation.y);
+            avatarMesh.position.copy(player.position);
+            avatarMesh.quaternion.copy(visualBodyQuaternion).multiply(yawQuatBody);
+
+            const pulse = Math.sin(time * 0.005) * 0.15 + 0.85;
+            avatarMat.emissiveIntensity = pulse;
+
+            // --- Energy Regeneration & HUD Update ---
+            if (player.energy < player.maxEnergy) {
+                player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta);
+            }
+            energyBarFill.style.height = `${(player.energy / player.maxEnergy) * 100}%`;
+
+            renderGyroWidget();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            updateTouchHudVisibility();
+        });
+    </script>
+</body>
+</html>
