@@ -2392,12 +2392,6 @@
             if (document.pointerLockElement) {
                 moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
                 moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-            } else {
-                // Drag-look fallback or cursor-based camera movement when pointer lock is not active
-                if (lastMouseX !== 0 && lastMouseY !== 0) {
-                    moveX = e.clientX - lastMouseX;
-                    moveY = e.clientY - lastMouseY;
-                }
             }
 
             lastMouseX = e.clientX;
@@ -3082,11 +3076,15 @@
 
         document.addEventListener('pointerlockchange', () => {
             mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
+            lastMouseX = 0;
+            lastMouseY = 0;
         });
 
         function toggleSettingsModal() {
             if (settingsModal.style.display === 'flex') {
                 settingsModal.style.display = 'none';
+                selectedSwapSlotIndex = null;
+                updateInventoryUI();
                 if (graphicsModal) graphicsModal.style.display = 'none';
                 if (controlsModal) controlsModal.style.display = 'none';
                 if (connectModal) connectModal.style.display = 'none';
