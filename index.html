@@ -737,10 +737,17 @@
                         <em>No peer endorsements received yet.</em>
                     </div>
 
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                         <button id="btn-request-vouch" style="flex: 1; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ REQUEST PEER VOUCH</button>
                         <button id="btn-vouch-peer" style="flex: 1; background: rgba(255, 255, 255, 0.1); color: #00f0ff; border: 1px solid #00f0ff; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">🤝 VOUCH FOR PEER</button>
                     </div>
+
+                    <h4 style="margin: 0 0 8px 0; color: #00f0ff; font-size: 0.85em;">🌐 WEBRTC P2P DATACHANNEL MESH</h4>
+                    <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; font-size: 0.78em; border: 1px solid rgba(0,240,255,0.2); margin-bottom: 8px;">
+                        <div>Role: <strong id="webrtc-node-tier" style="color: #00f0ff;">Tier 3: Echo Witness (Validator)</strong></div>
+                        <div style="margin-top: 2px;">Connections: <strong id="webrtc-peer-count" style="color: #00ffaa;">0 Active Peers</strong></div>
+                    </div>
+                    <button id="btn-webrtc-transmit" style="width: 100%; background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px; font-size: 0.8em; font-weight: bold; border-radius: 6px; cursor: pointer;">⚡ TRANSMIT ECHO WITNESS RECEIPT</button>
                 </div>
             </div>
 
@@ -755,6 +762,7 @@
             <!-- Gyro Menu Navigation Tabs -->
             <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 10px;">
                 <button id="tab-btn-inventory" style="flex: 1; padding: 8px; background: rgba(0, 240, 255, 0.2); border: 1px solid #00f0ff; color: #00f0ff; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🎒 INVENTORY</button>
+                <button id="tab-btn-matrix" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">🔮 CORE MATRIX</button>
                 <button id="tab-btn-settings" style="flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); color: #aaa; font-weight: bold; font-size: 0.85em; border-radius: 6px; cursor: pointer;">⚙ SETTINGS</button>
             </div>
 
@@ -771,7 +779,14 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Settings Navigation Hub with Category Buttons -->
+            <!-- Tab 2: Core Matrix & Chroma-ID Character State -->
+            <div id="tab-content-matrix" style="display: none;">
+                <div id="core-matrix-container" style="background: rgba(0, 240, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <!-- Dynamic Core Matrix Tab UI rendered via JS -->
+                </div>
+            </div>
+
+            <!-- Tab 3: Settings Navigation Hub with Category Buttons -->
             <div id="tab-content-settings" style="display: none;">
                 <div style="display: flex; flex-direction: column; gap: 12px; margin: 10px 0;">
                     <button id="btn-open-graphics-modal" style="background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1em; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
@@ -1778,6 +1793,16 @@
             });
         }
 
+        const btnWebrtcTransmit = document.getElementById('btn-webrtc-transmit');
+        if (btnWebrtcTransmit) {
+            btnWebrtcTransmit.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (webrtcMeshManager) {
+                    webrtcMeshManager.triggerManualConsensusBroadcast();
+                }
+            });
+        }
+
         function handleSlotInteraction(slotIndex, isHotbarClick = false) {
             const slotData = inventorySlots[slotIndex];
 
@@ -2045,6 +2070,7 @@
         document.addEventListener('contextmenu', (e) => e.preventDefault());
 
         function getTargetedVoxelAndFace() {
+            raycaster.far = window.activeReachDistance || 8.0;
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const uniqueMeshes = Array.from(new Set(collidableVoxels.map(v => v.mesh)));
             const intersects = raycaster.intersectObjects(uniqueMeshes, false);
@@ -2114,6 +2140,7 @@
 
             // Deduct block from inventory slot
             deductSelectedItem();
+            if (typeof recordBlockPlaced === 'function') recordBlockPlaced();
             if (typeof playSound === 'function') playSound('place', blockTypeToPlace, newX, newY, newZ);
 
             // 1. Spawn Translucent Ghost Block matching target block color (Pending L2 verification, solid collision)
@@ -2477,7 +2504,8 @@
 
             if (canJump && timeSinceJumpPress < JUMP_BUFFER_DURATION) {
                 const localUp = new THREE.Vector3(0, 1, 0).applyQuaternion(player.bodyQuaternion);
-                player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE);
+                const jumpMult = window.activeJumpImpulseMult || 1.0;
+                player.velocity.addScaledVector(localUp, INITIAL_JUMP_IMPULSE * jumpMult);
 
                 const bType = player.groundedBlockType || 'platform';
                 const gx = player.groundedX || Math.round(player.position.x);
@@ -2598,6 +2626,7 @@
         }
 
         function initiateGravityShift(desiredUpWorld, pushImpulse = 0, impulseDir = null) {
+            if (typeof recordGravityFlip === 'function') recordGravityFlip();
             player.isLeaping = true;
             player.leapStartTime = performance.now();
             player.leapStartQuaternion.copy(visualBodyQuaternion);
@@ -2919,6 +2948,443 @@
         window.generateUserDID = generateUserDID;
         window.addPeerVouch = addPeerVouch;
 
+        // --- Living Chronicle Engine & Core Matrix Data Models ---
+        const livingChronicle = {
+            blocksBroken: 0,
+            blocksPlaced: 0,
+            gravityFlips: 0,
+            distanceTraversed: 0.0,
+            consensusValidations: 0,
+            lastSaveTime: Date.now()
+        };
+
+        const coreMatrixState = {
+            equippedAvatar: "Chroma-ID Alpha",
+            activeCores: {
+                jumpCore: 1,      // Jump Force Core Level (1-5)
+                energyCore: 1,    // Energy Matrix Core Level (1-5)
+                speedCore: 1,     // Kinetic Velocity Core Level (1-5)
+                reachCore: 1      // Spatial Reach Core Level (1-5)
+            }
+        };
+
+        // Core definition specs & milestone requirements
+        const CHROMA_CORES_SPEC = {
+            jumpCore: {
+                id: 'jumpCore',
+                name: 'Jump Force Matrix',
+                icon: '⚡',
+                description: 'Amplifies vertical launch impulse and sustained airborne levitation force.',
+                statName: 'Gravity Flips',
+                getRequirement: (level) => level * 5,
+                getCurrentStat: () => livingChronicle.gravityFlips,
+                getMultiplier: (level) => 1.0 + (level - 1) * 0.15, // +15% per level
+                getFormattedBonus: (level) => `+${Math.round((level - 1) * 15)}% Jump Impulse`
+            },
+            energyCore: {
+                id: 'energyCore',
+                name: 'Energy Core Matrix',
+                icon: '🔋',
+                description: 'Expands total energy storage capacity and accelerates energy regeneration rate.',
+                statName: 'Distance Traversed',
+                getRequirement: (level) => level * 100, // 100m, 200m, 300m...
+                getCurrentStat: () => Math.floor(livingChronicle.distanceTraversed),
+                getMultiplier: (level) => 1.0 + (level - 1) * 0.25, // +25% max energy & regen
+                getFormattedBonus: (level) => `+${Math.round((level - 1) * 25)}% Max Energy & Regen`
+            },
+            speedCore: {
+                id: 'speedCore',
+                name: 'Kinetic Speed Matrix',
+                icon: '🏃',
+                description: 'Enhances ground sprint velocity and spatial traversal speed.',
+                statName: 'Distance Traversed',
+                getRequirement: (level) => level * 150,
+                getCurrentStat: () => Math.floor(livingChronicle.distanceTraversed),
+                getMultiplier: (level) => 1.0 + (level - 1) * 0.12, // +12% per level
+                getFormattedBonus: (level) => `+${Math.round((level - 1) * 12)}% Movement Speed`
+            },
+            reachCore: {
+                id: 'reachCore',
+                name: 'Spatial Reach Matrix',
+                icon: '🎯',
+                description: 'Extends long-range quantum voxel targeting, mining, and block placement reach.',
+                statName: 'Blocks Mined',
+                getRequirement: (level) => level * 15,
+                getCurrentStat: () => livingChronicle.blocksBroken,
+                getMultiplier: (level) => 1.0 + (level - 1) * 0.20, // +20% reach distance
+                getFormattedBonus: (level) => `+${(Math.round((level - 1) * 20 * 8.0) / 100).toFixed(1)}m Reach Range`
+            }
+        };
+
+        function loadLivingChronicleData() {
+            try {
+                const savedChronicle = localStorage.getItem('gemverse_living_chronicle');
+                if (savedChronicle) {
+                    Object.assign(livingChronicle, JSON.parse(savedChronicle));
+                }
+                const savedMatrix = localStorage.getItem('gemverse_core_matrix');
+                if (savedMatrix) {
+                    Object.assign(coreMatrixState, JSON.parse(savedMatrix));
+                }
+            } catch (e) {
+                console.warn('Could not load Living Chronicle state:', e);
+            }
+            applyCoreMatrixModifiers();
+        }
+
+        function saveLivingChronicleData() {
+            try {
+                localStorage.setItem('gemverse_living_chronicle', JSON.stringify(livingChronicle));
+                localStorage.setItem('gemverse_core_matrix', JSON.stringify(coreMatrixState));
+            } catch (e) {
+                console.warn('Could not save Living Chronicle state:', e);
+            }
+        }
+
+        function applyCoreMatrixModifiers() {
+            // Apply Jump Core
+            const jumpMult = CHROMA_CORES_SPEC.jumpCore.getMultiplier(coreMatrixState.activeCores.jumpCore);
+            window.activeJumpImpulseMult = jumpMult;
+
+            // Apply Energy Core
+            const energyMult = CHROMA_CORES_SPEC.energyCore.getMultiplier(coreMatrixState.activeCores.energyCore);
+            if (typeof player !== 'undefined' && player) {
+                player.maxEnergy = Math.round(100 * energyMult);
+            }
+            window.activeEnergyRegenMult = energyMult;
+
+            // Apply Speed Core
+            const speedMult = CHROMA_CORES_SPEC.speedCore.getMultiplier(coreMatrixState.activeCores.speedCore);
+            window.activeSpeedMult = speedMult;
+
+            // Apply Reach Core
+            const reachMult = CHROMA_CORES_SPEC.reachCore.getMultiplier(coreMatrixState.activeCores.reachCore);
+            window.activeReachDistance = 8.0 * reachMult;
+        }
+
+        function recordBlockBroken() {
+            livingChronicle.blocksBroken++;
+            saveLivingChronicleData();
+            if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+        }
+
+        function recordBlockPlaced() {
+            livingChronicle.blocksPlaced++;
+            saveLivingChronicleData();
+            if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+        }
+
+        function recordGravityFlip() {
+            livingChronicle.gravityFlips++;
+            saveLivingChronicleData();
+            if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+        }
+
+        function recordDistanceTraversed(meters) {
+            livingChronicle.distanceTraversed += meters;
+            if (Date.now() - livingChronicle.lastSaveTime > 3000) {
+                livingChronicle.lastSaveTime = Date.now();
+                saveLivingChronicleData();
+                if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+            }
+        }
+
+        function recordConsensusValidation() {
+            livingChronicle.consensusValidations++;
+            saveLivingChronicleData();
+            if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+        }
+
+        function upgradeChromaCore(coreId) {
+            const spec = CHROMA_CORES_SPEC[coreId];
+            if (!spec) return;
+            const currentLvl = coreMatrixState.activeCores[coreId] || 1;
+            if (currentLvl >= 5) {
+                showToastNotification(`⚠️ ${spec.name} is already at maximum level 5!`);
+                return;
+            }
+            const req = spec.getRequirement(currentLvl + 1);
+            const currentStat = spec.getCurrentStat();
+            if (currentStat < req) {
+                showToastNotification(`❌ Requirement not met: Need ${req} ${spec.statName} (Current: ${currentStat})`);
+                return;
+            }
+
+            coreMatrixState.activeCores[coreId] = currentLvl + 1;
+            saveLivingChronicleData();
+            applyCoreMatrixModifiers();
+            if (typeof renderCoreMatrixTab === 'function') renderCoreMatrixTab();
+            if (typeof playSound === 'function') playSound('inventory_select');
+            showToastNotification(`✨ Upgraded ${spec.name} to Level ${coreMatrixState.activeCores[coreId]}! (${spec.getFormattedBonus(coreMatrixState.activeCores[coreId])})`);
+        }
+
+        async function exportArchivalLedger() {
+            const ledgerExport = {
+                protocol: "Gemverse Living Chronicle v3.5",
+                did: userDIDState.did,
+                handle: userDIDState.username,
+                timestamp: new Date().toISOString(),
+                stats: livingChronicle,
+                coreMatrix: coreMatrixState,
+                peerAttestations: userDIDState.vouchedBy
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(ledgerExport, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `gemverse_archival_ledger_${userDIDState.username}_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            if (typeof showToastNotification === 'function') {
+                showToastNotification(`📦 Exported Archival Character Ledger for DID: ${userDIDState.did.substring(0, 18)}...`);
+            }
+        }
+
+        window.livingChronicle = livingChronicle;
+        window.coreMatrixState = coreMatrixState;
+        window.CHROMA_CORES_SPEC = CHROMA_CORES_SPEC;
+        window.recordBlockBroken = recordBlockBroken;
+        window.recordBlockPlaced = recordBlockPlaced;
+        window.recordGravityFlip = recordGravityFlip;
+        window.recordDistanceTraversed = recordDistanceTraversed;
+        window.recordConsensusValidation = recordConsensusValidation;
+        window.upgradeChromaCore = upgradeChromaCore;
+        window.exportArchivalLedger = exportArchivalLedger;
+        window.loadLivingChronicleData = loadLivingChronicleData;
+        window.saveLivingChronicleData = saveLivingChronicleData;
+        window.applyCoreMatrixModifiers = applyCoreMatrixModifiers;
+
+        // --- Native WebRTC P2P DataChannel Mesh Engine ---
+        class WebRTCMeshManager {
+            constructor() {
+                this.peerConnections = new Map(); // peerId -> { pc, dc, info, status }
+                this.localPeerId = 'node_' + Math.random().toString(36).substring(2, 9);
+                this.nodeTier = 'Tier 3: Echo Witness';
+                this.broadcastChannel = null;
+                this.initSignaling();
+            }
+
+            initSignaling() {
+                try {
+                    if ('BroadcastChannel' in window) {
+                        this.broadcastChannel = new BroadcastChannel('gemverse_p2p_mesh');
+                        this.broadcastChannel.onmessage = (event) => this.handleSignalingMessage(event.data);
+                        // Announce self
+                        this.broadcastSignal({
+                            type: 'ANNOUNCE',
+                            peerId: this.localPeerId,
+                            did: userDIDState ? userDIDState.did : '',
+                            username: userDIDState ? userDIDState.username : 'Explorer-01',
+                            nodeTier: this.nodeTier
+                        });
+                    }
+                } catch (e) {
+                    console.warn('BroadcastChannel error:', e);
+                }
+            }
+
+            broadcastSignal(msg) {
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage(msg);
+                }
+            }
+
+            async handleSignalingMessage(data) {
+                if (!data || data.peerId === this.localPeerId) return;
+
+                if (data.type === 'ANNOUNCE') {
+                    if (!this.peerConnections.has(data.peerId)) {
+                        this.createPeerConnection(data.peerId, true, data);
+                    }
+                } else if (data.type === 'OFFER' && data.targetPeerId === this.localPeerId) {
+                    this.handleOffer(data);
+                } else if (data.type === 'ANSWER' && data.targetPeerId === this.localPeerId) {
+                    this.handleAnswer(data);
+                } else if (data.type === 'CANDIDATE' && data.targetPeerId === this.localPeerId) {
+                    this.handleCandidate(data);
+                }
+            }
+
+            async createPeerConnection(remotePeerId, isInitiator, peerInfo = {}) {
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                const connEntry = { pc, dc: null, info: peerInfo, status: 'connecting' };
+                this.peerConnections.set(remotePeerId, connEntry);
+
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        this.broadcastSignal({
+                            type: 'CANDIDATE',
+                            peerId: this.localPeerId,
+                            targetPeerId: remotePeerId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+
+                if (isInitiator) {
+                    const dc = pc.createDataChannel('gemverse_mesh_channel');
+                    connEntry.dc = dc;
+                    this.setupDataChannel(dc, remotePeerId);
+
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    this.broadcastSignal({
+                        type: 'OFFER',
+                        peerId: this.localPeerId,
+                        targetPeerId: remotePeerId,
+                        offer: offer,
+                        username: userDIDState ? userDIDState.username : 'Explorer-01'
+                    });
+                } else {
+                    pc.ondatachannel = (event) => {
+                        connEntry.dc = event.channel;
+                        this.setupDataChannel(event.channel, remotePeerId);
+                    };
+                }
+
+                this.updateNodeTierStatus();
+            }
+
+            async handleOffer(data) {
+                let connEntry = this.peerConnections.get(data.peerId);
+                if (!connEntry) {
+                    await this.createPeerConnection(data.peerId, false, { username: data.username });
+                    connEntry = this.peerConnections.get(data.peerId);
+                }
+                await connEntry.pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await connEntry.pc.createAnswer();
+                await connEntry.pc.setLocalDescription(answer);
+
+                this.broadcastSignal({
+                    type: 'ANSWER',
+                    peerId: this.localPeerId,
+                    targetPeerId: data.peerId,
+                    answer: answer
+                });
+            }
+
+            async handleAnswer(data) {
+                const connEntry = this.peerConnections.get(data.peerId);
+                if (connEntry && connEntry.pc) {
+                    await connEntry.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+            }
+
+            async handleCandidate(data) {
+                const connEntry = this.peerConnections.get(data.peerId);
+                if (connEntry && connEntry.pc && data.candidate) {
+                    try {
+                        await connEntry.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    } catch (e) {
+                        console.warn('ICE candidate error:', e);
+                    }
+                }
+            }
+
+            setupDataChannel(dc, remotePeerId) {
+                dc.onopen = () => {
+                    const connEntry = this.peerConnections.get(remotePeerId);
+                    if (connEntry) connEntry.status = 'connected';
+                    this.updateNodeTierStatus();
+                    if (typeof showToastNotification === 'function') {
+                        showToastNotification(`🌐 WebRTC DataChannel Connected to Mesh Peer (${connEntry?.info?.username || remotePeerId})`);
+                    }
+                    this.sendDataMessage(remotePeerId, {
+                        type: 'ECHO_VALIDATION',
+                        sender: userDIDState ? userDIDState.username : 'Explorer-01',
+                        timestamp: Date.now()
+                    });
+                };
+
+                dc.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        this.handleMeshMessage(remotePeerId, msg);
+                    } catch (e) {
+                        console.warn('Mesh message error:', e);
+                    }
+                };
+
+                dc.onclose = () => {
+                    this.peerConnections.delete(remotePeerId);
+                    this.updateNodeTierStatus();
+                };
+            }
+
+            sendDataMessage(remotePeerId, msg) {
+                const connEntry = this.peerConnections.get(remotePeerId);
+                if (connEntry && connEntry.dc && connEntry.dc.readyState === 'open') {
+                    connEntry.dc.send(JSON.stringify(msg));
+                }
+            }
+
+            broadcastDataMessage(msg) {
+                let sentCount = 0;
+                for (const [peerId, entry] of this.peerConnections.entries()) {
+                    if (entry.dc && entry.dc.readyState === 'open') {
+                        entry.dc.send(JSON.stringify(msg));
+                        sentCount++;
+                    }
+                }
+                return sentCount;
+            }
+
+            handleMeshMessage(remotePeerId, msg) {
+                if (msg.type === 'ECHO_VALIDATION') {
+                    recordConsensusValidation();
+                    if (typeof showToastNotification === 'function') {
+                        showToastNotification(`⚡ Echo Witness Validation Receipt Received from ${msg.sender}! (+1 Consensus Validation)`);
+                    }
+                } else if (msg.type === 'STATE_RECEIPT') {
+                    recordConsensusValidation();
+                    if (typeof showToastNotification === 'function') {
+                        showToastNotification(`🧾 Signed Voxel State Receipt from Peer ${msg.sender}`);
+                    }
+                }
+            }
+
+            updateNodeTierStatus() {
+                const activeConnCount = Array.from(this.peerConnections.values()).filter(c => c.status === 'connected').length;
+                if (activeConnCount >= 2) {
+                    this.nodeTier = 'Tier 2: Light Scribe (Transient Router)';
+                } else {
+                    this.nodeTier = 'Tier 3: Echo Witness (Validator)';
+                }
+
+                const tierDisplay = document.getElementById('webrtc-node-tier');
+                const peersDisplay = document.getElementById('webrtc-peer-count');
+                if (tierDisplay) tierDisplay.textContent = this.nodeTier;
+                if (peersDisplay) peersDisplay.textContent = `${activeConnCount} Active Peers`;
+            }
+
+            triggerManualConsensusBroadcast() {
+                const count = this.broadcastDataMessage({
+                    type: 'ECHO_VALIDATION',
+                    sender: userDIDState ? userDIDState.username : 'Explorer-01',
+                    timestamp: Date.now()
+                });
+
+                if (count > 0) {
+                    if (typeof showToastNotification === 'function') {
+                        showToastNotification(`⚡ Broadcasted Echo Witness Validation to ${count} WebRTC Mesh Peers!`);
+                    }
+                } else {
+                    recordConsensusValidation();
+                    if (typeof showToastNotification === 'function') {
+                        showToastNotification(`⚡ WebRTC Echo Witness Self-Validation Signed (Solo Peer Mesh)`);
+                    }
+                }
+            }
+        }
+
+        const webrtcMeshManager = new WebRTCMeshManager();
+        window.webrtcMeshManager = webrtcMeshManager;
+
         async function generateUserDID(usernameInput, passphraseInput) {
             const handle = usernameInput.trim() || 'Explorer-01';
             const pass = passphraseInput.trim() || 'nexus-sovereign-pass';
@@ -2996,15 +3462,18 @@
         }
 
         const tabBtnInventory = document.getElementById('tab-btn-inventory');
+        const tabBtnMatrix = document.getElementById('tab-btn-matrix');
         const tabBtnSettings = document.getElementById('tab-btn-settings');
         const tabContentInventory = document.getElementById('tab-content-inventory');
+        const tabContentMatrix = document.getElementById('tab-content-matrix');
         const tabContentSettings = document.getElementById('tab-content-settings');
 
         function setActiveTab(activeBtn, activeContent) {
             if (tabContentInventory) tabContentInventory.style.display = 'none';
+            if (tabContentMatrix) tabContentMatrix.style.display = 'none';
             if (tabContentSettings) tabContentSettings.style.display = 'none';
 
-            [tabBtnInventory, tabBtnSettings].forEach(b => {
+            [tabBtnInventory, tabBtnMatrix, tabBtnSettings].forEach(b => {
                 if (b) {
                     b.style.background = 'rgba(255, 255, 255, 0.05)';
                     b.style.borderColor = 'rgba(255, 255, 255, 0.2)';
@@ -3020,10 +3489,129 @@
             }
         }
 
+        function renderCoreMatrixTab() {
+            const container = document.getElementById('core-matrix-container');
+            if (!container) return;
+
+            const handle = userDIDState.username || 'Explorer-01';
+            const didShort = userDIDState.did ? userDIDState.did.substring(0, 22) + '...' : 'did:gemverse:...';
+
+            let html = `
+                <!-- Avatar Profile Card -->
+                <div style="background: rgba(13, 14, 21, 0.8); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 48px; height: 48px; border-radius: 8px; background: radial-gradient(circle, #00f0ff, #003366); border: 2px solid #00f0ff; display: flex; align-items: center; justify-content: center; font-size: 1.5em; box-shadow: 0 0 10px rgba(0,240,255,0.4);">
+                            💎
+                        </div>
+                        <div>
+                            <div style="font-weight: bold; color: #00f0ff; font-size: 1.05em; letter-spacing: 0.5px;">${handle} <span style="font-size: 0.75em; color: #ffaa00; background: rgba(255,170,0,0.15); padding: 2px 6px; border-radius: 4px; border: 1px solid #ffaa00;">${coreMatrixState.equippedAvatar}</span></div>
+                            <div style="font-size: 0.75em; color: #888; font-family: monospace; margin-top: 2px;">${didShort}</div>
+                        </div>
+                    </div>
+                    <button id="btn-export-archival" style="background: linear-gradient(135deg, #00f0ff, #0077ff); color: #0d0e15; border: none; padding: 8px 12px; font-weight: bold; font-size: 0.8em; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(0,240,255,0.3);">
+                        <span>📦 EXPORT ARCHIVAL LEDGER</span>
+                    </button>
+                </div>
+
+                <!-- Living Chronicle Stats Bar -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 6px; margin-bottom: 15px;">
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 8px; text-align: center;">
+                        <div style="font-size: 0.7em; color: #aaa;">MINED</div>
+                        <div style="font-size: 1em; font-weight: bold; color: #00f0ff;">${livingChronicle.blocksBroken}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 8px; text-align: center;">
+                        <div style="font-size: 0.7em; color: #aaa;">PLACED</div>
+                        <div style="font-size: 1em; font-weight: bold; color: #00ffaa;">${livingChronicle.blocksPlaced}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 8px; text-align: center;">
+                        <div style="font-size: 0.7em; color: #aaa;">FLIPS</div>
+                        <div style="font-size: 1em; font-weight: bold; color: #ff00bb;">${livingChronicle.gravityFlips}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 8px; text-align: center;">
+                        <div style="font-size: 0.7em; color: #aaa;">TRAVERSED</div>
+                        <div style="font-size: 1em; font-weight: bold; color: #ffaa00;">${Math.floor(livingChronicle.distanceTraversed)}m</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 8px; text-align: center;">
+                        <div style="font-size: 0.7em; color: #aaa;">VALIDATIONS</div>
+                        <div style="font-size: 1em; font-weight: bold; color: #00f0ff;">${livingChronicle.consensusValidations}</div>
+                    </div>
+                </div>
+
+                <!-- Active Chroma Core Matrix Socket Grid -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; color: #00f0ff; font-size: 0.95em; letter-spacing: 1px;">🔮 CHROMA CORE MATRIX SOCKETS</h3>
+                    <span style="font-size: 0.75em; color: #aaa;">PASSIVE MATRIX PERKS</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+            `;
+
+            for (const [coreId, spec] of Object.entries(CHROMA_CORES_SPEC)) {
+                const currentLevel = coreMatrixState.activeCores[coreId] || 1;
+                const isMax = currentLevel >= 5;
+                const nextLevel = Math.min(currentLevel + 1, 5);
+                const req = spec.getRequirement(nextLevel);
+                const currentStat = spec.getCurrentStat();
+                const canUpgrade = !isMax && (currentStat >= req);
+                const progressPct = isMax ? 100 : Math.min(100, Math.floor((currentStat / req) * 100));
+
+                html += `
+                    <div style="background: rgba(13, 14, 21, 0.85); border: 1px solid ${canUpgrade ? '#00f0ff' : 'rgba(255, 255, 255, 0.15)'}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: ${canUpgrade ? '0 0 8px rgba(0,240,255,0.2)' : 'none'};">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span style="font-weight: bold; color: #fff; font-size: 0.85em;">${spec.icon} ${spec.name}</span>
+                                <span style="font-size: 0.75em; padding: 1px 6px; border-radius: 4px; background: rgba(0,240,255,0.2); color: #00f0ff; border: 1px solid rgba(0,240,255,0.4); font-weight: bold;">LVL ${currentLevel}</span>
+                            </div>
+                            <div style="font-size: 0.72em; color: #aaa; margin-bottom: 6px; line-height: 1.2;">${spec.description}</div>
+                            <div style="font-size: 0.75em; color: #00ffaa; font-weight: bold; margin-bottom: 6px;">Perk: ${spec.getFormattedBonus(currentLevel)}</div>
+                        </div>
+
+                        <div>
+                            <!-- Progress Bar -->
+                            <div style="margin-bottom: 6px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.68em; color: #888; margin-bottom: 2px;">
+                                    <span>${isMax ? 'MAX LEVEL REACHED' : `REQ: ${req} ${spec.statName}`}</span>
+                                    <span>${currentStat} / ${isMax ? req : req}</span>
+                                </div>
+                                <div style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${progressPct}%; background: ${canUpgrade ? 'linear-gradient(90deg, #00f0ff, #00ffaa)' : '#555'}; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Upgrade Button -->
+                            <button onclick="upgradeChromaCore('${coreId}')" ${(!canUpgrade || isMax) ? 'disabled' : ''} style="width: 100%; padding: 6px; font-weight: bold; font-size: 0.75em; border-radius: 4px; border: none; cursor: ${canUpgrade ? 'pointer' : 'default'}; background: ${isMax ? 'rgba(255,255,255,0.1)' : (canUpgrade ? 'linear-gradient(135deg, #00f0ff, #0077ff)' : 'rgba(255,255,255,0.08)')}; color: ${isMax ? '#aaa' : (canUpgrade ? '#0d0e15' : '#666')}; border: 1px solid ${canUpgrade ? '#00f0ff' : 'transparent'};">
+                                ${isMax ? '⭐ MAXED' : (canUpgrade ? '⚡ UPGRADE CORE' : `🔒 REQUIRES ${Math.max(0, req - currentStat)} MORE ${spec.statName.toUpperCase()}`)}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+
+            const btnExport = document.getElementById('btn-export-archival');
+            if (btnExport) {
+                btnExport.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    exportArchivalLedger();
+                });
+            }
+        }
+        window.renderCoreMatrixTab = renderCoreMatrixTab;
+
         if (tabBtnInventory) {
             tabBtnInventory.addEventListener('click', (e) => {
                 e.preventDefault();
                 setActiveTab(tabBtnInventory, tabContentInventory);
+            });
+        }
+
+        if (tabBtnMatrix) {
+            tabBtnMatrix.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveTab(tabBtnMatrix, tabContentMatrix);
+                renderCoreMatrixTab();
             });
         }
 
@@ -3047,6 +3635,10 @@
             didPassphraseInput.addEventListener('input', handleInputChange);
             // Initial call
             generateUserDID(didUsernameInput.value, didPassphraseInput.value);
+        }
+
+        if (typeof loadLivingChronicleData === 'function') {
+            loadLivingChronicleData();
         }
 
         const btnRequestVouch = document.getElementById('btn-request-vouch');
@@ -3295,6 +3887,7 @@
                     spawnMiningDebris(targetPos, targetType);
 
                     addItemToInventory(targetType);
+                    if (typeof recordBlockBroken === 'function') recordBlockBroken();
                     if (typeof playSound === 'function') playSound('break', targetType, targetPos.x, targetPos.y, targetPos.z);
 
                     // Convert into non-solid translucent red ghost block (players fall through)
@@ -3332,7 +3925,8 @@
             if (player.isJumpHolding) {
                 const holdElapsed = (time - player.jumpStartTime) / 1000;
                 if (holdElapsed < MAX_JUMP_HOLD_TIME) {
-                    player.velocity.addScaledVector(localUpWorld, JUMP_SUSTAIN_FORCE * delta);
+                    const jumpMult = window.activeJumpImpulseMult || 1.0;
+                    player.velocity.addScaledVector(localUpWorld, JUMP_SUSTAIN_FORCE * jumpMult * delta);
                 } else {
                     player.isJumpHolding = false;
                 }
@@ -3351,7 +3945,8 @@
             // --- Movement Input & Grounded Crouch Edge Protection ---
 
             const isCrouching = player.isGrounded && (keys['ShiftLeft'] || keys['ShiftRight'] || isGshiftActive);
-            const currentMoveSpeed = isCrouching ? moveSpeed * 0.45 : moveSpeed;
+            const speedMult = window.activeSpeedMult || 1.0;
+            const currentMoveSpeed = (isCrouching ? moveSpeed * 0.45 : moveSpeed) * speedMult;
 
             const moveInput = new THREE.Vector3();
 
@@ -3550,6 +4145,14 @@
                 // Dynamic footstep sound triggered on block boundary crossing or distance traveled (~0.85 voxels)
                 const isMoving = moveInput.lengthSq() > 0.01;
                 if (isMoving && !player.isLeaping) {
+                    if (player.prevFramePos) {
+                        const frameDist = player.position.distanceTo(player.prevFramePos);
+                        if (frameDist > 0.001 && frameDist < 2.0) {
+                            if (typeof recordDistanceTraversed === 'function') recordDistanceTraversed(frameDist);
+                        }
+                    }
+                    player.prevFramePos = player.position.clone();
+
                     if (!player.lastStepPos) {
                         player.lastStepPos = player.position.clone();
                         player.lastStepBlockKey = `${groundedX},${groundedY},${groundedZ}`;
@@ -3643,7 +4246,8 @@
 
             // --- Energy Regeneration & HUD Update ---
             if (player.energy < player.maxEnergy) {
-                player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta);
+                const regenMult = window.activeEnergyRegenMult || 1.0;
+                player.energy = Math.min(player.maxEnergy, player.energy + ENERGY_REGEN_RATE * delta * regenMult);
             }
             energyBarFill.style.height = `${(player.energy / player.maxEnergy) * 100}%`;
 
