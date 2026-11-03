@@ -1187,6 +1187,13 @@
         const VOXEL_SIZE = 1;
         const voxelGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
         const collidableVoxels = [];
+        const voxelMap = new Map();
+
+        function hasSolidVoxelAt(x, y, z) {
+            const key = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+            const vox = voxelMap.get(key);
+            return !!(vox && !vox.isGhost);
+        }
 
         // Outer Room Shell: Greedy Voxel Instancing & Frustum Culling
         const outerShellGlassMat = new THREE.MeshPhysicalMaterial({
@@ -1253,7 +1260,7 @@
             instancedGlassMesh.setMatrixAt(idx, dummyMatrix);
 
             // Register voxel data for raycasting and placement without individual mesh bloat
-            collidableVoxels.push({
+            const glassVoxelObj = {
                 mesh: instancedGlassMesh,
                 instanceId: idx,
                 min: new THREE.Vector3(pos.x - VOXEL_SIZE / 2, pos.y - VOXEL_SIZE / 2, pos.z - VOXEL_SIZE / 2),
@@ -1264,7 +1271,9 @@
                 x: pos.x,
                 y: pos.y,
                 z: pos.z
-            });
+            };
+            collidableVoxels.push(glassVoxelObj);
+            voxelMap.set(`${pos.x},${pos.y},${pos.z}`, glassVoxelObj);
         });
         instancedGlassMesh.instanceMatrix.needsUpdate = true;
         scene.add(instancedGlassMesh);
@@ -1382,6 +1391,7 @@
             };
 
             collidableVoxels.push(voxelObj);
+            voxelMap.set(`${x},${y},${z}`, voxelObj);
             return voxelObj;
         }
 
@@ -1390,6 +1400,7 @@
             if (idx !== -1) {
                 collidableVoxels.splice(idx, 1);
             }
+            voxelMap.delete(`${voxelObj.x},${voxelObj.y},${voxelObj.z}`);
             scene.remove(voxelObj.mesh);
             if (voxelObj.mesh.geometry) voxelObj.mesh.geometry.dispose();
             if (voxelObj.mesh.material) {
@@ -2392,12 +2403,6 @@
             if (document.pointerLockElement) {
                 moveX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
                 moveY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-            } else {
-                // Drag-look fallback or cursor-based camera movement when pointer lock is not active
-                if (lastMouseX !== 0 && lastMouseY !== 0) {
-                    moveX = e.clientX - lastMouseX;
-                    moveY = e.clientY - lastMouseY;
-                }
             }
 
             lastMouseX = e.clientX;
@@ -3082,11 +3087,15 @@
 
         document.addEventListener('pointerlockchange', () => {
             mouseLocked = (document.pointerLockElement === renderer.domElement || document.pointerLockElement === document.body);
+            lastMouseX = 0;
+            lastMouseY = 0;
         });
 
         function toggleSettingsModal() {
             if (settingsModal.style.display === 'flex') {
                 settingsModal.style.display = 'none';
+                selectedSwapSlotIndex = null;
+                updateInventoryUI();
                 if (graphicsModal) graphicsModal.style.display = 'none';
                 if (controlsModal) controlsModal.style.display = 'none';
                 if (connectModal) connectModal.style.display = 'none';
@@ -3507,20 +3516,27 @@
                     const absY = Math.abs(minY);
                     const absZ = Math.abs(minZ);
 
-                    let hitNormal = new THREE.Vector3();
-                    if (absX <= absY && absX <= absZ) {
-                        player.position.x += minX;
-                        hitNormal.set(Math.sign(minX), 0, 0);
-                    } else if (absY <= absX && absY <= absZ) {
-                        player.position.y += minY;
-                        hitNormal.set(0, Math.sign(minY), 0);
+                    // Rank candidate separation axes by ascending penetration depth
+                    const candidates = [
+                        { axis: 'x', depth: absX, delta: minX, normal: new THREE.Vector3(Math.sign(minX), 0, 0) },
+                        { axis: 'y', depth: absY, delta: minY, normal: new THREE.Vector3(0, Math.sign(minY), 0) },
+                        { axis: 'z', depth: absZ, delta: minZ, normal: new THREE.Vector3(0, 0, Math.sign(minZ)) }
+                    ].sort((a, b) => a.depth - b.depth);
+
+                    // Pick first axis whose face is exposed (not occluded by an adjacent solid voxel)
+                    let chosen = candidates.find(c => !hasSolidVoxelAt(vox.x + c.normal.x, vox.y + c.normal.y, vox.z + c.normal.z)) || candidates[0];
+
+                    if (chosen.axis === 'x') {
+                        player.position.x += chosen.delta;
+                    } else if (chosen.axis === 'y') {
+                        player.position.y += chosen.delta;
                     } else {
-                        player.position.z += minZ;
-                        hitNormal.set(0, 0, Math.sign(minZ));
+                        player.position.z += chosen.delta;
                     }
 
-                    const dotUp = localUpWorld.dot(hitNormal);
-                    if (dotUp > 0.8 && !isMovingUpward) {
+                    const dotUp = localUpWorld.dot(chosen.normal);
+                    // Only establish grounded state if separated along local up on an exposed surface
+                    if (dotUp > 0.8 && !isMovingUpward && !hasSolidVoxelAt(vox.x + chosen.normal.x, vox.y + chosen.normal.y, vox.z + chosen.normal.z)) {
                         player.isGrounded = true;
                         groundedBlockType = vox.baseType;
                         groundedX = vox.x;
